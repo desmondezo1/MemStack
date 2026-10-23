@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Show Me</title>
+<link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header>
+    <div class="brand">Show Me <span class="tag">fail once · teach once</span></div>
+    <span id="mode" class="pill">connecting…</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" class="tab active" data-view="agent" aria-selected="true">Agent</button>
+    <button role="tab" class="tab" data-view="ledger" aria-selected="false">Ledger</button>
+  </nav>
+
+  <section id="view-agent" class="view">
+    <label for="goal" class="label">What should I do on this page?</label>
+    <div class="goal-row">
+      <textarea id="goal" rows="2" placeholder="Book a table for two at eight"></textarea>
+      <button id="mic" class="icon" title="Speak your goal" aria-label="Speak your goal">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+      </button>
+    </div>
+    <div class="row">
+      <button id="run" class="primary">Run</button>
+      <button id="stop" class="ghost" hidden>Stop</button>
+      <span id="target" class="muted"></span>
+    </div>
+    <label class="small muted"><input type="checkbox" id="autorun" checked> Run as soon as I finish speaking</label>
+    <p id="mic-status" class="muted small" hidden></p>
+
+    <ol id="timeline" class="timeline"></ol>
+    <div id="verdict" class="verdict" hidden></div>
+
+    <div id="teach" class="card" hidden>
+      <div id="teach-ask">
+        <p><b>I couldn't finish this.</b> <span id="teach-reason"></span></p>
+        <p class="muted small">Do the task once by hand. Every step you take is saved to memory and sent through Mubit as a training example.</p>
+        <button id="show-me" class="primary">Show me how</button>
+      </div>
+      <div id="teach-recording" hidden>
+        <p><span class="dot"></span> <b>Watching.</b> Do the task in the page, then press Done.</p>
+        <ol id="recorded" class="recorded"></ol>
+        <div class="row">
+          <button id="done-teaching" class="primary" disabled>Done teaching</button>
+          <button id="cancel-teaching" class="ghost">Cancel</button>
+        </div>
+      </div>
+      <div id="teach-saved" hidden>
+        <p id="saved-summary"></p>
+        <button id="rerun" class="primary">Run it again</button>
+      </div>
+    </div>
+
+    <div class="memory">
+      <span id="memory-count" class="muted small">Memory: …</span>
+      <button id="forget" class="link small">Forget lessons</button>
+    </div>
+  </section>
+
+  <section id="view-ledger" class="view" hidden>
+    <p class="muted small">With a Mubit key, every call below goes through <b>Mubit</b>. Mubit's console is the source of truth for kept examples and adapter versions; adapter cost and latency here are estimates until you read them from Try models.</p>
+    <div id="ledger"></div>
+    <div class="row">
+      <button id="refresh-ledger" class="ghost">Refresh</button>
+      <a class="link small" href="https://app.mubit.ai/console/" target="_blank" rel="noreferrer">Open Mubit console ↗</a>
+    </div>
+    <details class="settings">
+      <summary>Settings</summary>
+      <label for="server" class="label small">Backend URL</label>
+      <input id="server" type="text" value="http://localhost:8787">
+      <button id="reset-ledger" class="link small">Reset local ledger</button>
+    </details>
+  </section>
+
+  <script src="sidepanel.js" type="module"></script>
+</body>
+</html>

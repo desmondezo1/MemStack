@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Show Me",
+  "version": "0.1.0",
+  "description": "The browser agent you teach by hand. Every demonstration becomes training data through Mubit.",
+  "action": { "default_title": "Open Show Me" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["sidePanel", "tabs", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }
+  ]
+}
