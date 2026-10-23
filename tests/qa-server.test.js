@@ -204,11 +204,11 @@ test('qa: model reply referencing a missing element -> valid:false', async () =>
   assert.equal(j.label, null);
 });
 
-test('qa: model reply that is not JSON -> 502 with message', async () => {
+test('qa: model reply that is not JSON -> 422 (agent error, teachable) with message', async () => {
   live('anthropic');
   fake.reply = 'I would click the button.';
   const r = await post('/api/next-action', { goal: 'Book', page, history: [], sessionId: 's' });
-  assert.equal(r.status, 502);
+  assert.equal(r.status, 422);
   assert.match((await r.json()).error, /not JSON/);
 });
 

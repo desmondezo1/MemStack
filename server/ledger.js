@@ -48,6 +48,13 @@ function prices() {
   };
 }
 
+// Cost of one call on the provider, and the estimated cost of the same call on a Mubit adapter.
+export function costOf(inTokens = 0, outTokens = 0) {
+  const p = prices();
+  const costUsd = (inTokens * p.in + outTokens * p.out) / 1e6;
+  return { costUsd, adapterCostUsd: costUsd * p.adapterCostRatio, adapterMs: p.adapterLatencyMs };
+}
+
 export function ledgerStats({ provider, model }) {
   const calls = readCalls();
   const p = prices();
@@ -90,5 +97,15 @@ export function ledgerStats({ provider, model }) {
       },
     };
   }).sort((a, b) => a.task.localeCompare(b.task));
-  return { provider, model, keptExamplesToTrain: KEPT_EXAMPLES_TO_TRAIN, tasks, totalCalls: calls.length };
+  const real = calls.filter(c => c.ok && c.provider !== 'mock');
+  const spent = real.reduce((sum, c) => sum + costOf(c.inTokens, c.outTokens).costUsd, 0);
+  const totals = {
+    callsViaMubit: real.length,
+    providerUsd: spent,
+    adapterUsdEstimate: spent * p.adapterCostRatio,
+    savedUsdEstimate: spent * (1 - p.adapterCostRatio),
+    p50Ms: median(real.map(c => c.ms)),
+    adapterMsEstimate: p.adapterLatencyMs,
+  };
+  return { provider, model, keptExamplesToTrain: KEPT_EXAMPLES_TO_TRAIN, tasks, totals, totalCalls: calls.length };
 }

@@ -107,6 +107,35 @@ const generators = [
     return { goal, page: { url: 'https://news.example/', title: 'News', headings: ['We value your privacy'], elements }, history: [] };
   },
 
+  function blankStart() {
+    const goal = pick([
+      `Open YouTube and play a ${pick(['Burna Boy', 'Tems', 'Wizkid', 'Asake', 'Adele'])} video`,
+      `Go to Wikipedia and look up ${pick(['Lagos', 'the Thames', 'Alan Turing', 'jollof rice'])}`,
+      'Check the weather in London on the BBC',
+      `Search Google for ${pick(['cheap flights to Lagos', 'best ramen in Soho', 'hackathons in London'])}`,
+      `Find ${pick(['running shoes', 'a USB-C hub', 'noise cancelling headphones'])} on Amazon`,
+    ]);
+    return { goal, page: { url: 'chrome://newtab/', title: 'New Tab', headings: [], elements: [], note: 'none (browser start page: use open_url to go to a site)' }, history: [] };
+  },
+
+  function videoResults() {
+    idCounter = Math.floor(Math.random() * 60) + 1;
+    const artist = pick(['Burna Boy', 'Tems', 'Wizkid', 'Asake', 'Adele']);
+    const goal = pick([`Play a ${artist} video`, `Open YouTube and play ${artist}`, `Watch ${artist} live`]);
+    const searched = Math.random() < 0.6;
+    const elements = [
+      el('link', 'YouTube Home'), el('textbox', 'Search', { value: searched ? artist : '' }), el('button', 'Search'),
+      el('button', 'Search with your voice'), el('link', 'Shorts'), el('link', 'Subscriptions'),
+      ...(searched ? shuffle([`${artist} - Official Music Video`, `${artist} live at Glastonbury`, `${artist} interview`, `Best of ${artist} playlist`])
+        .map(t => el('link', `${t} 12M views 2 years ago`)) : [el('link', 'Trending video 1M views'), el('link', 'Lo-fi beats 3M views')]),
+    ];
+    const history = searched
+      ? [{ action: 'open_url', label: null, role: null, value: `https://www.youtube.com/results?search_query=${encodeURIComponent(artist)}` }]
+      : [{ action: 'open_url', label: null, role: null, value: 'https://www.youtube.com' }];
+    const url = searched ? `https://www.youtube.com/results?search_query=${encodeURIComponent(artist)}` : 'https://www.youtube.com/';
+    return { goal, page: { url, title: 'YouTube', headings: [], scroll: '0% down, 412 controls on the page', elements }, history };
+  },
+
   function support() {
     idCounter = Math.floor(Math.random() * 25) + 1;
     const order = `#${Math.floor(10000 + Math.random() * 90000)}`;

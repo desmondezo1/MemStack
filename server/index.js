@@ -29,27 +29,27 @@ const routes = {
     history = history || [];
     const demo = recallDemo({ url: page.url, goal });
     const userMessage = buildNextActionMessage({ goal, page, history, demo });
-    const { json, ms, requestId } = await callTask({
+    const { json, ms, requestId, usage } = await callTask({
       task: TASKS.nextAction, userMessage, sessionId, mockContext: { goal, page, history, demo },
     });
     const action = normaliseAction(json, page);
-    return { ...action, ms, requestId, demoUsed: demo ? { id: demo.id, goal: demo.goal } : null };
+    return { ...action, ms, requestId, usage, demoUsed: demo ? { id: demo.id, goal: demo.goal } : null };
   },
 
   'POST /api/done-check': async ({ goal, page, sessionId }) => {
     requireFields({ goal, page, sessionId });
-    const { json, ms, requestId } = await callTask({
+    const { json, ms, requestId, usage } = await callTask({
       task: TASKS.doneCheck, userMessage: buildDoneCheckMessage({ goal, page }), sessionId, mockContext: { goal, page },
     });
-    return { done: json.done === true, reason: String(json.reason || ''), ms, requestId };
+    return { done: json.done === true, reason: String(json.reason || ''), ms, requestId, usage };
   },
 
   'POST /api/safety-gate': async ({ goal, action, element, sessionId }) => {
     requireFields({ goal, action, sessionId });
-    const { json, ms, requestId } = await callTask({
+    const { json, ms, requestId, usage } = await callTask({
       task: TASKS.safetyGate, userMessage: buildSafetyMessage({ goal, action, element }), sessionId, mockContext: { goal, action, element },
     });
-    return { allow: json.allow !== false, reason: String(json.reason || ''), ms, requestId };
+    return { allow: json.allow !== false, reason: String(json.reason || ''), ms, requestId, usage };
   },
 
   'GET /api/demonstrations': async () => ({ demos: listDemos() }),
@@ -76,7 +76,7 @@ const routes = {
           mockContext: { goal, page: step.page, history, demo },
         });
         const chosen = (step.page.elements || []).find(e => e.id === json.element_id);
-        const agreed = json.action === step.action && !!chosen && sameText(chosen.label, step.label);
+        const agreed = json.action === step.action && (step.label ? !!chosen && sameText(chosen.label, step.label) : sameText(json.value, step.value));
         return { step: i + 1, agreed, provider: { action: json.action, label: chosen?.label ?? null } };
       } catch (err) {
         return { step: i + 1, agreed: false, error: err.message };
@@ -99,13 +99,27 @@ const routes = {
   'DELETE /api/ledger': async () => { clearCalls(); return { ok: true }; },
 };
 
-function normaliseAction(json, page) {
+const NEEDS_ELEMENT = new Set(['click', 'type', 'select']);
+const PAGE_ACTIONS = new Set(['back', 'wait', 'ask_human', 'done']);
+const KEYS = new Set(['Enter', 'Escape', 'Tab', 'ArrowDown', 'ArrowUp']);
+
+// Checks the model's choice against the page, so the extension never acts on a made-up element or URL.
+export function normaliseAction(json, page) {
   const action = String(json.action || '').toLowerCase();
   const elementId = String(json.element_id || '');
   const element = (page.elements || []).find(e => e.id === elementId) || null;
-  const valid = action === 'done' || (['click', 'type', 'select'].includes(action) && !!element);
+  let value = json.value == null ? '' : String(json.value);
+  let valid = false;
+  if (NEEDS_ELEMENT.has(action)) valid = !!element;
+  else if (PAGE_ACTIONS.has(action)) valid = true;
+  else if (action === 'scroll') { value = /up/i.test(value) ? 'up' : 'down'; valid = true; }
+  else if (action === 'press') valid = KEYS.has(value) && (!elementId || !!element);
+  else if (action === 'open_url') {
+    if (value && !/^[a-z]+:/i.test(value)) value = `https://${value}`;
+    try { valid = ['http:', 'https:'].includes(new URL(value).protocol); } catch { valid = false; }
+  }
   return {
-    action, element_id: elementId, value: json.value == null ? '' : String(json.value),
+    action, element_id: element ? elementId : '', value, submit: json.submit === true,
     reason: String(json.reason || ''), label: element?.label ?? null, role: element?.role ?? null, valid,
   };
 }
@@ -163,7 +177,8 @@ const STATIC_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', 
 
 function serveStatic(res, urlPath) {
   const rel = urlPath.replace(/^\/demo\/?/, '') || 'index.html';
-  const file = path.resolve(DEMO_SITE, rel);
+  let file = path.resolve(DEMO_SITE, rel);
+  if (file.startsWith(DEMO_SITE) && fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   if (!file.startsWith(DEMO_SITE) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return send(res, 404, { error: 'Not found' });
   send(res, 200, fs.readFileSync(file), STATIC_TYPES[path.extname(file)] || 'application/octet-stream');
 }
@@ -181,9 +196,10 @@ export function createServer() {
       send(res, 200, await handler(body));
     } catch (err) {
       // Our own validation errors keep their status; anything from Mubit or the provider is a 502.
-      const status = err instanceof LlmError ? 502 : (err.status || 500);
+      // A garbled model answer is the agent's mistake (422, teachable); a failed call is infrastructure (502).
+      const status = err.code === 'bad_reply' ? 422 : err instanceof LlmError ? 502 : (err.status || 500);
       console.error(`[show-me] ${req.method} ${url.pathname}: ${err.message}`);
-      send(res, status, { error: err.message, requestId: err.requestId || null });
+      send(res, status, { error: err.message, requestId: err.requestId || null, agentError: err.code === 'bad_reply' });
     }
   });
 }

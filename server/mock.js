@@ -42,6 +42,22 @@ function nextAction({ goal, page, history = [], demo }) {
   const els = page.elements || [];
   const act = (el, action, value = '', reason = '') => ({ action, element_id: el.id, value: String(value), reason });
 
+  // Go to the site the goal names first: a full URL, or "open <site>" from a blank page.
+  if (!history.some(h => h.action === 'open_url')) {
+    const url = goal.match(/https?:\/\/[^\s,]+/)?.[0];
+    if (url && !page.url.startsWith(url)) return { action: 'open_url', element_id: '', value: url, reason: 'Go to the requested site' };
+    const site = goal.match(/\bopen (?:up )?([a-z0-9-]+)(?:\.com)?\b/i)?.[1];
+    if (!url && site && !els.length) return { action: 'open_url', element_id: '', value: `https://www.${site.toLowerCase()}.com`, reason: 'Go to the requested site' };
+    const taughtUrl = demo?.steps.find(s => s.action === 'open_url');
+    if (taughtUrl) return { action: 'open_url', element_id: '', value: taughtUrl.value, reason: 'Following the human demonstration' };
+  }
+  if (!els.length) {
+    // An empty page after some work is usually a confirmation page; before any work it's a dead end.
+    return history.length
+      ? { action: 'done', element_id: '', value: '', reason: 'Nothing left to do' }
+      : { action: 'ask_human', element_id: '', value: 'I can\'t see anything to use on this page', reason: 'Nothing to act on' };
+  }
+
   const dismiss = els.find(e => e.inDialog && /no thanks|not now|dismiss|close|reject/i.test(e.label));
   if (dismiss && !done(history, dismiss.label)) return act(dismiss, 'click', '', 'Dismiss the popup');
 
@@ -49,15 +65,28 @@ function nextAction({ goal, page, history = [], demo }) {
 
   if (demo) {
     for (const step of demo.steps) {
+      if (step.action === 'open_url') continue; // handled above
       if (done(history, step.label, step.action)) continue;
       const el = els.find(e => sameLabel(e.label, step.label));
       if (!el) continue;
       let value = step.value;
       if (step.action === 'select' && /party|guest|people|size/i.test(step.label) && size) value = String(size);
       if (step.action === 'type' && /name/i.test(step.label)) value = guestName(goal) || step.value;
-      return act(el, step.action, value, 'Following the human demonstration');
+      return { ...act(el, step.action, value, 'Following the human demonstration'), submit: !!step.submit };
     }
     return { action: 'done', element_id: '', value: '', reason: 'Demonstration completed' };
+  }
+
+  // Video sites: search for the query, open the first matching result, press play.
+  const query = videoQuery(goal);
+  if (query) {
+    const words = query.toLowerCase().split(/\s+/);
+    const play = els.find(e => e.role === 'button' && /^\W*play\b/i.test(e.label));
+    if (play && !done(history, play.label)) return act(play, 'click', '', 'Start the video');
+    const result = els.find(e => e.role === 'link' && words.every(w => e.label.toLowerCase().includes(w)));
+    if (result && !history.some(h => h.role === 'link')) return act(result, 'click', '', 'Open the best match');
+    const search = els.find(e => e.role === 'textbox' && /search/i.test(e.label));
+    if (search && !history.some(h => h.action === 'type')) return { ...act(search, 'type', query, 'Search for it'), submit: true };
   }
 
   const party = els.find(e => e.role === 'select' && /party|guest|people|size/i.test(e.label));
@@ -86,8 +115,20 @@ function nextAction({ goal, page, history = [], demo }) {
   return { action: 'done', element_id: '', value: '', reason: 'Nothing left to do' };
 }
 
+// "open YouTube and play a Burna Boy video" -> "Burna Boy"
+export function videoQuery(goal) {
+  const m = goal.match(/\b(?:play|watch|search for|find)\s+(?:a |an |the |some )?(.+?)(?:\s+(?:music )?videos?)?(?:\s+on\s+\S+)?\s*$/i);
+  return m ? m[1].trim() : null;
+}
+
 function doneCheck({ goal, page }) {
   const text = page.text || '';
+  const q = videoQuery(goal);
+  if (q) {
+    if (!/now playing/i.test(text)) return { done: false, reason: 'No video is playing' };
+    const ok = q.toLowerCase().split(/\s+/).every(w => text.toLowerCase().includes(w));
+    return { done: ok, reason: ok ? 'The requested video is playing' : 'A different video is playing' };
+  }
   if (!/confirmed|booked|see you/i.test(text)) return { done: false, reason: 'No confirmation on the page' };
   const time = goalTime(goal);
   if (time && !text.includes(time)) return { done: false, reason: `Booked, but not at ${time}` };

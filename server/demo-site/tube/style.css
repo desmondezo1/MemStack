@@ -1,0 +1,19 @@
+:root { --bg: #0f0f10; --fg: #f1f1f1; --muted: #aaa; --card: #1d1d20; --accent: #ff3b30; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.45 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--fg); }
+header { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #222; position: sticky; top: 0; background: var(--bg); }
+.logo { color: var(--fg); text-decoration: none; font-weight: 800; font-size: 20px; }
+.logo span { background: var(--accent); color: #fff; border-radius: 6px; padding: 0 6px; margin-right: 4px; }
+form { flex: 1; display: flex; max-width: 560px; }
+input[type=search] { flex: 1; padding: 9px 14px; border-radius: 20px 0 0 20px; border: 1px solid #333; background: #121212; color: var(--fg); font: inherit; }
+form button { padding: 0 18px; border-radius: 0 20px 20px 0; border: 1px solid #333; background: #222; color: var(--fg); font: inherit; cursor: pointer; }
+nav a { color: var(--muted); text-decoration: none; margin-right: 12px; font-size: 14px; }
+main { padding: 16px; max-width: 980px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.video { display: block; color: var(--fg); text-decoration: none; }
+.thumb { aspect-ratio: 16/9; border-radius: 10px; background: linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b); display: grid; place-items: center; font-size: 34px; }
+.video h3 { font-size: 15px; margin: 8px 0 2px; }
+.video p { margin: 0; color: var(--muted); font-size: 13px; }
+.player { aspect-ratio: 16/9; border-radius: 12px; background: #000; display: grid; place-items: center; }
+.player button { font: 600 18px system-ui; padding: 12px 26px; border-radius: 999px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+#status { font-size: 20px; margin: 14px 0 4px; }

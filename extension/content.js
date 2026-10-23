@@ -89,22 +89,46 @@
       item.value = el.type === 'password' ? (el.value ? '***' : '') : clean(el.value ?? el.innerText, 60);
     }
     if (el.disabled) item.disabled = true;
-    if (el.closest('dialog,[role=dialog],[aria-modal=true]')) item.inDialog = true;
+    if (inDialogEl(el)) item.inDialog = true;
     return item;
+  }
+
+  const inDialogEl = el => el.closest('dialog,[role=dialog],[aria-modal=true]');
+
+  // Big sites have hundreds of controls; the model sees MAX_ELEMENTS. Keep the ones
+  // that matter: search boxes and fields, then what's on screen in the main content,
+  // then the rest, and list the survivors in page order.
+  function priority(el) {
+    const role = roleOf(el);
+    const text = `${el.type || ''} ${el.getAttribute('role') || ''} ${labelOf(el)}`;
+    if (role === 'textbox' && /search/i.test(text)) return 0;
+    const r = el.getBoundingClientRect();
+    const onScreen = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+    const inMain = !!el.closest('main,[role=main],#content,#main,article');
+    const inChrome = !!el.closest('nav,header,footer,aside,[role=navigation],[role=banner],[role=contentinfo]');
+    if (role === 'textbox' || role === 'select') return onScreen ? 1 : 3;
+    if (onScreen && inMain) return 1;
+    if (onScreen && !inChrome) return 2;
+    if (onScreen) return 3;
+    if (inMain) return 4;
+    return inChrome ? 6 : 5;
   }
 
   function snapshot() {
     const all = [...document.querySelectorAll(SELECTOR)].filter(isVisible);
     // An open modal blocks the page: show only what is inside it. Filter before
     // capping, or a dialog at the end of a long page would never be seen.
-    const inDialog = all.filter(el => el.closest('dialog,[role=dialog],[aria-modal=true]'));
-    const visible = (inDialog.length ? inDialog : all).slice(0, MAX_ELEMENTS).map(describe);
+    const inDialog = all.filter(inDialogEl);
+    const pool = (inDialog.length ? inDialog : all).map((el, index) => ({ el, index, p: priority(el) }));
+    const kept = pool.sort((a, b) => a.p - b.p || a.index - b.index).slice(0, MAX_ELEMENTS).sort((a, b) => a.index - b.index);
     const headings = [...document.querySelectorAll('h1,h2')].filter(isVisible).map(h => clean(h.innerText, 60)).filter(Boolean);
+    const scrollable = document.documentElement.scrollHeight - innerHeight;
     return {
       url: location.href,
       title: clean(document.title, 100),
-      headings,
-      elements: visible,
+      headings: headings.slice(0, 5),
+      scroll: scrollable > 50 ? `${Math.round((100 * scrollY) / scrollable)}% down, ${all.length} controls on the page` : '',
+      elements: kept.map(k => describe(k.el)),
       text: clean(document.body?.innerText, 4000),
     };
   }
@@ -122,7 +146,29 @@
     setter ? setter.call(el, value) : (el.value = value);
   }
 
-  function act({ action, element_id: id, value = '' }) {
+  function pressKey(target, key) {
+    const init = { key, code: key, bubbles: true, cancelable: true, composed: true };
+    if (key === 'Enter') Object.assign(init, { keyCode: 13, which: 13 });
+    if (key === 'Escape') Object.assign(init, { keyCode: 27, which: 27 });
+    const down = target.dispatchEvent(new KeyboardEvent('keydown', init));
+    target.dispatchEvent(new KeyboardEvent('keypress', init));
+    target.dispatchEvent(new KeyboardEvent('keyup', init));
+    // Script-made key events don't submit forms by themselves: do what Enter would do.
+    if (key === 'Enter' && down) {
+      const form = target.form || target.closest?.('form');
+      if (form) form.requestSubmit ? form.requestSubmit() : form.submit();
+    }
+  }
+
+  function act({ action, element_id: id, value = '', submit = false }) {
+    if (action === 'scroll') {
+      window.scrollBy({ top: (value === 'up' ? -0.8 : 0.8) * innerHeight, behavior: 'instant' });
+      return { ok: true };
+    }
+    if (action === 'press' && !id) {
+      pressKey(document.activeElement || document.body, value);
+      return { ok: true };
+    }
     const el = document.querySelector(`[data-showme-id="${CSS.escape(id)}"]`);
     if (!el) return { ok: false, error: `Element ${id} is not on the page` };
     el.scrollIntoView({ block: 'center', behavior: 'instant' });
@@ -134,6 +180,7 @@
       if (el.isContentEditable) el.textContent = value; else setNativeValue(el, value);
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
+      if (submit) pressKey(el, 'Enter');
     } else if (action === 'select') {
       const want = String(value).trim().toLowerCase();
       const option = [...el.options].find(o => o.text.trim().toLowerCase() === want || o.value.toLowerCase() === want);
@@ -141,6 +188,9 @@
       el.value = option.value;
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (action === 'press') {
+      el.focus();
+      pressKey(el, value);
     } else {
       return { ok: false, error: `Unknown action ${action}` };
     }
@@ -194,6 +244,9 @@
     if (!el) return;
     const role = roleOf(el);
     if (role === 'select' || role === 'textbox') return; // recorded on change instead
+    // Enter in a form makes the browser "click" its submit button (detail 0): that's
+    // part of the "type + Enter" step already recorded, not a click of its own.
+    if (event.detail === 0 && Date.now() - lastEnterAt < 1000 && role === 'button') return;
     // A click on a <label> also fires a click on its input: record it once.
     // Two real clicks on the same control are still two steps.
     const now = Date.now();
@@ -212,12 +265,26 @@
     if (!el) return;
     const role = roleOf(el);
     if (role !== 'select' && role !== 'textbox') return;
+    if (el.type === 'password') return; // never record passwords
+    if (submittedByEnter.get(el) === el.value) return; // already recorded as "type + Enter"
     const page = focusPages.get(el) || snapshot();
     const item = describe(el);
-    const value = role === 'select' ? clean(el.selectedOptions?.[0]?.text, 40)
-      : (el.type === 'password' ? '' : clean(el.value, 200));
-    if (el.type === 'password') return; // never record passwords
+    const value = role === 'select' ? clean(el.selectedOptions?.[0]?.text, 40) : clean(el.value, 200);
     emit({ action: role === 'select' ? 'select' : 'type', element_id: item.id, label: item.label, role: item.role, value, page });
+  }
+
+  // Typing then pressing Enter (a search box) is one step: type with submit.
+  const submittedByEnter = new WeakMap();
+  let lastEnterAt = 0;
+  function onKeyDown(event) {
+    if (!recording || event.key !== 'Enter' || event.isComposing) return;
+    const el = interactiveTarget(event.target);
+    if (!el || roleOf(el) !== 'textbox' || el.type === 'password' || el.tagName === 'TEXTAREA') return;
+    lastEnterAt = Date.now();
+    submittedByEnter.set(el, el.value);
+    const page = focusPages.get(el) || snapshot();
+    const item = describe(el);
+    emit({ action: 'type', element_id: item.id, label: item.label, role: item.role, value: clean(el.value ?? el.innerText, 200), submit: true, page });
   }
 
   document.addEventListener('pointerdown', onPointerDown, true);
@@ -225,6 +292,7 @@
   document.addEventListener('focusout', onFocusOut, true);
   document.addEventListener('click', onClick, true);
   document.addEventListener('change', onChange, true);
+  document.addEventListener('keydown', onKeyDown, true);
 
   function setRecording(on) {
     recording = on;

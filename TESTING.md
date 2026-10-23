@@ -37,6 +37,33 @@ After any change to files in `extension/`, press the reload icon on the Show Me 
 
 **Forget lessons** (bottom of the Agent tab) clears memory, so you can rehearse again.
 
+### What the agent can do
+
+| Tool | What it does |
+| --- | --- |
+| `open_url` | Opens a site, or goes straight to a search results URL. Works from a new tab. |
+| `click`, `type`, `select` | Acts on a button, link, field or dropdown. `type` can press Enter afterwards (search boxes). |
+| `press` | Enter, Escape, Tab, arrow keys. |
+| `back`, `scroll`, `wait` | Goes back a page, reveals more of a long page, waits for a slow page. |
+| `ask_human` | The agent says it's stuck and asks you to show it (spoken aloud with **Talk back** on). |
+| `done` | Finishes; a separate check then reads the page to confirm the goal really happened. |
+
+Try, from any tab (even a new tab):
+
+- `Open YouTube and play a Burna Boy video`: real YouTube, so it needs the real model (step 4 below).
+- `open http://localhost:8787/demo/tube/ and play a Burna Boy video`: **Tubely**, an offline copy of a
+  video site for a stage demo that can't break. Works with the mock too.
+
+### Reading the side panel
+
+- **Timeline**: every decision with its reason, time, cost on Claude, and the page it led to (`now on …`).
+- **Green strip**: live savings: this run's calls through Mubit, cost on Claude vs on an adapter, and
+  latency, plus the all-time total.
+- **Mistake view**: after you teach, the step where the agent went wrong turns red: *"Mistake at step 3:
+  I did click Sitting D, you did click Sitting C."*
+- When you teach, typing an address in the address bar is recorded too (as `open …`), and so is
+  typing in a search box and pressing Enter.
+
 ## 4. Connect Claude through Mubit
 
 The mock is for testing the flow. For the real thing, Claude makes every decision through Mubit's gateway,
@@ -96,6 +123,8 @@ The first time, if Playwright says Chromium is missing: `npx playwright install 
 
 ## Rehearsal tips
 
+- Changed the next-action prompt on 24 Oct (full toolset), so Mubit sees a new next-action task; the seed
+  script was re-run for it. Check its count in Mubit → Tasks.
 - With a real model, the first run is a genuine guess: Sitting times aren't visible to the agent.
   If Claude happens to pick the right one, press **Forget lessons** and ask for another time,
   e.g. `Book a table for four at quarter past nine` (Sitting D).

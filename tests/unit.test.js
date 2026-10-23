@@ -20,7 +20,7 @@ const { parseJson } = await import('../server/llm.js');
 test('system prompts are unchanged (Mubit task fingerprints)', () => {
   const hashes = Object.fromEntries(Object.entries(SYSTEM_PROMPTS).map(([k, v]) => [k, crypto.createHash('sha256').update(v).digest('hex').slice(0, 16)]));
   assert.deepEqual(hashes, {
-    'next-action': '5573001f9d9f4475',
+    'next-action': '2cb30b8a806c41bf',
     'done-check': '0d1ab2abb424237b',
     'safety-gate': 'd66fb5cd082cdb56',
   });
@@ -133,4 +133,42 @@ test('API: health, next-action, demonstrations, ledger', async () => {
   assert.match(await site.text(), /Trattoria Nove/);
   const traversal = await fetch(`${base}/demo/..%2f..%2fpackage.json`);
   assert.equal(traversal.status, 404);
+});
+
+test('normaliseAction checks every tool against the page', async () => {
+  const { normaliseAction } = await import('../server/index.js');
+  const pg = { elements: [{ id: 'e1', role: 'textbox', label: 'Search' }] };
+  assert.equal(normaliseAction({ action: 'type', element_id: 'e1', value: 'x', submit: true }, pg).submit, true);
+  assert.equal(normaliseAction({ action: 'click', element_id: 'e9' }, pg).valid, false);
+  assert.equal(normaliseAction({ action: 'open_url', value: 'youtube.com' }, pg).value, 'https://youtube.com');
+  assert.equal(normaliseAction({ action: 'open_url', value: 'javascript:alert(1)' }, pg).valid, false);
+  assert.equal(normaliseAction({ action: 'scroll', value: 'UP' }, pg).value, 'up');
+  assert.equal(normaliseAction({ action: 'press', value: 'Enter' }, pg).valid, true);
+  assert.equal(normaliseAction({ action: 'press', value: 'F5' }, pg).valid, false);
+  for (const action of ['back', 'wait', 'ask_human', 'done']) assert.equal(normaliseAction({ action }, pg).valid, true, action);
+  assert.equal(normaliseAction({ action: 'teleport' }, pg).valid, false);
+});
+
+test('mock opens the site named in the goal from a blank page', () => {
+  const blank = { url: 'about:blank', elements: [] };
+  assert.equal(mockAnswer('next-action', { goal: 'open http://x.test/a and play jazz', page: blank, history: [] }).action, 'open_url');
+  assert.equal(mockAnswer('next-action', { goal: 'open YouTube and play a Burna Boy video', page: blank, history: [] }).value, 'https://www.youtube.com');
+  assert.equal(mockAnswer('next-action', { goal: 'do something', page: blank, history: [] }).action, 'ask_human');
+});
+
+test('parseJson also reads tool-call style replies', () => {
+  const reply = '<invoke name="click">\n<parameter name="element_id">e28</parameter>\n<parameter name="reason">Open the video</parameter>\n</invoke>';
+  assert.deepEqual(parseJson(reply), { action: 'click', element_id: 'e28', reason: 'Open the video' });
+  assert.deepEqual(parseJson('<invoke name="type"><parameter name="submit">true</parameter></invoke>'), { action: 'type', submit: true });
+});
+
+test('parseJson takes the final answer when the model reconsiders', () => {
+  const reply = '{"action":"click","element_id":"e4","reason":"Play"} Wait, let me reconsider. The video is playing. {"action":"done","element_id":"","reason":"Video is playing {already}"}';
+  assert.equal(parseJson(reply).action, 'done');
+  assert.equal(parseJson('{"a":"} tricky \\" quote","b":1}').b, 1);
+});
+
+test('parseJson finds JSON inside a made-up tool call', () => {
+  const reply = 'Let me start.\n<function_calls>\n<invoke name="json">\n<invoke name="json">\n{"action":"open_url","value":"http://x.test/"}\n</invoke>\n</function_calls>';
+  assert.deepEqual(parseJson(reply), { action: 'open_url', value: 'http://x.test/' });
 });

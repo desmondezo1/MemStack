@@ -36,7 +36,7 @@ export function addDemo({ goal, url, steps }) {
   // Each step keeps the page it happened on, so a lesson spanning several pages
   // is recalled on every one of them.
   const stored = steps.map(s => ({
-    action: s.action, label: s.label, role: s.role, value: s.value ?? '',
+    action: s.action, label: s.label, role: s.role, value: s.value ?? '', submit: s.submit === true,
     page: pageKey(s.page?.url || url),
   }));
   const demo = {

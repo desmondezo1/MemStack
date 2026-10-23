@@ -4,7 +4,7 @@
 
 import { SYSTEM_PROMPTS } from './prompts.js';
 import { mockAnswer } from './mock.js';
-import { logCall } from './ledger.js';
+import { logCall, costOf } from './ledger.js';
 
 export function getConfig() {
   const key = process.env.MUBIT_API_KEY || '';
@@ -55,8 +55,11 @@ export async function callTask({ task, userMessage, sessionId, kind = 'live', mo
     task, kind, ms, ok: !!json, model: config.model, provider: config.provider, sessionId,
     inTokens: result.inTokens, outTokens: result.outTokens, requestId: result.requestId,
   });
-  if (!json) throw new LlmError(`Model reply was not JSON: ${result.text.slice(0, 200)}`, { requestId: result.requestId });
-  return { json, ms, requestId: result.requestId, raw: result.text };
+  if (!json) throw new LlmError(`Model reply was not JSON: ${result.text.slice(0, 200)}`, { requestId: result.requestId, code: 'bad_reply' });
+  const usage = config.provider === 'mock'
+    ? { inTokens: 0, outTokens: 0, costUsd: 0, adapterCostUsd: 0, adapterMs: null, viaMubit: false }
+    : { inTokens: result.inTokens, outTokens: result.outTokens, ...costOf(result.inTokens, result.outTokens), viaMubit: true };
+  return { json, ms, requestId: result.requestId, raw: result.text, usage };
 }
 
 async function post(url, headers, body) {
@@ -91,7 +94,7 @@ async function callAnthropic(config, system, userMessage, sessionId) {
     'anthropic-version': '2023-06-01',
   }, {
     model: config.model,
-    max_tokens: 300,
+    max_tokens: 600,
     temperature: 0,
     system,
     messages: [{ role: 'user', content: userMessage }],
@@ -107,7 +110,7 @@ async function callOpenAI(config, system, userMessage, sessionId) {
     authorization: `Bearer ${config.key}`,
   }, {
     model: config.model,
-    max_completion_tokens: 400,
+    max_completion_tokens: 600,
     messages: [{ role: 'system', content: system }, { role: 'user', content: userMessage }],
     metadata: { session_id: sessionId },
   });
@@ -115,11 +118,41 @@ async function callOpenAI(config, system, userMessage, sessionId) {
   return { text, inTokens: data.usage?.prompt_tokens || 0, outTokens: data.usage?.completion_tokens || 0, requestId };
 }
 
+const ANSWER_KEYS = ['action', 'done', 'allow'];
+
 export function parseJson(text) {
   if (!text) return null;
-  const cleaned = text.replace(/```(?:json)?/g, '').trim();
-  const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end <= start) return null;
-  try { return JSON.parse(cleaned.slice(start, end + 1)); } catch { return null; }
+  // The model sometimes wraps its JSON in prose or a made-up tool call, or answers,
+  // "reconsiders" and answers again: take the last JSON object that is an answer.
+  const objects = jsonObjects(text.replace(/```(?:json)?/g, ''));
+  const answers = objects.filter(o => ANSWER_KEYS.some(k => k in o));
+  if (answers.length) return answers[answers.length - 1];
+  if (objects.length) return objects[objects.length - 1];
+  // No JSON at all: read a tool-call style reply,
+  // <invoke name="click"><parameter name="element_id">e28</parameter>…</invoke>
+  const invoke = [...text.matchAll(/<invoke name="([^"]+)">([\s\S]*?)(?=<invoke|<\/invoke>|$)/g)].pop();
+  if (!invoke) return null;
+  const out = { action: invoke[1] };
+  for (const [, key, value] of invoke[2].matchAll(/<parameter name="([^"]+)">([\s\S]*?)<\/parameter>/g)) {
+    out[key] = value === 'true' ? true : value === 'false' ? false : value.trim();
+  }
+  return out;
+}
+
+function jsonObjects(text) {
+  const found = [];
+  let depth = 0, start = -1, inString = false, escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = depth > 0;
+    else if (c === '{') { if (depth++ === 0) start = i; }
+    else if (c === '}' && depth > 0 && --depth === 0) {
+      try { found.push(JSON.parse(text.slice(start, i + 1))); } catch { /* not JSON after all */ }
+    }
+  }
+  return found;
 }

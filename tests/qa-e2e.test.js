@@ -339,9 +339,12 @@ test('qa: recorder: Enter-to-submit records a fresh page snapshot', { timeout: 3
   await site.waitForTimeout(300);
   const steps = await worker.evaluate(() => self.__rec);
   console.log('enter-submit:', steps.map(s => `${s.action}:${s.label}:${s.page.elements.find(e => e.label === 'Name for the booking')?.value}`));
-  const click = steps.find(s => s.action === 'click');
-  assert.ok(click, 'implicit submit click recorded');
-  assert.equal(click.page.elements.find(e => e.label === 'Name for the booking').value, 'Ada', 'stale pendingPage from pointerdown on the textbox');
+  // Typing then Enter is one "type + Enter" step; the browser's implicit submit click is not a step.
+  assert.equal(steps.filter(s => s.action === 'click').length, 0, 'implicit submit click must not be recorded');
+  const typed = steps.find(s => s.action === 'type');
+  assert.ok(typed, 'type step recorded');
+  assert.equal(typed.value, 'Ada');
+  assert.equal(typed.submit, true);
   await site.close();
 });
 
@@ -394,8 +397,8 @@ for (const [mode, expect] of [['401', /401: invalid api key/], ['prose', /not JS
       const r = await runGoal(panel, 'Book a table for two at eight', 15_000);
       const reason = await panel.textContent('#teach-reason');
       console.log(`provider ${mode}:`, r.verdict, '|', r.timeline, '| teach:', reason, '| teach visible:', await panel.isVisible('#teach'));
-      if (mode === 'ghost') {
-        assert.equal(r.verdict, 'Failed'); // the agent's mistake: teaching is offered
+      if (mode === 'ghost' || mode === 'prose') {
+        assert.equal(r.verdict, 'Failed'); // the agent's mistake (bad element, unusable answer): teaching is offered
       } else {
         assert.match(r.verdict, /^Error/); // infrastructure, not the agent: nothing to teach
         assert.equal(await panel.isVisible('#teach'), false);
