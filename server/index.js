@@ -189,7 +189,14 @@ export function createServer() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
-  createServer().listen(PORT, () => {
+  const server = createServer();
+  server.on('error', err => {
+    if (err.code !== 'EADDRINUSE') throw err;
+    console.error(`Port ${PORT} is already in use: a Show Me server is probably already running.`);
+    console.error(`Stop it (Ctrl+C in its terminal, or: lsof -ti tcp:${PORT} | xargs kill), or start on another port: PORT=8788 npm start`);
+    process.exit(1);
+  });
+  server.listen(PORT, () => {
     const { provider, model } = getConfig();
     const mode = provider === 'mock' ? 'MOCK model (no MUBIT_API_KEY set)' : `${provider} / ${model} via Mubit`;
     console.log(`Show Me server on http://localhost:${PORT}  ·  ${mode}`);
