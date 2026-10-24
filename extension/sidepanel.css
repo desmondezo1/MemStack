@@ -288,3 +288,10 @@ input:focus-visible { border-color: var(--ember); }
 .review li.dropped .what { color: var(--slate); text-decoration: line-through; }
 .review .reason { display: block; color: var(--brick); font-size: var(--fs-xs); text-decoration: none; }
 .answer-text { font-weight: 600; }
+
+.not-right { display: block; margin: 8px 0 0 34px; }
+.mubit-where { display: block; margin-top: 8px; font-size: var(--fs-s); color: var(--slate); }
+.run-session { margin: 6px 0 0 34px; }
+.copy { border: 1px solid var(--rule); background: var(--paper); color: var(--iris); border-radius: 6px; padding: 0 6px; font: 600 var(--fs-xs) ui-monospace, monospace; cursor: copy; }
+.mubit-name { font-weight: 400; font-size: var(--fs-xs); color: var(--iris); }
+.section-link { float: right; font-size: var(--fs-xs); font-weight: 500; }

@@ -77,6 +77,14 @@ function nextAction({ goal, page, history = [], demo }) {
     return { action: 'done', element_id: '', value: '', reason: 'Demonstration completed' };
   }
 
+  // Cancelling a membership without a lesson: a naive agent takes the big
+  // "recommended" button, which only pauses it. (A lesson, above, wins.)
+  if (/\bcancel\b/i.test(goal)) {
+    if (history.some(h => /pause/i.test(h.label || ''))) return { action: 'done', element_id: '', value: '', reason: 'Took the recommended option' };
+    const pause = els.find(e => e.role === 'button' && /pause/i.test(e.label));
+    if (pause) return act(pause, 'click', '', 'The recommended option');
+  }
+
   // Video sites: search for the query, open the first matching result, press play.
   const query = videoQuery(goal);
   if (query) {
@@ -123,6 +131,11 @@ export function videoQuery(goal) {
 
 function doneCheck({ goal, page }) {
   const text = page.text || '';
+  if (/\bcancel\b/i.test(goal) && /membership|subscription/i.test(goal)) {
+    if (!/membership cancelled/i.test(text)) return { done: false, problem: 'no_confirmation', reason: 'The membership is not cancelled' };
+    if (/keep being charged/i.test(text)) return { done: false, problem: 'wrong_item', reason: 'Cancelled, but an add-on is still charging you' };
+    return { done: true, problem: 'none', reason: 'Membership cancelled, no more charges' };
+  }
   const q = videoQuery(goal);
   if (q) {
     if (!/now playing/i.test(text)) return { done: false, reason: 'No video is playing' };

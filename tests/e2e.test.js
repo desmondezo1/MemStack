@@ -117,3 +117,66 @@ test('fail, show me, rerun succeeds', { timeout: live ? 300_000 : 90_000 }, asyn
 
   await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-ledger.png') });
 });
+
+test('gym: pause is not cancel, show me, rerun cancels your way', { timeout: live ? 300_000 : 90_000 }, async () => {
+  const site = await context.newPage();
+  await site.goto(`${base}/demo/gym/`);
+  const tabId = await tabIdFor(`${base}/demo/gym/`);
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${tabId}`);
+  await panel.waitForSelector('#mode.mock, #mode.live', { timeout: 10_000 });
+
+  // 1. The big "recommended" button only pauses: the check catches it.
+  await panel.fill('#goal', 'Cancel my Iron Gym membership');
+  await panel.click('#run');
+  await panel.waitForSelector('#verdict:not([hidden])', { timeout: live ? 120_000 : 30_000 });
+  const firstVerdict = await panel.textContent('#verdict');
+  console.log('gym first run:', firstVerdict, '|', (await panel.textContent('#timeline')).replace(/\s+/g, ' '));
+  if (!live) {
+    assert.equal(firstVerdict, 'Failed');
+    assert.match(await site.textContent('#paused'), /paused/);
+  }
+  // A real model may find the way out by itself, but it can't know Ada wants it to end today
+  // without the paid add-on. Then she corrects a run that looked fine.
+  if (firstVerdict === 'Done ✓') {
+    console.log('gym first result:', (await site.textContent('#summary')).replace(/\s+/g, ' '));
+    await panel.click('#not-right');
+    assert.match(await panel.textContent('#teach-title'), /Not what you wanted/);
+  }
+
+  // 2. Show it the real way out, the way Ada wants it: now, and without the paid add-on.
+  await panel.click('#show-me');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await site.click('text=Manage plan');
+  await site.click('text=Cancel membership');
+  await site.selectOption('#reason', 'Moving away');
+  await site.getByLabel('Immediately, with a refund for unused days').check();
+  await site.uncheck('#addon');
+  await site.click('#continue');
+  await site.click('text=No thanks, continue cancelling');
+  await site.click('#really');
+  await site.waitForSelector('#done', { state: 'visible' });
+
+  await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 8);
+  console.log('gym recorded:', await panel.$$eval('#recorded li .what-text', lis => lis.map(li => li.textContent)));
+  await panel.click('#done-teaching');
+  await panel.waitForFunction(() => /Learned|Could not/.test(document.querySelector('#saved-summary').textContent), null, { timeout: live ? 120_000 : 15_000 });
+  const summary = await panel.textContent('#saved-summary');
+  console.log('gym saved:', summary);
+  assert.match(summary, /Learned/);
+  if (live) assert.match(summary, /Control web browser/);
+
+  // 3. Rerun from a fresh page: cancelled today, add-on gone, no offer accepted.
+  await panel.click('#rerun');
+  await panel.waitForSelector('#verdict', { state: 'hidden' });
+  await panel.waitForSelector('#verdict:not([hidden])', { timeout: live ? 120_000 : 30_000 });
+  console.log('gym rerun:', await panel.textContent('#verdict'), '|', (await panel.textContent('#timeline')).replace(/\s+/g, ' '));
+  assert.equal(await panel.textContent('#verdict'), 'Done ✓');
+  const result = await site.textContent('#summary');
+  console.log('gym rerun result:', result.replace(/\s+/g, ' '));
+  assert.match(result, /today/);
+  assert.match(result, /add-on: cancelled/);
+  // A run that looked fine can still be corrected.
+  assert.equal(await panel.isVisible('#not-right'), true);
+  await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-gym.png') });
+});

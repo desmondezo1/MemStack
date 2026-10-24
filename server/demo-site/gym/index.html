@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iron Gym · Members</title>
+<style>
+  :root { --ink: #15161a; --muted: #6b6f78; --line: #e3e5ea; --bg: #f3f4f6; --brand: #e4002b; --brand-ink: #fff; --ok: #1d7a46; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  .demo { padding: 6px 16px; text-align: center; font-size: 12px; background: #fff7d6; color: #6b5310; }
+  header { display: flex; align-items: center; gap: 22px; padding: 14px 28px; background: #111; color: #fff; }
+  header b { font-size: 18px; letter-spacing: .02em; } header b span { color: var(--brand); }
+  header nav a { color: #c9cbd1; text-decoration: none; margin-right: 16px; font-size: 14px; }
+  main { max-width: 640px; margin: 28px auto 60px; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 26px; }
+  h1 { margin: 0 0 4px; font-size: 26px; } h2 { margin: 0 0 6px; font-size: 21px; }
+  .muted { color: var(--muted); }
+  .plan { display: flex; justify-content: space-between; align-items: center; margin: 18px 0; padding: 14px 16px; border-radius: 12px; background: var(--bg); }
+  .plan b { font-size: 17px; }
+  .big { display: block; width: 100%; margin: 18px 0 10px; padding: 15px; border: 0; border-radius: 12px; background: var(--brand); color: var(--brand-ink); font: 700 16px system-ui; cursor: pointer; }
+  .second { display: block; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: 600 15px system-ui; cursor: pointer; margin-bottom: 8px; }
+  .quiet { border: 0; background: none; padding: 4px 0; color: var(--muted); font: 13px system-ui; text-decoration: underline; cursor: pointer; }
+  .tiny { margin-top: 22px; text-align: center; }
+  label.field { display: block; margin: 16px 0 6px; font-weight: 600; }
+  select { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: #fff; }
+  fieldset { border: 0; margin: 14px 0 0; padding: 0; } legend { font-weight: 600; margin-bottom: 6px; }
+  .opt { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px; cursor: pointer; }
+  .check { display: flex; gap: 10px; align-items: center; margin: 16px 0 4px; font-size: 14px; }
+  .error { color: var(--brand); min-height: 22px; font-size: 14px; }
+  .offer { text-align: center; } .offer .pct { font-size: 46px; font-weight: 800; color: var(--brand); margin: 6px 0; }
+  .summary { margin: 14px 0; padding: 0; list-style: none; } .summary li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .ok { color: var(--ok); } .warn { color: var(--brand); font-weight: 600; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="demo">Demo gym for testing Mo. Nothing here is real, and nothing is charged.</div>
+<header><b>IRON<span>GYM</span></b><nav><a href="#">Classes</a><a href="#">Trainers</a><a href="#">My bookings</a></nav></header>
+<main>
+
+  <!-- Account: the way out is a small link; the big button only pauses (and still charges). -->
+  <section class="card" id="account">
+    <h1>Hi Ada 👋</h1>
+    <p class="muted">You're on a 42-day streak. Keep it up!</p>
+    <div class="plan"><div><b>Iron Gym Plus</b><div class="muted">£39 a month · renews 2 November</div></div><div class="muted">+ Recovery+ add-on £9</div></div>
+    <button class="big" data-go="paused">Pause my membership (recommended)</button>
+    <button class="second" type="button">Book a class</button>
+    <div class="tiny"><button class="quiet" data-go="manage">Manage plan</button></div>
+  </section>
+
+  <section class="card" id="paused" hidden>
+    <h2>Membership paused for 1 month</h2>
+    <p>Your membership is <b>paused</b>, not cancelled. You'll be charged £5 a month while it's paused, and it restarts on 2 December.</p>
+    <button class="second" data-go="account">Back to my account</button>
+  </section>
+
+  <section class="card" id="manage" hidden>
+    <h2>Your plan</h2>
+    <p class="muted">Iron Gym Plus · £39 a month</p>
+    <button class="second" type="button">Upgrade to Iron Gym Max</button>
+    <button class="second" type="button">Change home club</button>
+    <button class="second" data-go="paused">Freeze membership</button>
+    <div class="tiny"><button class="quiet" data-go="cancel">Cancel membership</button></div>
+  </section>
+
+  <!-- Cancel form: the end date defaults to later, and the paid add-on stays ticked. -->
+  <section class="card" id="cancel" hidden>
+    <h2>Cancel your membership</h2>
+    <label class="field" for="reason">Why are you leaving?</label>
+    <select id="reason">
+      <option value="">Choose a reason…</option><option>Too expensive</option><option>Moving away</option><option>Injury</option><option>Not using it enough</option><option>Other</option>
+    </select>
+    <fieldset>
+      <legend>When should it end?</legend>
+      <label class="opt"><input type="radio" name="end" value="period" checked> At the end of this billing period (2 November)</label>
+      <label class="opt"><input type="radio" name="end" value="now"> Immediately, with a refund for unused days</label>
+    </fieldset>
+    <label class="check"><input type="checkbox" id="addon" checked> Keep my Recovery+ add-on (£9 a month)</label>
+    <p class="error" id="error"></p>
+    <button class="big" id="continue">Continue</button>
+  </section>
+
+  <section class="card offer" id="offer" hidden>
+    <h2>Wait, Ada! Don't lose your streak</h2>
+    <div class="pct">50% off</div>
+    <p>Stay for three more months at half price.</p>
+    <button class="big" data-go="kept">Accept offer</button>
+    <button class="quiet" data-go="confirm">No thanks, continue cancelling</button>
+  </section>
+
+  <section class="card" id="kept" hidden>
+    <h2>Great, you're staying! 🎉</h2>
+    <p>Your membership continues at 50% off for 3 months. It has <b>not</b> been cancelled.</p>
+    <button class="second" data-go="account">Back to my account</button>
+  </section>
+
+  <section class="card" id="confirm" hidden>
+    <h2>Are you sure? 😢</h2>
+    <p>You'll lose your 42-day streak and all your class history.</p>
+    <button class="big" data-go="account">Keep my membership</button>
+    <button class="second" id="really">Yes, cancel my membership</button>
+  </section>
+
+  <section class="card" id="done" hidden>
+    <h2 class="ok">Membership cancelled ✓</h2>
+    <ul class="summary" id="summary"></ul>
+    <button class="second" id="again">Back to my account</button>
+  </section>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const views = ['account', 'paused', 'manage', 'cancel', 'offer', 'kept', 'confirm', 'done'];
+  const show = v => views.forEach(id => { $(id).hidden = id !== v; });
+  document.addEventListener('click', e => {
+    const go = e.target.closest('[data-go]')?.dataset.go;
+    if (go) show(go);
+  });
+  $('continue').addEventListener('click', () => {
+    if (!$('reason').value) { $('error').textContent = 'Please choose a reason.'; return; }
+    $('error').textContent = '';
+    show('offer');
+  });
+  $('really').addEventListener('click', () => {
+    const now = document.querySelector('input[name=end]:checked').value === 'now';
+    const addon = $('addon').checked;
+    $('summary').innerHTML = [
+      `<li>Iron Gym Plus ends: <b>${now ? 'today (refund for unused days on its way)' : '2 November'}</b></li>`,
+      `<li>Reason: ${$('reason').value}</li>`,
+      addon
+        ? '<li class="warn">Your Recovery+ add-on is still active, so you will keep being charged £9 a month.</li>'
+        : '<li>Recovery+ add-on: cancelled. No more charges.</li>',
+    ].join('');
+    show('done');
+  });
+  $('again').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>

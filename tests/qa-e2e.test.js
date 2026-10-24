@@ -479,7 +479,7 @@ test('qa: ledger renders real-looking (non-mock) data; dark mode screenshots', {
   await panel.waitForSelector('#costs .compare');
   const text = (await panel.textContent('#view-mubit')).replace(/\s+/g, ' ');
   console.log('ledger:', text);
-  assert.match(text, /next-action 21 10 30\/25/);
+  assert.match(text, /next-action\s?Control web browser 21 10 30\/25/);
   assert.match(text, /\$1\.40/); // (1200*1 + 40*5)/1e6*1000
   assert.match(text, /\$0\.07/);
   assert.match(text, /At 50k decisions a day/);

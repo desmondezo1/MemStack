@@ -145,6 +145,8 @@ function setVerdict(ok, text) {
 function resetRunUi() {
   $('timeline').innerHTML = '';
   $('verdict').hidden = true;
+  $('not-right').hidden = true;
+  $('run-session').hidden = true;
   $('teach').hidden = true;
   $('savings').hidden = true;
 }
@@ -205,6 +207,10 @@ async function run(goal) {
 
   refreshTotals();
   const { failure, infra, asked, usedLesson, outcome } = r;
+  if (r.sessionId && $('mode').classList.contains('live')) {
+    $('run-session').hidden = false;
+    $('run-session').innerHTML = `In Mubit: filter Requests by session <button class="copy" data-copy="${esc(r.sessionId)}">${esc(r.sessionId)}</button> to see every decision from this run.`;
+  }
   note(outcome === 'done' ? (usedLesson ? 'rerun-done' : 'done') : outcome === 'failed' || outcome === 'asked' ? 'fail' : outcome);
   if (failure && infra) mo('idle', { text: 'Something went wrong. Check Mo\'s panel.', hold: 5000 });
   if (failure) {
@@ -220,6 +226,7 @@ async function run(goal) {
     speak(r.answer);
   } else {
     setVerdict(true, 'Done ✓');
+    $('not-right').hidden = false;
     mo('success', { text: usedLesson ? 'Done, using what you taught me!' : 'Done!' });
     speak('Done.');
   }
@@ -227,7 +234,11 @@ async function run(goal) {
 
 // ---- Teaching ("show me") -----------------------------------------------------
 
-function offerTeaching(reason) {
+// title: why we're asking. A finished run can still be wrong for you (a paid add-on left
+// on, the wrong end date): "Not what you wanted?" teaches your way the same as a failure.
+function offerTeaching(reason, title = 'I couldn\'t finish this') {
+  $('teach-title').textContent = title;
+  $('not-right').hidden = true;
   $('teach').hidden = false;
   $('teach-ask').hidden = false;
   $('teach-recording').hidden = true;
@@ -348,7 +359,7 @@ async function saveLesson(steps) {
   $('rerun').disabled = true;
   try {
     const mistake = markMistake(state.runSteps, steps);
-    const { training } = await api('/api/demonstrations', {
+    const { training, demo } = await api('/api/demonstrations', {
       method: 'POST', body: { goal: state.lastGoal, url: steps[0].page.url, steps, mistake },
     });
     note('taught');
@@ -358,7 +369,8 @@ async function saveLesson(steps) {
       (mistake ? `<span class="mistake-inline">${esc(mistake)}</span>` : '') +
       `<b>Learned.</b> Saved ${steps.length} steps to memory and sent ${training.sent} training examples ${where}` +
       ` (the model matched your demonstration on ${training.agreed}/${steps.length}).` +
-      (training.errors ? ` <span class="muted">${training.errors} failed to send.</span>` : '');
+      (training.errors ? ` <span class="muted">${training.errors} failed to send.</span>` : '') +
+      (training.viaMubit && demo?.id ? `<span class="mubit-where">In Mubit: task <b>Control web browser</b>. Filter Requests by session <button class="copy" data-copy="demo-${esc(demo.id)}">demo-${esc(demo.id)}</button> to see these exact calls.</span>` : '');
   } catch (err) {
     $('saved-summary').textContent = `Could not save the demonstration: ${err.message}`;
   }
@@ -643,6 +655,16 @@ async function init() {
   $('mic').addEventListener('pointerup', micUp);
   $('mic').addEventListener('pointercancel', () => { micHeldAt = 0; cancelVoice(); });
   $('autorun').addEventListener('change', () => chrome.storage.local.set({ autorun: $('autorun').checked }));
+  // Copy a Mubit session or request id, to paste into the console's Requests filter.
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button.copy');
+    if (!b) return;
+    navigator.clipboard?.writeText(b.dataset.copy);
+    const was = b.textContent;
+    b.textContent = 'Copied ✓';
+    setTimeout(() => { b.textContent = was; }, 1200);
+  });
+  $('not-right').addEventListener('click', () => offerTeaching('Do it your way once, and I\'ll do it like that from now on.', 'Not what you wanted?'));
   $('show-me').addEventListener('click', () => startTeaching().catch(err => offerTeaching(err.message)));
   $('done-teaching').addEventListener('click', finishTeaching);
   $('cancel-teaching').addEventListener('click', async () => { await stopRecording(); offerTeaching('Demonstration cancelled.'); });

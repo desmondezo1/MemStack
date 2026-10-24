@@ -10,6 +10,13 @@ export function prettyModel(id) {
   const m = String(id).match(/^claude-([a-z]+)-(\d+)-(\d+)/);
   return m ? `Claude ${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : String(id);
 }
+// What Mubit's console calls each task: it names tasks after the first words of their
+// instructions, adding 2, 3… for newer versions.
+export const MUBIT_NAMES = {
+  'next-action': 'Control web browser', 'done-check': 'Check whether browser task', 'link-check': 'Check links',
+  locate: 'Find information', 'refine-lesson': "Clean up human's demonstration", 'safety-gate': 'Protect user',
+};
+
 export const goalKey = g => String(g || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 export function createMubitView({ api, getServer, onOverview = () => {} }) {
@@ -172,7 +179,7 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
       const status = b?.status ? esc(b.status) + (b.matched != null ? ` · matched ${b.matched}%` : '') : '<span class="muted">open the console</span>';
       return `
       <tr>
-        <td><b>${esc(t.task)}</b></td>
+        <td><b>${esc(t.task)}</b><div class="mubit-name">${esc(b?.name || MUBIT_NAMES[t.task] || '')}</div></td>
         <td>${t.live}</td>
         <td>${t.training}</td>
         <td>${t.sentToMubit}/${t.keptExamplesNeeded}<div class="bar"><span style="width:${Math.round(100 * t.towardsFirstTraining / t.keptExamplesNeeded)}%"></span></div></td>
