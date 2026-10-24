@@ -251,38 +251,117 @@ test('Mo lives on every page and shows the agent\'s state', { timeout: 60_000 },
   await panel.close(); await site.close();
 });
 
-test('⌥Space: the panel listens, the waveform shows on the page, then the agent runs', { timeout: 60_000 }, async () => {
-  const fakeVoice = () => {
-    // No real microphone in tests: speech recognition that hears a goal, and no getUserMedia (synthetic wave).
-    navigator.mediaDevices.getUserMedia = () => Promise.reject(new Error('no mic in tests'));
-    window.SpeechRecognition = class {
-      start() {
-        const say = (text, isFinal) => this.onresult?.({ results: Object.assign([Object.assign([{ transcript: text }], { isFinal })], {}) });
-        setTimeout(() => this.onspeechstart?.(), 100);
-        setTimeout(() => say('open http://localhost', false), 400);
-        setTimeout(() => say(window.__goal, true), 1200);
-        setTimeout(() => this.onend?.(), 1400);
-      }
-      stop() { this.onend?.(); }
-    };
+// Fake speech for tests: says what's in window.__script while "listening", keeps going
+// until stop() (like continuous recognition while the key is held).
+const fakeVoice = () => {
+  navigator.mediaDevices.getUserMedia = () => Promise.reject(new Error('no mic in tests'));
+  window.SpeechRecognition = class {
+    start() {
+      this.timers = (window.__script || []).map(([ms, text, isFinal]) => setTimeout(() => {
+        this.onresult?.({ results: [Object.assign([{ transcript: text }], { isFinal })] });
+      }, ms));
+    }
+    stop() { this.timers?.forEach(clearTimeout); setTimeout(() => this.onend?.(), 30); }
+    abort() { this.timers?.forEach(clearTimeout); setTimeout(() => this.onend?.(), 30); }
   };
-  const { site, tabId } = await tabAt('about:blank');
-  const panel = await panelFor(tabId, { initScript: fakeVoice });
-  await panel.evaluate(g => { window.__goal = g; }, `open ${base}/demo/tube/ and play a Burna Boy video`);
-  // Load a real page so Mo is there to show the waveform.
-  await site.goto(`${base}/demo/tube/#voice`);
-  await site.waitForSelector('showme-mo', { state: 'attached' });
+};
 
-  const opened = await worker.evaluate(id => self.handleTalk({ id }), tabId);
-  assert.equal(opened, false); // no window id in this test, so no real side panel opens
-  await site.waitForFunction(() => document.querySelector('showme-mo')?.dataset.voice === 'listening', null, { timeout: 5000 });
+const voiceState = site => site.evaluate(() => document.querySelector('showme-mo')?.dataset.voice || '');
+
+async function holdTalk(site, ms) {
+  await site.bringToFront();
+  await site.keyboard.down('Alt');
+  await site.keyboard.down('Space');
+  await site.waitForTimeout(ms);
+}
+async function releaseTalk(site) {
+  await site.keyboard.up('Space');
+  await site.keyboard.up('Alt');
+}
+
+test('hold ⌥Space to talk: waveform while held, runs on release, waveform gone after', { timeout: 60_000 }, async () => {
+  const goal = `open ${base}/demo/tube/ and play a Burna Boy video`;
+  const { site, tabId } = await tabAt(`${base}/demo/tube/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  const panel = await panelFor(tabId, { initScript: fakeVoice });
+  await panel.evaluate(g => { window.__script = [[200, 'open the tube site', false], [600, g, true]]; }, goal);
+
+  await holdTalk(site, 1200);
+  assert.equal(await voiceState(site), 'listening');
   assert.equal(await panel.isVisible('#wave'), true);
+  await releaseTalk(site);
+
   await panel.waitForSelector('#verdict:not([hidden])', { timeout: 40_000 });
-  console.log('voice run:', await panel.textContent('#verdict'), '|', (await panel.textContent('#timeline')).replace(/\s+/g, ' ').slice(0, 160));
-  assert.equal(await panel.inputValue('#goal'), `open ${base}/demo/tube/ and play a Burna Boy video`);
+  assert.equal(await panel.inputValue('#goal'), goal);
   assert.equal(await panel.textContent('#verdict'), 'Done ✓');
   assert.equal(await panel.isHidden('#wave'), true);
+  // The bug: the waveform must not come back after release (e.g. while Mo wanders).
+  await site.waitForTimeout(1200);
+  assert.notEqual(await voiceState(site), 'listening');
   await panel.close(); await site.close();
+});
+
+test('Esc while holding cancels; a quick tap only shows how to talk', { timeout: 60_000 }, async () => {
+  const { site, tabId } = await tabAt(`${base}/demo/tube/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  const panel = await panelFor(tabId, { initScript: fakeVoice });
+  await panel.evaluate(() => { window.__script = [[200, 'play something', true]]; });
+
+  await holdTalk(site, 700);
+  await site.keyboard.press('Escape');
+  await releaseTalk(site);
+  await site.waitForTimeout(800);
+  assert.equal(await panel.$$eval('#timeline li', l => l.length), 0, 'cancelled: nothing runs');
+  assert.notEqual(await voiceState(site), 'listening');
+
+  await holdTalk(site, 60);
+  await releaseTalk(site);
+  await site.waitForTimeout(500);
+  assert.match(await site.evaluate(() => document.querySelector('showme-mo').dataset.bubble || ''), /Hold ⌥ Space/);
+  assert.equal(await panel.$$eval('#timeline li', l => l.length), 0, 'a tap does not run');
+  await panel.close(); await site.close();
+});
+
+test('late waveform updates from an ended session are ignored', { timeout: 30_000 }, async () => {
+  const { site, tabId } = await tabAt(`${base}/demo/tube/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  const sendVoice = m => worker.evaluate(([id, m]) => chrome.tabs.sendMessage(id, { type: 'showme:voice', ...m }), [tabId, m]);
+  await sendVoice({ state: 'listening', id: 'v1', levels: [0.5], text: 'hi' });
+  assert.equal(await voiceState(site), 'listening');
+  await sendVoice({ state: 'heard', id: 'v1', text: 'hi' });
+  await sendVoice({ state: 'listening', id: 'v1', levels: [0.5], text: 'hi' }); // arrives late
+  assert.equal(await voiceState(site), 'heard');
+  // And a lost "stopped" message can't leave it up: it hides by itself.
+  await sendVoice({ state: 'listening', id: 'v2', levels: [0.5] });
+  await site.waitForTimeout(1200);
+  assert.equal(await voiceState(site), 'off');
+  await site.close();
+});
+
+test('with the side panel closed, holding ⌥Space listens offscreen and Mo runs the goal', { timeout: 60_000 }, async () => {
+  const goal = `open ${base}/demo/tube/ and play a Wizkid video`;
+  await worker.evaluate(g => chrome.storage.local.set({ voiceTestScript: [[150, 'open the tube', false], [500, g, true]] }), goal);
+  try {
+    for (const p of context.pages().filter(p => p.url().includes('sidepanel.html'))) await p.close();
+    const { site } = await tabAt(`${base}/demo/tube/`);
+    await site.waitForSelector('showme-mo', { state: 'attached' });
+    await site.waitForTimeout(300); // let the background notice the panels went away
+    const panelsOpen = context.pages().filter(p => p.url().includes('sidepanel.html')).length;
+    assert.equal(panelsOpen, 0, 'no side panel open');
+    const seen = new Set();
+    const watch = setInterval(async () => { try { seen.add(await voiceState(site)); } catch {} }, 50);
+    await holdTalk(site, 1200);
+    await releaseTalk(site);
+    await site.waitForFunction(() => /Now playing: Wizkid/.test(document.querySelector('#status')?.textContent || ''), null, { timeout: 40_000 });
+    clearInterval(watch);
+    await site.waitForFunction(() => document.querySelector('showme-mo')?.dataset.state === 'success', null, { timeout: 10_000 });
+    console.log('offscreen voice states:', [...seen]);
+    assert.ok(seen.has('listening'), 'waveform showed while held');
+    assert.equal(context.pages().filter(p => p.url().includes('sidepanel.html')).length, 0, 'the panel was not opened');
+    await site.close();
+  } finally {
+    await worker.evaluate(() => chrome.storage.local.remove('voiceTestScript'));
+  }
 });
 
 test('Mubit bridge: kept examples and adapter status from the console page reach the panel', { timeout: 60_000 }, async () => {

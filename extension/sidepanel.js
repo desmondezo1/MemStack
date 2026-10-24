@@ -2,11 +2,11 @@
 // demonstration when the run fails, and shows the Mubit ledger.
 
 import { createMubitView, esc, fmtUsd, prettyModel } from './panel-mubit.js';
+import { InfraError, createApi, isOwnPage, isWebPage, sleep, waitForLoad, send, snapshot, describeAction, shortUrl, runAgent, mo as moOn } from './agent-core.js';
+import { createVoiceSession } from './voice-core.js';
 import { createJudgesView } from './panel-judges.js';
 
 const $ = id => document.getElementById(id);
-const MAX_STEPS = 20;
-const RISKY = /pay|purchase|buy now|place order|delete|remove|transfer|send|submit|confirm|reserve|book/i;
 // Testing hook: sidepanel.html?tabId=123 drives that tab when opened as a normal page.
 const forcedTabId = Number(new URLSearchParams(location.search).get('tabId')) || null;
 
@@ -30,28 +30,7 @@ const state = {
 
 // ---- Backend ----------------------------------------------------------------
 
-// Errors from the backend, Mubit or the provider. They are not the agent's mistakes,
-// so they never trigger "show me".
-class InfraError extends Error {}
-
-async function api(path, { method = 'GET', body, signal } = {}) {
-  let res;
-  try {
-    res = await fetch(`${state.server}${path}`, {
-      method,
-      headers: body ? { 'content-type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-      signal,
-    });
-  } catch (err) {
-    if (err.name === 'AbortError') throw err;
-    throw new InfraError(`Backend offline at ${state.server}. Start it with: npm start`);
-  }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok && data.agentError) throw new Error(`I gave an answer I couldn't act on (${data.error.slice(0, 120)}…)`);
-  if (!res.ok) throw new InfraError(data.error || `${res.status} ${res.statusText}`);
-  return data;
-}
+const api = createApi(async () => state.server);
 
 async function tabById(id) {
   if (id) {
@@ -85,10 +64,7 @@ async function refreshMemory() {
   }
 }
 
-// ---- Tab + content script ---------------------------------------------------
-
-const isOwnPage = url => !url || url.startsWith(chrome.runtime.getURL(''));
-const isWebPage = url => /^(https?|file):/.test(url || '');
+// ---- Tab ----------------------------------------------------------------------
 
 // The tab to work on: the active one, unless it's one of our own pages (the mic
 // permission tab, say); then the most recently used normal tab in this window.
@@ -99,67 +75,6 @@ async function targetTab() {
   const tabs = await chrome.tabs.query({ currentWindow: true });
   const normal = tabs.filter(t => !isOwnPage(t.url)).sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
   return normal[0] || active;
-}
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-async function waitForLoad(tabId, timeoutMs = 15000) {
-  const end = Date.now() + timeoutMs;
-  while (Date.now() < end) {
-    const tab = await chrome.tabs.get(tabId);
-    if (tab.status === 'complete') return tab;
-    await sleep(150);
-  }
-  throw new InfraError('The page took too long to load');
-}
-
-async function send(tabId, message) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const reply = await chrome.tabs.sendMessage(tabId, message);
-      if (reply) return reply;
-    } catch {
-      // No content script yet (page opened before the extension loaded, or mid-navigation).
-      await waitForLoad(tabId).catch(() => {});
-      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js', 'mascot.js'] }).catch(() => {});
-      await sleep(150);
-    }
-  }
-  throw new InfraError('Show Me cannot read this page (try reloading it; chrome:// pages are off limits)');
-}
-
-async function snapshot(tabId) {
-  const tab = await waitForLoad(tabId);
-  // A new tab or chrome:// page can't be read, but the agent can still open a site from it.
-  if (!isWebPage(tab.url)) {
-    return { url: tab.url || 'about:blank', title: tab.title || 'New tab', headings: [], elements: [], text: '',
-      note: 'none (browser start page: use open_url to go to a site)' };
-  }
-  const reply = await send(tabId, { type: 'showme:snapshot' });
-  if (!reply.ok) throw new Error(reply.error);
-  return reply.page;
-}
-
-// ---- Timeline ---------------------------------------------------------------
-
-function describeAction(a) {
-  const target = a.label ? `“${a.label}”` : (a.element_id || 'the page');
-  switch (a.action) {
-    case 'type': return `type “${a.value}” into ${target}${a.submit ? ' + Enter' : ''}`;
-    case 'select': return `select “${a.value}” in ${target}`;
-    case 'press': return `press ${a.value}${a.label ? ` on ${target}` : ''}`;
-    case 'open_url': return `open ${shortUrl(a.value)}`;
-    case 'back': return 'go back';
-    case 'scroll': return `scroll ${a.value || 'down'}`;
-    case 'wait': return 'wait for the page';
-    case 'ask_human': return `ask you: “${a.value}”`;
-    case 'done': return 'finish';
-    default: return `click ${target}`;
-  }
-}
-
-function shortUrl(url) {
-  try { const u = new URL(url); return (u.host + u.pathname + u.search).replace(/\/$/, '').slice(0, 60); } catch { return String(url).slice(0, 60); }
 }
 
 // ---- Live savings -----------------------------------------------------------
@@ -235,109 +150,60 @@ function resetRunUi() {
 }
 
 // ---- Agent loop -------------------------------------------------------------
+// The loop itself lives in agent-core.js (shared with voice runs in the background);
+// here it draws each step on the timeline.
 
 async function run(goal) {
   if (state.running || !goal.trim()) return;
   state.running = true;
   state.stopRequested = false;
   state.abort = new AbortController();
-  const signal = state.abort.signal;
   $('run').disabled = true;
   $('stop').hidden = false;
   if (state.recording) await stopRecording();
   resetRunUi();
 
-  const sessionId = `run-${Date.now()}`;
-  const history = [];
-  let failure = null;
-  let infra = false;
-  let finished = false;
-  let asked = false;
-  let usedLesson = false;
-  let decisions = 0;
-  let invalid = 0;
-
-  try {
-    const tab = await targetTab();
-    if (!tab) throw new InfraError('No tab to work on');
+  const tab = await targetTab().catch(() => null);
+  let r;
+  if (!tab) {
+    r = { failure: 'No tab to work on', infra: true, outcome: 'error', usedLesson: false, asked: false };
+    addStep(stepHtml('No tab to work on'), { error: true, kind: 'note' });
+  } else {
     state.runTabId = tab.id;
     state.lastGoal = goal;
     state.lastStartUrl = tab.url;
     state.runSteps = [];
     state.run = { calls: 0, providerUsd: 0, adapterUsd: 0, ms: 0, adapterMs: null };
     renderSavings();
-    for (let step = 1; step <= MAX_STEPS && !state.stopRequested; step++) {
-      const page = await snapshot(tab.id);
-      mo('thinking', {}, tab.id);
-      const next = await api('/api/next-action', { method: 'POST', body: { goal, page, history, sessionId }, signal });
-      addUsage(next.usage, next.ms);
-      decisions++;
-      if (!next.valid) invalid++;
-      if (next.demoUsed) usedLesson = true;
-      const lesson = next.demoUsed ? '<span class="badge lesson">from lesson</span>' : '';
-      const cost = next.usage?.viaMubit ? `, ${fmtUsd(next.usage.costUsd)}` : '';
-      const time = next.ms >= 100 ? `${(next.ms / 1000).toFixed(1)} s` : '';
-      const li = addStep(stepHtml(esc(describeAction(next)), { badge: lesson, why: `<span class="why-text">${esc(next.reason)}</span>`, nums: `${time}${time && cost ? cost : cost.replace(/^, /, '')}` }), { error: !next.valid });
-
-      if (next.action === 'done') { finished = true; break; }
-      if (!next.valid) { failure = next.action === 'open_url' ? 'I tried to open an address that is not a web URL.' : 'I picked an element that is not on the page.'; break; }
-      if (next.action === 'ask_human') { failure = `I need help: ${next.value || next.reason}`; asked = true; break; }
-
-      const same = h => h.action === next.action && h.label === next.label && h.value === next.value;
-      const limit = next.action === 'scroll' || next.action === 'wait' ? 4 : 2;
-      if (history.filter(same).length >= limit) { failure = `I kept repeating “${describeAction(next)}”.`; break; }
-
-      if ((next.role === 'button' || next.role === 'link') && RISKY.test(next.label || '')) {
-        const gate = await api('/api/safety-gate', { method: 'POST', body: { goal, action: next, element: { label: next.label, role: next.role }, evidence: page.text, sessionId }, signal });
-        addUsage(gate.usage, gate.ms);
-        if (!gate.allow) { failure = `Safety gate blocked “${next.label}”: ${gate.reason}`; break; }
-      }
-
-      const before = (await chrome.tabs.get(tab.id)).url;
-      mo('acting', { targetId: next.element_id, text: describeAction(next) }, tab.id);
-      const result = await perform(tab.id, next);
-      if (!result.ok) { failure = result.error; li.classList.add('error'); break; }
-      const entry = { action: next.action, label: next.label, role: next.role, value: next.value, submit: next.submit, element_id: next.element_id };
-      history.push(entry);
-      state.runSteps.push({ ...entry, li });
-      await sleep(next.action === 'wait' ? 1500 : 600);
-      const after = await waitForLoad(tab.id).catch(() => null);
-      if (after && after.url !== before) {
-        const why = li.querySelector('.step-why') || li.appendChild(Object.assign(document.createElement('div'), { className: 'step-why' }));
-        why.insertAdjacentHTML('beforeend', `<span class="went">${why.textContent ? '. ' : ''}Now on ${esc(shortUrl(after.url))}</span>`);
-      }
-    }
-
-    if (state.stopRequested) failure = 'Stopped.';
-    else if (!failure && !finished) failure = `I ran out of steps (${MAX_STEPS}).`;
-
-    if (!failure) {
-      await sleep(400);
-      const check = await api('/api/done-check', { method: 'POST', body: { goal, page: await snapshot(tab.id), sessionId }, signal });
-      addUsage(check.usage, check.ms);
-      addStep(stepHtml(check.done ? 'Checked: goal met' : 'Checked: goal not met', { why: esc(check.reason), nums: check.ms >= 100 ? `${(check.ms / 1000).toFixed(1)} s` : '' }), { error: !check.done, kind: 'check' });
-      if (!check.done) failure = check.reason || 'The page does not show the goal as done.';
-    }
-  } catch (err) {
-    if (err.name === 'AbortError' || state.stopRequested) {
-      failure = 'Stopped.';
-    } else {
-      failure = err.message;
-      infra = err instanceof InfraError;
-      addStep(stepHtml(esc(err.message)), { error: true, kind: 'note' });
-    }
-  } finally {
-    state.running = false;
-    state.abort = null;
-    $('run').disabled = false;
-    $('stop').hidden = true;
+    r = await runAgent({
+      goal, tabId: tab.id, api, signal: state.abort.signal, isStopped: () => state.stopRequested,
+      ui: {
+        usage: addUsage,
+        step: next => {
+          const lesson = next.demoUsed ? '<span class="badge lesson">from lesson</span>' : '';
+          const cost = next.usage?.viaMubit ? fmtUsd(next.usage.costUsd) : '';
+          const time = next.ms >= 100 ? `${(next.ms / 1000).toFixed(1)} s` : '';
+          return addStep(stepHtml(esc(describeAction(next)), { badge: lesson, why: `<span class="why-text">${esc(next.reason)}</span>`, nums: [time, cost].filter(Boolean).join(', ') }), { error: !next.valid });
+        },
+        failedStep: li => li?.classList.add('error'),
+        navigated: (li, url) => {
+          if (!li) return;
+          const why = li.querySelector('.step-why') || li.appendChild(Object.assign(document.createElement('div'), { className: 'step-why' }));
+          why.insertAdjacentHTML('beforeend', `<span class="went">${why.textContent ? '. ' : ''}Now on ${esc(shortUrl(url))}</span>`);
+        },
+        check: check => addStep(stepHtml(check.done ? 'Checked: goal met' : 'Checked: goal not met', { why: esc(check.reason), nums: check.ms >= 100 ? `${(check.ms / 1000).toFixed(1)} s` : '' }), { error: !check.done, kind: 'check' }),
+        error: message => addStep(stepHtml(esc(message)), { error: true, kind: 'note' }),
+      },
+    });
+    state.runSteps = r.runSteps.map(step => ({ ...step, li: step.handle }));
   }
+  state.running = false;
+  state.abort = null;
+  $('run').disabled = false;
+  $('stop').hidden = true;
 
   refreshTotals();
-  const outcome = !failure ? 'done' : failure === 'Stopped.' ? 'stopped' : infra ? 'error' : asked ? 'asked' : 'failed';
-  const finalTab = state.runTabId ? await chrome.tabs.get(state.runTabId).catch(() => null) : null;
-  reportRun({ goal, outcome, usedLesson, steps: history.length, decisions, invalid,
-    tools: [...new Set(history.map(h => h.action).concat(finished ? ['done'] : []))], url: finalTab?.url || null });
+  const { failure, infra, asked, usedLesson, outcome } = r;
   note(outcome === 'done' ? (usedLesson ? 'rerun-done' : 'done') : outcome === 'failed' || outcome === 'asked' ? 'fail' : outcome);
   if (failure && infra) mo('idle', { text: 'Something went wrong. Check the Show Me panel.', hold: 5000 });
   if (failure) {
@@ -352,24 +218,6 @@ async function run(goal) {
     mo('success', { text: usedLesson ? 'Done, using what you taught me!' : 'Done!' });
     speak('Done.');
   }
-}
-
-// Actions the browser does itself; the rest happen inside the page.
-async function perform(tabId, action) {
-  if (action.action === 'open_url') {
-    await chrome.tabs.update(tabId, { url: action.value });
-    await sleep(400);
-    await waitForLoad(tabId, 30000);
-    return { ok: true };
-  }
-  if (action.action === 'back') {
-    await chrome.tabs.goBack(tabId).catch(() => {});
-    await sleep(400);
-    await waitForLoad(tabId);
-    return { ok: true };
-  }
-  if (action.action === 'wait') return { ok: true };
-  return send(tabId, { type: 'showme:act', action });
 }
 
 // ---- Teaching ("show me") -----------------------------------------------------
@@ -511,27 +359,15 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 });
 
 // ---- Voice --------------------------------------------------------------------
-// Chrome's built-in speech recognition, started by the mic button, the ⌥Space shortcut or
-// a click on Mo. While listening, the mic's loudness is drawn as a waveform here and in
-// the bubble next to Mo on the page. Dictation apps such as Wispr Flow also work: they
-// type straight into the goal box.
+// Push to talk. Hold ⌥Space (on a page or here) or hold the mic button, let go to run,
+// Esc to cancel. While the panel is open it does the listening: the background routes
+// key holds from Mo here through our port. Dictation apps such as Wispr Flow also work:
+// they type straight into the goal box.
 
 const BARS = 20;
-let recognition = null;
-let meter = null; // { stream, ctx, analyser, timer }
-
-async function voiceTabId() {
-  if (state.runTabId) {
-    const tab = await chrome.tabs.get(state.runTabId).catch(() => null);
-    if (tab) return tab.id;
-  }
-  return (await targetTab().catch(() => null))?.id;
-}
-
-async function sendVoice(payload) {
-  const id = await voiceTabId();
-  if (id) chrome.tabs.sendMessage(id, { type: 'showme:voice', ...payload }).catch(() => {});
-}
+const TAP_MS = 250;
+let voice = null;
+let voiceTab = null;
 
 function drawWave(levels) {
   const wave = $('wave');
@@ -539,127 +375,128 @@ function drawWave(levels) {
   [...wave.children].forEach((bar, i) => { bar.style.height = `${4 + Math.round((levels[i] || 0) * 22)}px`; });
 }
 
-// Real levels from the microphone when Chrome allows it; otherwise a gentle synthetic
-// wave that jumps when speech is detected, so you still see that it's listening.
-async function startMeter(getText) {
-  let levels = new Array(BARS).fill(0);
-  let synthetic = null;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const ctx = new AudioContext();
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 64;
-    ctx.createMediaStreamSource(stream).connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    meter = { stream, ctx, analyser };
-    meter.read = () => {
-      analyser.getByteFrequencyData(data);
-      levels = Array.from({ length: BARS }, (_, i) => Math.min(1, data[Math.floor((i * data.length) / BARS)] / 200));
-    };
-  } catch {
-    synthetic = { loud: 0 };
-    meter = { synthetic };
-    meter.read = () => {
-      synthetic.loud = Math.max(0, synthetic.loud - 0.08);
-      const t = Date.now() / 160;
-      levels = Array.from({ length: BARS }, (_, i) => Math.max(0.08, (0.15 + synthetic.loud) * (0.55 + 0.45 * Math.sin(t + i * 0.7))));
-    };
-  }
-  meter.timer = setInterval(() => {
-    meter?.read();
-    drawWave(levels);
-    sendVoice({ state: 'listening', levels, text: getText() });
-  }, 70);
-  $('wave').hidden = false;
+function voiceUi(on) {
+  $('mic').classList.toggle('listening', on);
+  $('composer').classList.toggle('listening', on);
+  $('wave').hidden = !on;
 }
 
-function speechBump() { if (meter?.synthetic) meter.synthetic.loud = 0.8; }
-
-function stopMeter() {
-  if (!meter) return;
-  clearInterval(meter.timer);
-  meter.stream?.getTracks().forEach(t => t.stop());
-  meter.ctx?.close().catch(() => {});
-  meter = null;
-  $('wave').hidden = true;
+function tellTab(payload) {
+  if (voiceTab) chrome.tabs.sendMessage(voiceTab, { type: 'showme:voice', ...payload }).catch(() => {});
 }
 
-function startListening() {
-  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+async function startVoice(tabId) {
+  if (voice && !voice.ended) return;
+  voiceTab = tabId || (await targetTab().catch(() => null))?.id || null;
   const status = $('mic-status');
   status.hidden = false;
-  if (!Speech) { status.textContent = 'Speech recognition is not available in this browser. Type the goal instead.'; return; }
-  if (recognition) return;
-  recognition = new Speech();
-  recognition.lang = navigator.language || 'en-GB';
-  recognition.interimResults = true;
-  recognition.continuous = false;
-  let heard = '';
-  let interim = '';
-  let failed = false;
-  $('mic').classList.add('listening');
-  $('composer').classList.add('listening');
-  status.textContent = 'Listening… (press ⌥Space again or the mic to stop)';
-  startMeter(() => interim);
-  recognition.onresult = event => {
-    speechBump();
-    interim = [...event.results].map(r => r[0].transcript).join(' ');
-    $('goal').value = interim;
-    if (event.results[event.results.length - 1].isFinal) {
-      heard = interim.trim();
+  status.textContent = 'Listening… let go to run, Esc to cancel.';
+  const previous = $('goal').value;
+  const session = createVoiceSession({
+    onLevels: ({ id, levels, text }) => {
+      if (session !== voice) return;
+      drawWave(levels);
+      if (text) $('goal').value = text;
+      tellTab({ state: 'listening', id, levels, text });
+    },
+    onError: ({ error }) => {
+      if (error === 'not-allowed' || error === 'service-not-allowed') {
+        status.textContent = 'Allow the microphone in the tab that just opened, then try again.';
+        chrome.tabs.create({ url: chrome.runtime.getURL('mic-permission.html') });
+      } else {
+        status.textContent = error === 'unsupported' ? 'Speech recognition is not available in this browser. Type the goal instead.' : `Voice error: ${error}. Type the goal instead.`;
+      }
+    },
+    onEnd: ({ id, text, cancelled }) => {
+      voiceUi(false);
+      tellTab({ state: text && !cancelled ? 'heard' : (cancelled ? 'cancelled' : 'off'), id, text });
+      if (cancelled || !text) {
+        $('goal').value = previous;
+        if (!status.textContent.startsWith('Allow') && !status.textContent.startsWith('Voice error') && !status.textContent.startsWith('Speech')) status.textContent = cancelled ? 'Cancelled.' : 'I didn\'t catch anything. Hold and talk, then let go.';
+        return;
+      }
+      $('goal').value = text;
+      chrome.storage.local.set({ goal: text });
       note('voice');
-      status.textContent = 'Got it. Press Run, or speak again.';
-    }
-  };
-  recognition.onspeechstart = speechBump;
-  recognition.onerror = event => {
-    failed = true;
-    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-      status.textContent = 'Allow the microphone in the tab that just opened, then try again.';
-      chrome.tabs.create({ url: chrome.runtime.getURL('mic-permission.html') });
-    } else {
-      status.textContent = `Voice error: ${event.error}. Type the goal instead.`;
-    }
-  };
-  recognition.onend = () => {
-    $('mic').classList.remove('listening');
-    $('composer').classList.remove('listening');
-    recognition = null;
-    stopMeter();
-    sendVoice({ state: heard && !failed ? 'heard' : 'off', text: heard });
-    chrome.storage.local.set({ goal: $('goal').value });
-    // Only auto-run what was actually heard this time, never a leftover goal after an error.
-    if (heard && !failed && $('autorun').checked) run(heard);
-  };
-  recognition.start();
+      status.textContent = 'Got it.';
+      if ($('autorun').checked) run(text);
+    },
+  });
+  voice = session;
+  voiceUi(true);
+  session.start();
 }
 
-function stopListening() { recognition?.stop(); }
+const stopVoice = () => voice?.stop();
+const cancelVoice = () => voice?.cancel();
 
-const toggleMic = () => (recognition ? stopListening() : startListening());
+// Mic button: press and hold to talk; a quick tap just explains how.
+let micHeldAt = 0;
+function micDown(e) {
+  e.preventDefault();
+  $('mic').setPointerCapture?.(e.pointerId);
+  micHeldAt = Date.now();
+  startVoice();
+}
+function micUp() {
+  if (!micHeldAt) return;
+  const quick = Date.now() - micHeldAt < TAP_MS;
+  micHeldAt = 0;
+  if (quick) { cancelVoice(); $('mic-status').hidden = false; $('mic-status').textContent = 'Hold the mic (or ⌥Space) while you talk, then let go.'; }
+  else stopVoice();
+}
 
-// ⌥Space / clicking Mo: the background asks us to listen (or to stop, if we already are).
-chrome.runtime.onMessage.addListener(msg => {
-  if (msg.type === 'showme:listen') {
-    chrome.storage.session.remove('listenAt').catch(() => {});
-    toggleMic();
+// ⌥Space while the panel itself has focus.
+let keysHeldAt = 0;
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.altKey && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    if (!e.repeat && !keysHeldAt) { keysHeldAt = Date.now(); startVoice(); }
+  } else if (e.key === 'Escape' && (keysHeldAt || micHeldAt)) {
+    keysHeldAt = 0; micHeldAt = 0; cancelVoice();
   }
-  if (msg.type === 'showme:teach-request' && !$('teach-ask').hidden && !$('teach').hidden) startTeaching().catch(err => offerTeaching(err.message));
+});
+document.addEventListener('keyup', e => {
+  if (keysHeldAt && (e.code === 'Space' || e.key === 'Alt')) {
+    const quick = Date.now() - keysHeldAt < TAP_MS;
+    keysHeldAt = 0;
+    quick ? cancelVoice() : stopVoice();
+  }
 });
 
-async function listenIfAsked() {
-  const { listenAt } = await chrome.storage.session.get('listenAt').catch(() => ({}));
-  if (listenAt && Date.now() - listenAt < 5000) {
-    chrome.storage.session.remove('listenAt').catch(() => {});
-    startListening();
-  }
+// Holds on a page reach us through the background while the panel is open.
+const port = chrome.runtime.connect({ name: 'panel' });
+port.onMessage.addListener(msg => {
+  if (msg.type === 'voice-start') startVoice(msg.tabId);
+  if (msg.type === 'voice-stop') stopVoice();
+  if (msg.type === 'voice-cancel') cancelVoice();
+});
+
+chrome.runtime.onMessage.addListener(msg => {
+  if (msg.type === 'showme:teach-request') resumePendingTeach().then(found => {
+    if (!found && !$('teach-ask').hidden && !$('teach').hidden) startTeaching().catch(err => offerTeaching(err.message));
+  });
+});
+
+// A voice run that failed while the panel was closed leaves what's needed to teach it.
+async function resumePendingTeach() {
+  const { pendingTeach } = await chrome.storage.session.get('pendingTeach').catch(() => ({}));
+  if (!pendingTeach || Date.now() - pendingTeach.at > 15 * 60 * 1000) return false;
+  await chrome.storage.session.remove('pendingTeach');
+  switchView('agent');
+  resetRunUi();
+  Object.assign(state, { lastGoal: pendingTeach.goal, runTabId: pendingTeach.tabId, lastStartUrl: pendingTeach.startUrl, runSteps: [] });
+  $('goal').value = pendingTeach.goal;
+  addStep(stepHtml(esc(`Voice run: “${pendingTeach.goal}”`), { why: esc(pendingTeach.failure) }), { error: true, kind: 'note' });
+  setVerdict(false, 'Failed');
+  offerTeaching(pendingTeach.failure);
+  return true;
 }
 
 // ---- Mo -------------------------------------------------------------------------
 
 async function mo(stateName, extra = {}, tabId = null) {
-  const id = tabId || state.runTabId || (await targetTab().catch(() => null))?.id;
-  if (id) chrome.tabs.sendMessage(id, { type: 'showme:mo', state: stateName, ...extra }).catch(() => {});
+  moOn(tabId || state.runTabId || (await targetTab().catch(() => null))?.id, stateName, extra);
 }
 
 // ---- Mubit and Judges tabs ----------------------------------------------------------
@@ -669,10 +506,6 @@ const note = type => { session.events.push({ type, at: Date.now() }); judges.ren
 
 const mubit = createMubitView({ api, getServer: () => state.server, onOverview: data => judges.update(data) });
 const judges = createJudgesView({ session });
-
-async function reportRun(run) {
-  await api('/api/runs', { method: 'POST', body: run }).catch(() => {});
-}
 
 // ---- Wiring -------------------------------------------------------------------
 
@@ -702,7 +535,8 @@ function switchView(view) {
 }
 
 async function init() {
-  const saved = await chrome.storage.local.get(['server', 'goal', 'speak', 'present']);
+  const saved = await chrome.storage.local.get(['server', 'goal', 'speak', 'present', 'autorun']);
+  if (saved.autorun === false) $('autorun').checked = false;
   if (saved.present) { document.body.classList.add('present'); $('present').checked = true; }
   if (saved.server) state.server = saved.server;
   if (saved.goal) $('goal').value = saved.goal;
@@ -715,7 +549,10 @@ async function init() {
   $('goal').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); run($('goal').value); } });
   $('goal').addEventListener('input', () => chrome.storage.local.set({ goal: $('goal').value }));
   $('stop').addEventListener('click', () => { state.stopRequested = true; state.abort?.abort(); });
-  $('mic').addEventListener('click', toggleMic);
+  $('mic').addEventListener('pointerdown', micDown);
+  $('mic').addEventListener('pointerup', micUp);
+  $('mic').addEventListener('pointercancel', () => { micHeldAt = 0; cancelVoice(); });
+  $('autorun').addEventListener('change', () => chrome.storage.local.set({ autorun: $('autorun').checked }));
   $('show-me').addEventListener('click', () => startTeaching().catch(err => offerTeaching(err.message)));
   $('done-teaching').addEventListener('click', finishTeaching);
   $('cancel-teaching').addEventListener('click', async () => { await stopRecording(); offerTeaching('Demonstration cancelled.'); });
@@ -739,7 +576,7 @@ async function init() {
   }));
   $('server').addEventListener('change', async () => {
     state.server = $('server').value.replace(/\/$/, '');
-    await chrome.storage.local.set({ server: state.server });
+    await chrome.storage.local.set({ server: state.server }); // the background reads it for voice runs
     refreshHealth(); refreshMemory(); mubit.connect(); mubit.refresh();
   });
   chrome.tabs.onActivated.addListener(updateTargetLabel);
@@ -751,7 +588,7 @@ async function init() {
   refreshTotals();
   mubit.connect();
   mubit.refresh();
-  listenIfAsked();
+  resumePendingTeach();
   // Kept examples and adapter status, read from Mubit's console when it's open in a tab.
   const { mubitBridge } = await chrome.storage.local.get('mubitBridge');
   if (mubitBridge) { mubit.setBridge(mubitBridge); judges.setBridge(mubitBridge); }

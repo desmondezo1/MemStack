@@ -12,7 +12,7 @@ const SCENES = [
   ['ledger', 'Mubit tab'],
 ];
 const DEMO_SECONDS = 180;
-const TESTS = 70;
+const TESTS = 73;
 
 const isLocal = url => { try { return ['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname); } catch { return true; } };
 

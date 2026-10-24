@@ -79,7 +79,7 @@
   <div class="bubble" hidden></div>
   <div class="pill" hidden><span class="rec"></span><div class="bars">${'<span></span>'.repeat(BARS)}</div><span class="words">Listening…</span></div>
   <div class="menu" hidden role="menu">
-    <button data-act="talk" role="menuitem">🎙 Talk (⌥Space)</button>
+    <button data-act="talk" role="menuitem">How to talk to me</button>
     <button data-act="panel" role="menuitem">Open the Show Me panel</button>
     <button data-act="hide" role="menuitem">Hide on this site</button>
   </div>
@@ -206,50 +206,123 @@
 
   // ---- voice ----------------------------------------------------------------
 
-  function voice({ state, levels = [], text = '' }) {
+  // Waveform updates arrive about 14 times a second while you talk. Updates can arrive
+  // out of order, so a session that has ended never shows again, and the waveform
+  // hides by itself if updates stop coming (a lost "stopped" message can't leave it up).
+  const endedSessions = new Set();
+  let voiceWatchdog = null;
+
+  function hideWave() {
+    clearTimeout(voiceWatchdog);
+    pill.hidden = true;
+    host.dataset.voice = 'off';
+    if (wrap.dataset.state === 'listening') setState('idle');
+  }
+
+  let lastVoiceId = null;
+  function voice({ state, id, levels = [], text = '' }) {
+    // Late waveform updates from a session that has ended never bring it back.
+    if (state === 'listening' && id && endedSessions.has(id)) return;
     voiceSeenAt = Date.now();
-    host.dataset.voice = state;
     if (state === 'listening') {
+      lastVoiceId = id || lastVoiceId;
+      host.dataset.voice = 'listening';
       setState('listening');
       hideBubble();
       pill.hidden = false;
       bars.forEach((b, i) => { b.style.height = `${4 + Math.round((levels[i] || 0) * 22)}px`; });
-      words.textContent = text || 'Listening…';
-    } else {
-      pill.hidden = true;
-      if (state === 'heard' && text) setState('thinking', { text: `“${text}”`, hold: 3000 });
-      else if (wrap.dataset.state === 'listening') setState('idle');
+      words.textContent = text || 'Listening… let go to send, Esc to cancel';
+      clearTimeout(voiceWatchdog);
+      voiceWatchdog = setTimeout(hideWave, 900);
+      return;
     }
+    if (id) endedSessions.add(id);
+    hideWave();
+    host.dataset.voice = state;
+    // (A cancel or a tap already got its message when the key or Mo was let go.)
+    if (state === 'heard' && text) setState('thinking', { text: `“${text}”`, hold: 3000 });
   }
 
   // ---- interaction ------------------------------------------------------------
 
-  async function talk() {
-    menu.hidden = true;
-    const asked = Date.now();
-    await chrome.runtime.sendMessage({ type: 'showme:talk' }).catch(() => null);
-    setTimeout(() => {
-      if (voiceSeenAt < asked) say('Press ⌥Space or click the Show Me icon to open my panel, then I can listen.', { hold: 6000 });
-    }, 1500);
+  // ---- push to talk: hold ⌥Space (or hold Mo), let go to send, Esc to cancel -----
+
+  const TAP_MS = 250;
+  let holding = null; // { at, via }
+
+  function holdHint() { say('Hold ⌥ Space (or hold me) while you talk, then let go.', { hold: 4000 }); }
+
+  function startHold(via) {
+    if (holding) return;
+    holding = { at: Date.now(), via };
+    host.dataset.holding = via;
+    setState('listening');
+    pill.hidden = false;
+    words.textContent = 'Listening… let go to send, Esc to cancel';
+    clearTimeout(voiceWatchdog);
+    voiceWatchdog = setTimeout(() => { if (holding && voiceSeenAt < holding.at) say('Still waking up the microphone…', { hold: 2000 }); }, 1500);
+    chrome.runtime.sendMessage({ type: 'showme:voice-start' }).catch(() => {});
   }
+
+  function endHold(kind) {
+    if (!holding) return;
+    const quick = Date.now() - holding.at < TAP_MS;
+    holding = null;
+    if (lastVoiceId) endedSessions.add(lastVoiceId); // you let go: no more waveform for this session
+    delete host.dataset.holding;
+    if (kind === 'stop' && quick) kind = 'tap';
+    chrome.runtime.sendMessage({ type: kind === 'stop' ? 'showme:voice-stop' : 'showme:voice-cancel' }).catch(() => {});
+    if (kind !== 'stop') hideWave();
+    else { clearTimeout(voiceWatchdog); voiceWatchdog = setTimeout(hideWave, 3000); } // never left showing
+    if (kind === 'tap') holdHint();
+    if (kind === 'cancel') say('Cancelled.', { hold: 1500 });
+  }
+
+  const isTalkCombo = e => e.code === 'Space' && e.altKey && !e.ctrlKey && !e.metaKey;
+  function onKeyDown(e) {
+    if (isTalkCombo(e)) {
+      e.preventDefault(); // ⌥Space would otherwise type a space
+      if (!e.repeat) startHold('keys');
+    } else if (e.key === 'Escape' && holding) {
+      e.preventDefault();
+      endHold('cancel');
+    }
+  }
+  function onKeyUp(e) {
+    if (holding?.via === 'keys' && (e.code === 'Space' || e.key === 'Alt')) { e.preventDefault(); endHold('stop'); }
+  }
+  // Switching away mid-hold means we'll never see the key come up: cancel.
+  const onBlur = () => { if (holding) endHold('cancel'); };
+  document.addEventListener('keydown', onKeyDown, true);
+  document.addEventListener('keyup', onKeyUp, true);
+  window.addEventListener('blur', onBlur);
 
   let drag = null;
   moButton.addEventListener('pointerdown', e => {
     drag = { x: e.clientX, y: e.clientY, moved: false };
     moButton.setPointerCapture(e.pointerId);
+    // Holding Mo still for a moment starts listening; moving first means a drag.
+    drag.timer = setTimeout(() => { if (drag && !drag.moved) startHold('mo'); }, TAP_MS);
   });
   moButton.addEventListener('pointermove', e => {
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (holding?.via === 'mo') {
+      // Slide away to cancel, like a voice note.
+      if (Math.hypot(dx, dy) > 80) { endHold('cancel'); clearTimeout(drag.timer); drag = null; }
+      return;
+    }
     if (Math.hypot(dx, dy) > 6) drag.moved = true;
     if (drag.moved) { wrap.style.transition = 'none'; wrap.style.setProperty('--wx', `${dx}px`); wrap.style.setProperty('--wy', `${dy}px`); }
   });
   moButton.addEventListener('pointerup', e => {
+    if (holding?.via === 'mo') { clearTimeout(drag?.timer); drag = null; return endHold('stop'); }
     if (!drag) return;
+    clearTimeout(drag.timer);
     const moved = drag.moved;
     drag = null;
     wrap.style.transition = '';
-    if (!moved) return talk();
+    if (!moved) return holdHint();
     // Snap to the nearest corner and remember it.
     const next = (e.clientY < innerHeight / 2 ? 't' : 'b') + (e.clientX < innerWidth / 2 ? 'l' : 'r');
     setCorner(next);
@@ -261,7 +334,7 @@
   menu.addEventListener('click', async e => {
     const act = e.target.closest('button')?.dataset.act;
     menu.hidden = true;
-    if (act === 'talk') talk();
+    if (act === 'talk') holdHint();
     if (act === 'panel') {
       const r = await chrome.runtime.sendMessage({ type: 'showme:open-panel' }).catch(() => null);
       if (!r?.ok) say('Click the Show Me icon in the toolbar to open the panel.');
@@ -272,8 +345,9 @@
       applyHidden(true);
     }
   });
+  let bubbleAction = null; // what clicking an "ask" bubble does: 'teach' or 'mic'
   bubble.addEventListener('click', () => {
-    if (bubble.classList.contains('ask')) chrome.runtime.sendMessage({ type: 'showme:teach-request' }).catch(() => {});
+    if (bubble.classList.contains('ask')) chrome.runtime.sendMessage({ type: 'showme:bubble', action: bubbleAction || 'teach' }).catch(() => {});
     hideBubble();
   });
 
@@ -301,7 +375,7 @@
       if (msg.state === 'show') { chrome.storage.local.get('moHiddenHosts').then(({ moHiddenHosts = [] }) => chrome.storage.local.set({ moHiddenHosts: moHiddenHosts.filter(h => h !== location.host) })); applyHidden(false); }
       else if (msg.state === 'acting') { setState('acting', { text: msg.text, hold: 0 }); actOn(msg.targetId); }
       else if (msg.state === 'learning') { setState('learning', { text: msg.text, hold: 3200 }); flyCards(msg.count); }
-      else if (msg.state === 'stuck') setState('stuck', { text: msg.text || 'Can you show me?', ask: true, hold: 15000 });
+      else if (msg.state === 'stuck') { bubbleAction = msg.action || 'teach'; setState('stuck', { text: msg.text || 'Can you show me?', ask: true, hold: 15000 }); }
       else if (msg.state === 'success') setState('success', { text: msg.text || 'Done!', hold: 2500 });
       else setState(msg.state || 'idle', { text: msg.text, hold: msg.hold || 0 });
       reply({ ok: true });
@@ -400,6 +474,9 @@
     clearTimeout(wanderTimer); clearTimeout(stateTimer); clearTimeout(bubbleTimer); clearInterval(heartbeat);
     clearTimeout(blinkTimer); clearInterval(drift); if (gazeFrame) cancelAnimationFrame(gazeFrame);
     document.removeEventListener('pointermove', onPointerMove, { capture: true });
+    document.removeEventListener('keydown', onKeyDown, true);
+    document.removeEventListener('keyup', onKeyUp, true);
+    window.removeEventListener('blur', onBlur);
     try { chrome.runtime.onMessage.removeListener(onMessage); } catch { /* already dead */ }
     host.remove();
   }
