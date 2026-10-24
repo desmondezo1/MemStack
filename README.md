@@ -30,7 +30,11 @@ Show Me icon. Details in [TESTING.md](TESTING.md).
 | `extension/background.js` | Toolbar icon and the ⌥Space talk shortcut. |
 | `server/index.js` | Backend the extension calls. Holds the Mubit key; Mubit refuses browser calls. |
 | `server/llm.js` | Sends every model call to Claude (or OpenAI) through Mubit's gateway; mock model when no key is set. |
-| `server/prompts.js` | The three fixed system prompts, one per Mubit task: `next-action`, `done-check`, `safety-gate`. |
+| `server/prompts.js` | The fixed system prompts, one per Mubit task: `next-action`, `done-check`, `safety-gate`, `locate` (answers questions from the page) and `refine-lesson` (cleans up demonstrations). |
+| `server/verifier.js`, `verify-demo.js` | Banyan Sapling: an independent check on the done-check and before risky clicks. |
+| `server/refine.js` | Finds detours in a demonstration (a result opened and abandoned, corrected typing) before it trains anything. |
+| `extension/newtab.html` | Show Me's New Tab page, so Mo is there on new tabs too. |
+| `extension/agent-core.js`, `voice-core.js` | The agent loop and push-to-talk, shared by the panel and background runs. |
 | `server/memory.js` | MemStack memory: demonstrations, recalled into later runs on the same page. |
 | `server/ledger.js` | Local log of every call for the ledger: counts, latency, cost. |
 | `server/demo-site/` | Trattoria Nove (restaurant) and Tubely (offline video site), the stage demo pages. |

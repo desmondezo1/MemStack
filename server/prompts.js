@@ -7,9 +7,25 @@ export const TASKS = {
   nextAction: 'next-action',
   doneCheck: 'done-check',
   safetyGate: 'safety-gate',
+  locate: 'locate',
+  refineLesson: 'refine-lesson',
 };
 
 export const SYSTEM_PROMPTS = {
+  [TASKS.locate]: [
+    'You find information on a web page for a user. You get the user\'s question or request and the page\'s text blocks, each with an id.',
+    'If the page answers it, pick the block that holds the answer and write a one-sentence answer.',
+    'Reply with JSON only, no prose: {"found":true|false,"block_id":"<id from the list, or empty>","answer":"<one short sentence, or empty>"}',
+    'Rules: use only ids from the list. Quote numbers, times, prices and names exactly as the page has them. If the page does not contain the answer, reply found false.',
+  ].join('\n'),
+
+  [TASKS.refineLesson]: [
+    'You clean up a human\'s demonstration of a browser task before it is used to train an agent. You get the goal and the numbered steps: what was done, on which page, and where it led.',
+    'Keep the steps a careful person would still need to reach the goal. Drop detours (a result opened and then abandoned), typing that was later corrected, and accidental or repeated clicks.',
+    'Reply with JSON only, no prose: {"drop":[<step numbers to drop>],"why":{"<step number>":"<at most 10 words>"}}',
+    'Never drop the step that finally achieves the goal. If every step is needed, reply {"drop":[],"why":{}}.',
+  ].join('\n'),
+
   // v2: full browser toolset. (v1 only had click/type/select/done; its Mubit task is separate.)
   [TASKS.nextAction]: [
     'You control a web browser for a user. You get the user\'s goal, the current page (URL and interactive elements), the steps already taken, and sometimes a demonstration a human recorded.',
@@ -85,6 +101,9 @@ export function formatStep(step) {
     case 'scroll': return `scroll ${step.value || 'down'}`;
     case 'wait': return 'wait for the page';
     case 'ask_human': return `ask the human: ${step.value}`;
+    case 'highlight': return `point out "${step.value}"`;
+    case 'new_tab': return 'open a new tab';
+    case 'switch_tab': return `switch to the tab ${step.value}`;
     case 'done': return 'done';
     default: return `click ${target}`;
   }
@@ -114,4 +133,28 @@ export function buildDoneCheckMessage({ goal, page }) {
 
 export function buildSafetyMessage({ goal, action, element }) {
   return `Goal: ${goal}\n\nPending action: ${formatStep({ ...action, label: element?.label, role: element?.role })}`;
+}
+
+export function formatBlocks(page) {
+  return (page.blocks || []).slice(0, 60).map(b => `${b.id} ${b.tag} "${b.text}"`).join('\n') || 'none';
+}
+
+export function buildLocateMessage({ goal, page, hint }) {
+  const parts = [`Question: ${goal}`, '', `URL: ${page.url}`];
+  if (page.title) parts.push(`Title: ${page.title}`);
+  parts.push('Blocks:', formatBlocks(page));
+  if (hint) parts.push('', `A human pointed out the answer on this page: "${hint}"`);
+  parts.push('', 'Answer with one JSON object only.');
+  return parts.join('\n');
+}
+
+export function buildRefineMessage({ goal, steps }) {
+  const lines = [`Goal: ${goal}`, '', 'Steps:'];
+  steps.forEach((s, i) => {
+    let line = `${i + 1}. ${formatStep(s)} (on ${s.page?.url || 'unknown page'})`;
+    if (s.led_to) line += ` → led to ${s.led_to}`;
+    lines.push(line);
+  });
+  lines.push('', 'Answer with one JSON object only.');
+  return lines.join('\n');
 }

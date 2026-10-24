@@ -400,7 +400,7 @@
       else if (msg.state === 'acting') { setState('acting', { text: msg.text, hold: 0 }); actOn(msg.targetId); }
       else if (msg.state === 'learning') { setState('learning', { text: msg.text, hold: 3200 }); flyCards(msg.count); }
       else if (msg.state === 'stuck') { bubbleAction = msg.action || 'teach'; setState('stuck', { text: msg.text || 'Can you show me?', ask: true, hold: 15000 }); }
-      else if (msg.state === 'success') setState('success', { text: msg.text || 'Done!', hold: 2500 });
+      else if (msg.state === 'success') setState('success', { text: msg.text || 'Done!', hold: msg.hold || 2500 });
       else setState(msg.state || 'idle', { text: msg.text, hold: msg.hold || 0 });
       reply({ ok: true });
       return false;

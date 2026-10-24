@@ -72,11 +72,20 @@
       </div>
       <div id="teach-recording" hidden>
         <p class="teach-title"><span class="rec-dot" aria-hidden="true"></span>Watching your steps</p>
-        <p class="teach-help">Do the task in the page, then press Done.</p>
+        <p class="teach-help">Do the task in the page, then press Done. New tabs are followed. To show an answer, select its text.</p>
         <ol id="recorded" class="recorded"></ol>
         <div class="actions">
           <button id="done-teaching" class="btn primary" disabled>Done</button>
           <button id="cancel-teaching" class="btn quiet">Cancel</button>
+        </div>
+      </div>
+      <div id="teach-review" hidden>
+        <p class="teach-title">Check your lesson</p>
+        <p class="teach-help">Unticked steps look like detours, so they won't be taught. Tick any you want to keep.</p>
+        <ol id="review" class="review"></ol>
+        <div class="actions">
+          <button id="save-lesson" class="btn primary">Save lesson</button>
+          <button id="back-to-recording" class="btn quiet">Keep recording</button>
         </div>
       </div>
       <div id="teach-saved" hidden>

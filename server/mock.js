@@ -143,9 +143,35 @@ function safetyGate({ goal, element }) {
   return { allow: true, reason: 'Safe for this goal' };
 }
 
+// Answer a question from the page: the block sharing the most words with the question
+// (or holding the text a human pointed out).
+const WORDS_TO_SKIP = new Set(['what', 'when', 'where', 'which', 'does', 'this', 'that', 'with', 'have', 'there', 'their', 'your', 'show', 'page', 'they', 'from', 'about', 'tell']);
+const words = s => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2 && !WORDS_TO_SKIP.has(w));
+function locate({ goal, page, hint }) {
+  const blocks = page.blocks || [];
+  if (hint) {
+    const b = blocks.find(x => x.text.toLowerCase().includes(hint.toLowerCase().slice(0, 40)));
+    if (b) return { found: true, block_id: b.id, answer: b.text };
+  }
+  const want = new Set(words(goal));
+  let best = null;
+  let bestScore = 0;
+  for (const b of blocks) {
+    const matches = words(b.text).filter(w => want.has(w)).length;
+    if (!matches) continue;
+    // Ties go to the fuller block: an answer, not a label for it.
+    const score = matches + (b.tag.startsWith('h') ? -0.5 : 0) + Math.min(b.text.length, 200) / 1000;
+    if (score > bestScore) { best = b; bestScore = score; }
+  }
+  return best && bestScore >= 0.5 ? { found: true, block_id: best.id, answer: best.text } : { found: false, block_id: '', answer: '' };
+}
+
 export function mockAnswer(task, context) {
   if (task === TASKS.nextAction) return nextAction(context);
   if (task === TASKS.doneCheck) return doneCheck(context);
   if (task === TASKS.safetyGate) return safetyGate(context);
+  if (task === TASKS.locate) return locate(context);
+  // The mock agrees with the rule-based detour finder.
+  if (task === TASKS.refineLesson) return { drop: [...context.detours.drop].map(i => i + 1), why: Object.fromEntries(Object.entries(context.detours.why).map(([i, w]) => [Number(i) + 1, w])) };
   throw new Error(`mock: unknown task ${task}`);
 }

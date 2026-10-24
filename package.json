@@ -9,9 +9,9 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test tests/unit.test.js tests/qa-server.test.js tests/verifier.test.js",
+    "test": "node --test tests/unit.test.js tests/qa-server.test.js tests/verifier.test.js tests/features.test.js",
     "test:e2e": "node --test tests/e2e.test.js tests/tools-e2e.test.js tests/qa-e2e.test.js",
-    "test:all": "node --test tests/unit.test.js tests/qa-server.test.js tests/verifier.test.js tests/e2e.test.js tests/tools-e2e.test.js tests/qa-e2e.test.js",
+    "test:all": "node --test tests/unit.test.js tests/qa-server.test.js tests/verifier.test.js tests/features.test.js tests/e2e.test.js tests/tools-e2e.test.js tests/qa-e2e.test.js",
     "seed": "node scripts/seed-traffic.js"
   },
   "license": "MIT",

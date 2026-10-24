@@ -6,7 +6,8 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadEnv } from './env.js';
-import { TASKS, buildNextActionMessage, buildDoneCheckMessage, buildSafetyMessage } from './prompts.js';
+import { TASKS, buildNextActionMessage, buildDoneCheckMessage, buildSafetyMessage, buildLocateMessage, buildRefineMessage } from './prompts.js';
+import { findDetours, forTraining } from './refine.js';
 import { callTask, getConfig, LlmError } from './llm.js';
 import { formatStep } from './prompts.js';
 import { addDemo, clearDemos, listDemos, recallDemo, updateDemo } from './memory.js';
@@ -70,6 +71,45 @@ const routes = {
     return { allow: json.allow !== false && !blocked, reason, ms, requestId, usage, verifier: sapling };
   },
 
+  // A question about the page: which block answers it, and the answer in one sentence.
+  'POST /api/locate': async ({ goal, page, sessionId }) => {
+    requireFields({ goal, page, sessionId });
+    const blocks = Array.isArray(page.blocks) ? page.blocks : [];
+    const demo = recallDemo({ url: page.url, goal });
+    const hint = demo?.answers?.find(a => a.page === undefined || a.page === pageKeyOf(page.url))?.value;
+    const { json, ms, requestId, usage } = await callTask({
+      task: TASKS.locate, userMessage: buildLocateMessage({ goal, page, hint }), sessionId, mockContext: { goal, page, hint },
+      summarize: j => (j.found ? `found: ${j.answer || ''}` : 'not on this page'),
+    });
+    const block = blocks.find(b => b.id === json.block_id) || (page.elements || []).find(e => e.id === json.block_id);
+    const found = json.found === true && !!block;
+    return { found, block_id: found ? json.block_id : '', answer: found ? String(json.answer || block.text || block.label) : '', ms, requestId, usage, demoUsed: hint ? { id: demo.id } : null };
+  },
+
+  // Before a lesson trains anything: which steps were detours? Rules first, then the model.
+  'POST /api/refine-lesson': async ({ goal, steps, sessionId = `refine-${Date.now()}` }) => {
+    requireFields({ goal, steps });
+    if (!Array.isArray(steps)) throw httpError(400, 'steps must be an array');
+    const detours = findDetours(steps);
+    const why = Object.fromEntries([...detours.drop].map(i => [i, detours.why[i]]));
+    let model = null;
+    if (steps.length > 1) {
+      try {
+        const { json } = await callTask({
+          task: TASKS.refineLesson, userMessage: buildRefineMessage({ goal, steps }), sessionId, mockContext: { detours },
+          summarize: j => `drop ${(j.drop || []).join(', ') || 'nothing'}`,
+        });
+        model = json;
+        for (const n of Array.isArray(json.drop) ? json.drop : []) {
+          const i = Number(n) - 1;
+          // The model may not drop the last step: that's the one that reached the goal.
+          if (Number.isInteger(i) && i >= 0 && i < steps.length - 1 && !(i in why)) why[i] = String(json.why?.[n] || 'Not needed for the goal');
+        }
+      } catch { /* the rules alone are still a good suggestion */ }
+    }
+    return { keep: steps.map((_, i) => !(i in why)), why, modelUsed: !!model };
+  },
+
   'GET /api/demonstrations': async () => ({ demos: listDemos() }),
 
   'DELETE /api/demonstrations': async () => { clearDemos(); return { ok: true }; },
@@ -83,8 +123,22 @@ const routes = {
     if (steps.some(s => !s || !s.page || !Array.isArray(s.page.elements) || !s.action)) {
       throw httpError(400, 'each step needs an action and the page it happened on');
     }
-    const demo = addDemo({ goal, url, steps, mistake });
+    // Pointing at the answer trains "locate"; tab steps become plain page opens.
+    const answers = steps.filter(s => s.action === 'highlight');
+    steps = forTraining(steps.filter(s => s.action !== 'highlight'));
+    const demo = addDemo({ goal, url, steps, mistake, answers });
     const sessionId = `demo-${demo.id}`;
+    const locateResults = await mapLimit(answers, 2, async a => {
+      try {
+        const { json } = await callTask({
+          task: TASKS.locate, userMessage: buildLocateMessage({ goal, page: a.page, hint: a.value }), sessionId, kind: 'training',
+          mockContext: { goal, page: a.page, hint: a.value }, summarize: () => `taught answer: ${a.value.slice(0, 60)}`,
+        });
+        return { agreed: json.block_id === a.element_id };
+      } catch (err) {
+        return { agreed: false, error: err.message };
+      }
+    });
     const results = await mapLimit(steps, 4, async (step, i) => {
       const history = steps.slice(0, i).map(s => ({ action: s.action, label: s.label, role: s.role, value: s.value }));
       const userMessage = buildNextActionMessage({ goal, page: step.page, history, demo });
@@ -101,11 +155,12 @@ const routes = {
         return { step: i + 1, agreed: false, error: err.message };
       }
     });
+    const all = [...results, ...locateResults];
     const training = {
       viaMubit: getConfig().provider !== 'mock',
-      sent: results.filter(r => !r.error).length,
-      agreed: results.filter(r => r.agreed).length,
-      errors: results.filter(r => r.error).length,
+      sent: all.filter(r => !r.error).length,
+      agreed: all.filter(r => r.agreed).length,
+      errors: all.filter(r => r.error).length,
       results,
     };
     const saved = updateDemo(demo.id, { training: { viaMubit: training.viaMubit, sent: training.sent, agreed: training.agreed, errors: training.errors } });
@@ -150,6 +205,8 @@ const routes = {
 
   'DELETE /api/ledger': async () => { clearCalls(); return { ok: true }; },
 };
+
+const pageKeyOf = url => { try { const u = new URL(url); return u.origin + u.pathname; } catch { return url; } };
 
 function describeChoice(json, page) {
   const element = (page.elements || []).find(e => e.id === json.element_id);
