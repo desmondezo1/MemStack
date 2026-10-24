@@ -1,0 +1,34 @@
+{
+  "accounts": [
+    {"code": "0030", "name": "Office equipment and computers"},
+    {"code": "2200", "name": "VAT payments to HMRC"},
+    {"code": "2210", "name": "PAYE and NI payments to HMRC"},
+    {"code": "3200", "name": "Director's loan / drawings"},
+    {"code": "4000", "name": "Sales"},
+    {"code": "4900", "name": "Other income"},
+    {"code": "5000", "name": "Purchases (cost of sales)"},
+    {"code": "5100", "name": "Packaging"},
+    {"code": "6100", "name": "Subcontractors and freelancers"},
+    {"code": "7000", "name": "Wages and salaries"},
+    {"code": "7100", "name": "Rent and rates"},
+    {"code": "7200", "name": "Light, heat and power"},
+    {"code": "7300", "name": "Motor expenses"},
+    {"code": "7400", "name": "Travel"},
+    {"code": "7500", "name": "Office supplies and stationery"},
+    {"code": "7502", "name": "Telephone and internet"},
+    {"code": "7600", "name": "Accountancy and legal fees"},
+    {"code": "7800", "name": "Repairs and maintenance"},
+    {"code": "7900", "name": "Bank charges"},
+    {"code": "8000", "name": "Software and subscriptions"},
+    {"code": "8100", "name": "Advertising and marketing"},
+    {"code": "8200", "name": "Staff welfare and entertaining"},
+    {"code": "8300", "name": "Insurance"}
+  ],
+  "tax_codes": [
+    {"code": "S20", "name": "Standard rate 20%"},
+    {"code": "R5", "name": "Reduced rate 5%"},
+    {"code": "Z0", "name": "Zero rated"},
+    {"code": "EX", "name": "Exempt"},
+    {"code": "NV", "name": "No VAT"}
+  ]
+}
