@@ -479,3 +479,19 @@ test('Mo never opens the panel by itself: right-click and the help bubble open i
   assert.equal(await panels(), before, 'no side panel was opened');
   await site.close();
 });
+
+test('a new tab shows Show Me\'s page with Mo, and its box opens addresses', { timeout: 30_000 }, async () => {
+  const page = await context.newPage();
+  await page.goto('chrome://newtab/');
+  await page.waitForSelector('showme-mo', { state: 'attached' });
+  assert.match(page.url(), /^chrome-extension:\/\/.+\/newtab\.html$/);
+  // The extension can still talk to Mo here (thinking, listening…).
+  const tabId = await worker.evaluate(async () => (await chrome.tabs.query({})).find(t => t.url === 'chrome://newtab/')?.id);
+  await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:mo', state: 'thinking' }), tabId);
+  await page.waitForFunction(() => document.querySelector('showme-mo').dataset.state === 'thinking');
+  // An address without "https://" still opens as a site, not a search.
+  await page.fill('#q', `${base.replace('http://', '')}/demo/tube/`);
+  await page.press('#q', 'Enter');
+  await page.waitForURL(`${base}/demo/tube/`);
+  await page.close();
+});
