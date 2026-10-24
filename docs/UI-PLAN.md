@@ -1,6 +1,6 @@
-# Show Me — UI plan: mascot, voice hotkey, and making Mubit visible
+# Mo — UI plan: mascot, voice hotkey, and making Mubit visible
 
-> **Renamed:** this project is now called **Mo** (24 Oct 2026). It grew from "Show Me", the browser agent you teach by hand, into an assistant that helps and keeps you safe. This document is kept as written at the time; see the [README](../README.md) for what Mo is today.
+> **Renamed:** this project is now called **Mo** (24 Oct 2026). It grew from "Mo", the browser agent you teach by hand, into an assistant that helps and keeps you safe. This document is kept as written at the time; see the [README](../README.md) for what Mo is today.
 
 Written 24 Oct 2026, before the Sunday 10:00 demo. **Status: built** (items 1–5); the optional 3D Mo (item 6) is not. How to use it: [TESTING.md](../TESTING.md).
 
@@ -104,7 +104,7 @@ Goal box with mic, the live timeline with costs, the red **mistake** marker afte
 Wireframe (the numbers are examples):
 
 ```
- Browser ──► Show Me ──► Mubit gateway ──► Claude
+ Browser ──► Mo ──► Mubit gateway ──► Claude
     ● ● ●  packets animate along the line on every call
                      └──► Training examples  [+5]  (demonstrations drop in here)
 
@@ -169,7 +169,7 @@ A **Present** button enlarges the panel's text and Mo, for the projector.
 - **"Muse"**: several products share the name. If you meant Ink & Switch's Muse, the idea to borrow is
   calm, fluid motion and a canvas feel: soft easing and nothing jumpy. Tell me which Muse you meant, and
   I'll pull its specifics.
-- **Accent**: Show Me orange `#ff5a1f`. Mubit-related UI uses one consistent secondary colour, so "this
+- **Accent**: Mo orange `#ff5a1f`. Mubit-related UI uses one consistent secondary colour, so "this
   is Mubit" reads at a glance across Mo, the packets and the cards.
 
 ## 5. Build order (fits before Sunday 10:00)

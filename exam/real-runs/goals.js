@@ -1,7 +1,7 @@
-// Real, read-only goals on public websites. Each run starts on `url` and Show Me works
+// Real, read-only goals on public websites. Each run starts on `url` and Mo works
 // from there. Goals are instructions, not questions, so each run uses the next-action
 // and done-check tasks (a question would go to the locate task instead).
-// No more than 8 runs per site.
+// No more than 16 runs per site, one at a time.
 
 export const GOALS = [
   // Wikipedia: find a fact
@@ -75,4 +75,51 @@ export const GOALS = [
   { id: 'hn-ask', url: 'https://news.ycombinator.com/', goal: 'Open the Ask HN page' },
   { id: 'ol-orwell', url: 'https://openlibrary.org/', goal: 'Find the book Nineteen Eighty-Four by George Orwell' },
   { id: 'ol-achebe', url: 'https://openlibrary.org/', goal: 'Find books by Chinua Achebe' },
+
+  // More Wikipedia: search box, links inside articles, other languages
+  { id: 'wiki-burna', url: 'https://en.wikipedia.org/wiki/Main_Page', goal: "Find Burna Boy's real name on Wikipedia" },
+  { id: 'wiki-adichie', url: 'https://en.wikipedia.org/wiki/Main_Page', goal: 'Find the year Half of a Yellow Sun by Chimamanda Ngozi Adichie was published' },
+  { id: 'wiki-shard', url: 'https://en.wikipedia.org/wiki/Main_Page', goal: 'Find the height of The Shard in London' },
+  { id: 'wiki-nile', url: 'https://en.wikipedia.org/wiki/Main_Page', goal: 'Find the length of the River Nile' },
+  { id: 'wiki-arsenal', url: 'https://en.wikipedia.org/wiki/Main_Page', goal: "Find the name of Arsenal's home stadium" },
+  { id: 'wiki-moon', url: 'https://en.wikipedia.org/wiki/Main_Page', goal: 'Find the date of the first crewed Moon landing' },
+  { id: 'wiki-london-fr', url: 'https://en.wikipedia.org/wiki/London', goal: 'Open this article in French' },
+  { id: 'wiki-lagos-history', url: 'https://en.wikipedia.org/wiki/Lagos', goal: 'Go to the History section of this article' },
+
+  // Other wikis and free libraries
+  { id: 'wikt-serendipity', url: 'https://en.wiktionary.org/wiki/Wiktionary:Main_Page', goal: 'Find the meaning of the word serendipity on Wiktionary' },
+  { id: 'wikt-jollof', url: 'https://en.wiktionary.org/wiki/Wiktionary:Main_Page', goal: 'Look up the word jollof on Wiktionary' },
+  { id: 'voy-lagos', url: 'https://en.wikivoyage.org/wiki/Main_Page', goal: 'Open the Wikivoyage travel guide for Lagos' },
+  { id: 'voy-edinburgh', url: 'https://en.wikivoyage.org/wiki/Main_Page', goal: 'Find what to see in Edinburgh on Wikivoyage' },
+  { id: 'gut-pride', url: 'https://www.gutenberg.org/', goal: 'Find the free ebook of Pride and Prejudice' },
+  { id: 'gut-top', url: 'https://www.gutenberg.org/', goal: 'Show the most downloaded books from yesterday' },
+  { id: 'gut-sherlock', url: 'https://www.gutenberg.org/', goal: 'Find The Adventures of Sherlock Holmes and open its page' },
+  { id: 'ol-nigeria', url: 'https://openlibrary.org/', goal: 'Find books about Nigeria' },
+
+  // Research and reference
+  { id: 'arxiv-cl', url: 'https://arxiv.org/', goal: 'Show the newest papers in Computation and Language' },
+  { id: 'arxiv-attention', url: 'https://arxiv.org/', goal: 'Find the paper Attention Is All You Need' },
+  { id: 'pydocs-json', url: 'https://docs.python.org/3/', goal: 'Open the Python docs page for the json module' },
+  { id: 'pydocs-tutorial', url: 'https://docs.python.org/3/', goal: 'Open the Python tutorial chapter on classes' },
+  { id: 'mdn-map', url: 'https://developer.mozilla.org/en-US/', goal: 'Open the MDN page for Array.prototype.map' },
+  { id: 'crates-serde', url: 'https://crates.io/', goal: 'Find the latest version of the serde crate' },
+
+  // News, sport and forecasts
+  { id: 'bbc-tech', url: 'https://www.bbc.co.uk/news', goal: 'Open the BBC News technology section' },
+  { id: 'bbc-table', url: 'https://www.bbc.co.uk/sport/football', goal: 'Show the Premier League table' },
+  { id: 'mo-manchester', url: 'https://www.metoffice.gov.uk/', goal: 'Show the Met Office forecast for Manchester' },
+  { id: 'hn-newest', url: 'https://news.ycombinator.com/', goal: 'Open the newest submissions on Hacker News' },
+  { id: 'hn-show', url: 'https://news.ycombinator.com/', goal: 'Open the Show HN page' },
+  { id: 'tad-lagos', url: 'https://www.timeanddate.com/worldclock/', goal: 'Find the current time in Lagos' },
+  { id: 'tfl-northern', url: 'https://tfl.gov.uk/', goal: 'Find the current status of the Northern line' },
+
+  // Maps, archives, code and public services
+  { id: 'osm-bigben', url: 'https://www.openstreetmap.org/', goal: 'Search OpenStreetMap for Big Ben' },
+  { id: 'osm-lekki', url: 'https://www.openstreetmap.org/', goal: 'Find Lekki in Lagos on OpenStreetMap' },
+  { id: 'wayback-example', url: 'https://web.archive.org/', goal: 'Show the saved copies of example.com in the Wayback Machine' },
+  { id: 'gh-bun-readme', url: 'https://github.com/oven-sh/bun', goal: 'Find the install command in the Bun README' },
+  { id: 'gh-node-contrib', url: 'https://github.com/nodejs/node', goal: "Open the Node.js repository's contributing guide" },
+  { id: 'gov-vat', url: 'https://www.gov.uk/', goal: 'Find the standard VAT rate in the UK' },
+  { id: 'gov-licence', url: 'https://www.gov.uk/', goal: 'Find out how to apply for a first provisional driving licence' },
+  { id: 'bbcgf-lasagne', url: 'https://www.bbcgoodfood.com/', goal: 'Find a vegan lasagne recipe' },
 ];

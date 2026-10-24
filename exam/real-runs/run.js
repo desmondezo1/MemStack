@@ -1,4 +1,4 @@
-// Show Me on real public websites, through the real extension and the real server, so the
+// Mo on real public websites, through the real extension and the real server, so the
 // calls land in the same Mubit tasks as the live agent (same system prompts, message
 // builders, model and request body). Recording stays on: no x-middleware-record header.
 //
@@ -11,7 +11,7 @@
 //
 // How: headless Chromium (new headless) loads extension/ unpacked; an extension page imports
 // extension/agent-core.js and calls its runAgent on a real tab, exactly as the side panel
-// does. Show Me's own server (server/index.js, unchanged) runs on a free port. Its Mubit
+// does. Mo's own server (server/index.js, unchanged) runs on a free port. Its Mubit
 // base URL points at a small local pass-through that forwards each call unchanged to
 // api.mubit.ai and notes the reply's x-middleware-served-by header, tokens and cost.
 // The key comes from MUBIT_API_KEY or the keychain item mubit-api-key and is never logged.
@@ -27,6 +27,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
+import { loadEnv } from '../../server/env.js';
 import { SYSTEM_PROMPTS } from '../../server/prompts.js';
 import { costUsd } from '../prices.js';
 import { GOALS } from './goals.js';
@@ -37,7 +38,10 @@ const RESULTS = path.join(OUT, 'results.jsonl');
 const CALLS = path.join(OUT, 'calls.jsonl');
 const README = path.join(import.meta.dirname, 'README.md');
 const UPSTREAM = 'https://api.mubit.ai';
-const MODEL = 'claude-haiku-4-5';
+// The model Mo runs on (.env), so the calls land in Mo's own Mubit tasks: Mubit tells tasks
+// apart by model, so a different model here would train a different adapter.
+loadEnv();
+const MODEL = process.env.MUBIT_MODEL || 'claude-haiku-5-5';
 export const BUDGET_USD = 1.5;
 // The pass-through refuses calls past this, so a run in flight can't cross the cap.
 const STOP_AT_USD = 1.45;
@@ -153,7 +157,7 @@ async function startShowMeServer(proxyPort) {
     }
   }
   child.kill();
-  throw new Error('Show Me server did not start');
+  throw new Error('Mo server did not start');
 }
 
 // Runs inside an extension page: the extension's own agent loop on a real tab.

@@ -64,7 +64,7 @@ npm start                 # backend on http://localhost:8787
    - **The phishing chat:** <http://localhost:8787/demo/guard/>. Watch Mo flag the fake links.
 3. Click Mo's icon in the toolbar to open its panel, or just hold <kbd>⌥</kbd> <kbd>Space</kbd> on any page.
 
-The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). The original plan is in [docs/IDEA.md](docs/IDEA.md).
+The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). The 3-minute demo script is in [docs/DEMO.md](docs/DEMO.md). The original plan is in [docs/IDEA.md](docs/IDEA.md).
 
 ## How it works
 

@@ -1,4 +1,4 @@
-// Turns one Mind2Web step into Show Me's next-action call, and scores the answer.
+// Turns one Mind2Web step into Mo's next-action call, and scores the answer.
 // The user message is built by server/prompts.js itself, so the exam sees exactly what
 // the live agent sees: goal, page (site, 300 chars of text, elements e1..e25), last 8 steps.
 
@@ -98,7 +98,7 @@ function tokenF1(predicted, expected) {
 }
 
 // Mind2Web step success: right element AND right operation (op, plus exact value for type/select).
-// Show Me actions Mind2Web has no counterpart for (open_url, scroll, press, done…) are wrong.
+// Mo actions Mind2Web has no counterpart for (open_url, scroll, press, done…) are wrong.
 export function scoreAnswer(answer, expected) {
   const action = norm(answer?.action);
   const element = expected.element_ids.includes(String(answer?.element_id ?? '').trim());

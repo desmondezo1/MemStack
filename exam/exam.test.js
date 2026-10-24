@@ -30,7 +30,7 @@ function page(negatives = 40) {
 test('exam system prompt is the next-action prompt plus one exam line', () => {
   assert.equal(EXAM_SYSTEM_PROMPT, `${SYSTEM_PROMPTS['next-action']}\n${EXAM_LINE}`);
   // Training and exam calls must share this prompt: changing it starts a new Mubit task.
-  assert.equal(crypto.createHash('sha256').update(EXAM_SYSTEM_PROMPT).digest('hex').slice(0, 16), '27acdcd9287f3ede');
+  assert.equal(crypto.createHash('sha256').update(EXAM_SYSTEM_PROMPT).digest('hex').slice(0, 16), '8e27e6c53cd6fe1a'); // next-action v3
 });
 
 test('picks the right element plus 24 control-like negatives, in page order, same every run', () => {
@@ -56,7 +56,7 @@ test('labels lose HTML entities', () => {
   assert.ok(pickElements(page(), 's').every(e => !e.label.includes('&amp;')));
 });
 
-test('action_reprs become Show Me steps', () => {
+test('action_reprs become Mo steps', () => {
   assert.deepEqual(parseActionRepr('[combobox]  Enter pick up city -> TYPE: Brooklyn Central'),
     { action: 'type', role: 'combobox', label: 'Enter pick up city', value: 'Brooklyn Central' });
   assert.equal(parseActionRepr('[button]  Reservations -> HOVER').action, 'click');
@@ -64,7 +64,7 @@ test('action_reprs become Show Me steps', () => {
   assert.equal(parseActionRepr('[span]   -> CLICK').label, '');
 });
 
-test('converted message has Show Me\'s next-action shape', () => {
+test('converted message has Mo\'s next-action shape', () => {
   const { userMessage, expected } = convertStep(step, page());
   assert.match(userMessage, /^Goal: rent a car in Brooklyn/);
   assert.match(userMessage, /\nURL: \(not recorded\) site: united\nText: Welcome to United\.com/);

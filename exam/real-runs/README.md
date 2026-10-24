@@ -1,7 +1,7 @@
-# Show Me on real websites
+# Mo on real websites
 
-Show Me's practice calls came from made-up pages (`scripts/seed-traffic.js`). These runs put
-the real extension on real public websites, so the adapter Mubit trains for Show Me also
+Mo's practice calls came from made-up pages (`scripts/seed-traffic.js`). These runs put
+the real extension on real public websites, so the adapter Mubit trains for Mo also
 learns from real pages.
 
 ## Results
@@ -9,12 +9,13 @@ learns from real pages.
 <!-- results:start -->
 | Phase | Runs done | Finished | Failed | Stopped (safety) | Hit 12-step cap | Errors | Sites skipped | Steps | Mubit calls | Est. cost | Adapter share |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| before-fix | 19 | 9 | 7 | 1 | 1 | 1 | 2 | 70 | 138 | $0.19 | 0% |
-| fix-proof | 5 | 1 | 4 | 0 | 0 | 0 | 0 | 22 | 51 | $0.06 | 0% |
-| after-fix | 29 | 19 | 6 | 1 | 1 | 2 | 2 | 88 | 140 | $0.22 | 0% |
-| all | 53 | 29 | 17 | 2 | 2 | 3 | 4 | 180 | 329 | $0.47 | 0% |
+| before-fix (Haiku 4.5) | 19 | 9 | 7 | 1 | 1 | 1 | 2 | 70 | 138 | $0.19 | 0% |
+| fix-proof (Haiku 4.5) | 5 | 1 | 4 | 0 | 0 | 0 | 0 | 22 | 51 | $0.06 | 0% |
+| after-fix (Haiku 4.5) | 29 | 19 | 6 | 1 | 1 | 2 | 2 | 88 | 140 | $0.22 | 0% |
+| haiku-5-5 | 83 | 70 | 8 | 2 | 2 | 1 | 6 | 176 | 411 | $0.08 | 0% |
 
-Calls by task: link-check 65, next-action 231, done-check 33.
+Haiku 4.5 calls by task: link-check 65, next-action 231, done-check 33. Haiku 5.5 calls by task: link-check 80,
+next-action 256, done-check 74, safety-gate 1.
 <!-- results:end -->
 
 **What the numbers say (24 Oct).** 53 runs on real sites, 29 finished, for $0.47 of the $1.50
@@ -30,12 +31,22 @@ alarm (a ZIP-code search box on weather.gov); the rule now lets search boxes lik
   the runner stopped the run before that step.
 - **Hit 12-step cap**: the run used its 12 steps without finishing.
 - **Sites skipped**: the site showed a CAPTCHA or blocked the bot, so nothing ran.
-- **Est. cost**: list price for every call (Haiku 4.5, $1 / $5 per million tokens).
+- **Est. cost**: list price for every call (Haiku 5.5, $0.10 / $0.50 per million tokens; Haiku 4.5, $1 / $5, for the first three phases).
 - **Adapter share**: share of answered calls with `vllm` in `x-middleware-served-by`.
+
+**Haiku 5.5 (24 Oct, evening).** 89 goals (36 new: Wikipedia search and sections, Wiktionary, Wikivoyage,
+Gutenberg, arXiv, Python docs, OpenStreetMap, the Wayback Machine, BBC News and Sport, the Met Office, GOV.UK…).
+83 ran and 70 finished (84%), with 411 calls through Mubit for $0.08. 6 sites blocked the bot. The earlier
+Haiku 4.5 results came from another machine, so `--report` here rebuilds only the `haiku-5-5` row; the rows above
+it are kept from that run.
+
+**The model (24 Oct, evening).** The first three phases ran on Haiku 4.5. Mubit tells tasks apart by model,
+so those calls went into Haiku 4.5 tasks, not the ones Mo uses. From the `haiku-5-5` phase on, the runner
+uses the model in `.env`, so its calls train the same adapters as Mo.
 
 ## The scroll-loop fix
 
-The first 19 runs (`before-fix`) showed one main failure: on a long page, Show Me scrolled
+The first 19 runs (`before-fix`) showed one main failure: on a long page, Mo scrolled
 down again and again until it stopped itself (5 of 7 failures, all on Wikipedia).
 
 **Why.** After a scroll, the model saw nothing new. The page text in each step's message was
@@ -62,7 +73,7 @@ row in the table. The `after-fix` row is the goals not run before, with both cha
   extension page imports `extension/agent-core.js` and calls `runAgent` on a real tab, the same
   loop the side panel runs. Page reading is `extension/content.js`; Mo Guard runs as usual.
 - **The real server, unchanged.** `server/index.js` runs on a free port with
-  `MUBIT_PROVIDER=anthropic MUBIT_MODEL=claude-haiku-4-5`. Recording stays on (no
+  `MUBIT_PROVIDER=anthropic` and the model from `.env` (Haiku 5.5, the model Mo runs on). Recording stays on (no
   `x-middleware-record` header), so the calls land in the same Mubit tasks as the practice calls.
 - **One small pass-through.** The server's Mubit base URL points at a local pass-through that
   sends each call on to `api.mubit.ai` unchanged. It notes the `x-middleware-served-by` header,
