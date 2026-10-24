@@ -47,12 +47,13 @@ const routes = {
     const [{ json, ms, requestId, usage }, sapling] = await Promise.all([
       callTask({
         task: TASKS.doneCheck, userMessage: buildDoneCheckMessage({ goal, page }), sessionId, mockContext: { goal, page },
-        summarize: j => `${j.done ? 'goal met' : 'goal not met'}: ${j.reason || ''}`,
+        summarize: j => (j.done ? 'goal met' : `goal not met: ${j.reason || problemText(j.problem)}`),
       }),
       verifierEnabled() ? verifyDone({ goal, pageText: page.text }) : null,
     ]);
     const vetoed = json.done === true && sapling?.verdict === 'fail';
-    const reason = vetoed ? `The verifier disagrees: the page doesn't show "${goal}" was done` : String(json.reason || '');
+    const reason = vetoed ? `The verifier disagrees: the page doesn't show "${goal}" was done`
+      : String(json.reason || (json.done ? 'The page shows the goal is done' : problemText(json.problem)));
     return { done: json.done === true && !vetoed, reason, ms, requestId, usage, verifier: sapling };
   },
 
@@ -207,6 +208,20 @@ const routes = {
 };
 
 const pageKeyOf = url => { try { const u = new URL(url); return u.origin + u.pathname; } catch { return url; } };
+
+// done-check answers with a fixed problem code; this is what the panel and Mo say for it.
+const PROBLEMS = {
+  wrong_time: 'It went through, but at a different time than you asked for',
+  wrong_date: 'It went through, but for a different day than you asked for',
+  wrong_count: 'It went through, but for a different number or amount than you asked for',
+  wrong_name: 'It went through, but with a different name or email than you asked for',
+  wrong_item: 'It ended on a different item than you asked for',
+  no_confirmation: 'The page shows no confirmation that it worked',
+  error: 'The page shows an error',
+};
+export function problemText(code) {
+  return PROBLEMS[code] || 'The page does not show the goal as done';
+}
 
 function describeChoice(json, page) {
   const element = (page.elements || []).find(e => e.id === json.element_id);

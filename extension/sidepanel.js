@@ -183,7 +183,7 @@ async function run(goal) {
           const lesson = next.demoUsed ? '<span class="badge lesson">from lesson</span>' : '';
           const cost = next.usage?.viaMubit ? fmtUsd(next.usage.costUsd) : '';
           const time = next.ms >= 100 ? `${(next.ms / 1000).toFixed(1)} s` : '';
-          return addStep(stepHtml(esc(describeAction(next)), { badge: lesson, why: `<span class="why-text">${esc(next.reason)}</span>`, nums: [time, cost].filter(Boolean).join(', ') }), { error: !next.valid });
+          return addStep(stepHtml(esc(describeAction(next)), { badge: lesson, why: next.reason ? `<span class="why-text">${esc(next.reason)}</span>` : '', nums: [time, cost].filter(Boolean).join(', ') }), { error: !next.valid });
         },
         failedStep: li => li?.classList.add('error'),
         navigated: (li, url) => {
