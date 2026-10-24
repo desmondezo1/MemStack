@@ -6,7 +6,7 @@ import { createJudgesView } from './panel-judges.js';
 
 const $ = id => document.getElementById(id);
 const MAX_STEPS = 20;
-const RISKY = /pay|purchase|buy now|place order|delete|remove|transfer|send/i;
+const RISKY = /pay|purchase|buy now|place order|delete|remove|transfer|send|submit|confirm|reserve|book/i;
 // Testing hook: sidepanel.html?tabId=123 drives that tab when opened as a normal page.
 const forcedTabId = Number(new URLSearchParams(location.search).get('tabId')) || null;
 
@@ -288,7 +288,7 @@ async function run(goal) {
       if (history.filter(same).length >= limit) { failure = `I kept repeating “${describeAction(next)}”.`; break; }
 
       if ((next.role === 'button' || next.role === 'link') && RISKY.test(next.label || '')) {
-        const gate = await api('/api/safety-gate', { method: 'POST', body: { goal, action: next, element: { label: next.label, role: next.role }, sessionId }, signal });
+        const gate = await api('/api/safety-gate', { method: 'POST', body: { goal, action: next, element: { label: next.label, role: next.role }, evidence: page.text, sessionId }, signal });
         addUsage(gate.usage, gate.ms);
         if (!gate.allow) { failure = `Safety gate blocked “${next.label}”: ${gate.reason}`; break; }
       }
