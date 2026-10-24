@@ -172,3 +172,34 @@ test('parseJson finds JSON inside a made-up tool call', () => {
   const reply = 'Let me start.\n<function_calls>\n<invoke name="json">\n<invoke name="json">\n{"action":"open_url","value":"http://x.test/"}\n</invoke>\n</function_calls>';
   assert.deepEqual(parseJson(reply), { action: 'open_url', value: 'http://x.test/' });
 });
+
+test('API: runs, settings, overview and the live event stream', async () => {
+  const events = [];
+  const controller = new AbortController();
+  const stream = await fetch(`${base}/api/events`, { signal: controller.signal });
+  const reader = stream.body.getReader();
+  const pump = (async () => { try { for (;;) { const { value, done } = await reader.read(); if (done) break; events.push(new TextDecoder().decode(value)); } } catch {} })();
+
+  assert.equal((await post('/api/runs', { goal: 'g', outcome: 'weird' })).status, 400);
+  const run = await (await post('/api/runs', { goal: 'Book a table', outcome: 'failed', steps: 5, tools: ['click'], decisions: 6, invalid: 1 })).json();
+  assert.equal(run.outcome, 'failed');
+  assert.equal((await post('/api/settings', { adapterCostRatio: -1 })).status, 400);
+  const settings = await (await post('/api/settings', { adapterCostRatio: 0.1, adapterLatencyMs: 150 })).json();
+  assert.equal(settings.adapterLatencyMs, 150);
+  await post('/api/next-action', { goal: 'Book a table for two at eight', page, history: [], sessionId: 's-ev' });
+
+  const overview = await (await fetch(`${base}/api/overview`)).json();
+  assert.equal(overview.runs.at(-1).goal, 'Book a table');
+  assert.equal(overview.settings.adapterCostRatio, 0.1);
+  assert.equal(overview.ledger.totals.adapterMeasured, true);
+  assert.match(overview.calls[0].summary, /select "2" in select "Party size"/);
+  await post('/api/settings', { adapterCostRatio: null, adapterLatencyMs: null });
+
+  await new Promise(r => setTimeout(r, 100));
+  controller.abort();
+  await pump;
+  const text = events.join('');
+  assert.match(text, /event: run/);
+  assert.match(text, /event: settings/);
+  assert.match(text, /event: call\ndata: .*"task":"next-action"/);
+});

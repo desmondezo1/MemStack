@@ -178,6 +178,38 @@ test('ask_human with a live provider: savings strip, cost per step, help verdict
     assert.match(savings, /This run · 1 calls via Mubit · \$0\.0012 on the model vs ~\$0\.0001 on an adapter/);
     assert.match(savings, /All time · \d+ calls/);
     await panel.screenshot({ path: path.join(root, 'test-results', 'tools-savings.png'), fullPage: true });
+
+    // Mubit tab: the call appears live with its request id; the run shows under failures → improvements.
+    await panel.click('.tab[data-view=mubit]');
+    await panel.waitForFunction(() => /mreq_fake/.test(document.querySelector('#calls').textContent));
+    const calls = (await panel.textContent('#calls')).replace(/\s+/g, ' ');
+    console.log('calls:', calls.slice(0, 200));
+    assert.match(calls, /next-action/);
+    assert.match(calls, /ask the human: Which sitting is eight o'clock\?/);
+    await panel.waitForFunction(() => /Book a table for two at eight/.test(document.querySelector('#improvements').textContent));
+    assert.match(await panel.textContent('#improvements'), /✗/);
+    assert.notEqual(await panel.textContent('#stat-calls'), '0');
+
+    // Real adapter numbers replace the estimate.
+    await panel.click('#real-numbers summary');
+    await panel.fill('#set-ratio', '10');
+    await panel.fill('#set-latency', '150');
+    await panel.click('#save-real');
+    await panel.waitForFunction(() => /measured in Try models/.test(document.querySelector('#costs').textContent));
+    assert.match(await panel.textContent('#costs'), /p50 ~150 ms/);
+    await panel.click('#clear-real');
+    await panel.waitForFunction(() => /estimate/.test(document.querySelector('#costs').textContent));
+    await panel.screenshot({ path: path.join(root, 'test-results', 'tools-mubit-tab.png'), fullPage: true });
+
+    // Judges tab ticks "every decision goes through Mubit" and marks the Mubit tab scene as seen.
+    await panel.click('.tab[data-view=judges]');
+    await panel.waitForSelector('.criterion li.met');
+    const judges = (await panel.textContent('#judges')).replace(/\s+/g, ' ');
+    console.log('judges:', judges.slice(0, 300));
+    assert.match(judges, /✓\s*Every agent decision goes through Mubit/);
+    assert.match(judges, /○\s*A correction became training data/);
+    assert.equal(await panel.$$eval('.scenes span.done', s => s.map(x => x.textContent).join(',')), 'It fails,Mubit tab');
+    await panel.screenshot({ path: path.join(root, 'test-results', 'tools-judges-tab.png'), fullPage: true });
     await panel.close(); await site.close();
   } finally {
     Object.assign(process.env, { MUBIT_API_KEY: '', SHOWME_MOCK: '1' });

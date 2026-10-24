@@ -109,7 +109,7 @@ test('fail, show me, rerun succeeds', { timeout: live ? 300_000 : 90_000 }, asyn
   assert.match(await site.textContent('#summary'), /Sitting C \(20:00\)/);
 
   // 4. Ledger shows live and taught calls for the next-action task.
-  await panel.click('.tab[data-view=ledger]');
+  await panel.click('.tab[data-view=mubit]');
   await panel.waitForSelector('#ledger table');
   const ledger = await panel.textContent('#ledger');
   assert.match(ledger, /next-action/);

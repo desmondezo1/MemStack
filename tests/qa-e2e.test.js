@@ -474,9 +474,10 @@ test('qa: ledger renders real-looking (non-mock) data; dark mode screenshots', {
   const { site, tabId } = await openSite(`${base}/demo/`);
   const panel = await openPanel(tabId);
   await panel.setViewportSize({ width: 380, height: 800 });
-  await panel.click('.tab[data-view=ledger]');
+  await panel.click('.tab[data-view=mubit]');
   await panel.waitForSelector('#ledger table');
-  const text = (await panel.textContent('#ledger')).replace(/\s+/g, ' ');
+  await panel.waitForSelector('#costs .compare');
+  const text = (await panel.textContent('#view-mubit')).replace(/\s+/g, ' ');
   console.log('ledger:', text);
   assert.match(text, /next-action 21 10 30\/25/);
   assert.match(text, /\$1\.40/); // (1200*1 + 40*5)/1e6*1000

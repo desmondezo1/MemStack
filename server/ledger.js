@@ -14,9 +14,57 @@ function dataDir() {
 }
 
 const callsFile = () => path.join(dataDir(), 'calls.jsonl');
+const runsFile = () => path.join(dataDir(), 'runs.jsonl');
+const settingsFile = () => path.join(dataDir(), 'settings.json');
+
+// Live listeners (the side panel's event stream) hear every call as it is logged.
+const listeners = new Set();
+export function onEvent(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+export function emit(type, data) { for (const fn of listeners) { try { fn(type, data); } catch { /* a closed stream */ } } }
 
 export function logCall(entry) {
-  fs.appendFileSync(callsFile(), JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n');
+  const record = { ts: new Date().toISOString(), ...entry };
+  if (record.ok && record.provider !== 'mock') Object.assign(record, costOf(record.inTokens, record.outTokens));
+  fs.appendFileSync(callsFile(), JSON.stringify(record) + '\n');
+  emit('call', record);
+  return record;
+}
+
+export function recentCalls(limit = 50) {
+  return readCalls().slice(-limit).reverse();
+}
+
+// One line per finished agent run, for "failures → improvements".
+export function addRun(run) {
+  const record = { ts: new Date().toISOString(), ...run };
+  fs.appendFileSync(runsFile(), JSON.stringify(record) + '\n');
+  emit('run', record);
+  return record;
+}
+
+export function readRuns() {
+  if (!fs.existsSync(runsFile())) return [];
+  return fs.readFileSync(runsFile(), 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+}
+
+// Real adapter numbers typed in from Mubit's Try models replace the estimates.
+export function getSettings() {
+  try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
+}
+
+export function saveSettings(update) {
+  const next = { ...getSettings() };
+  for (const key of ['adapterCostRatio', 'adapterLatencyMs']) {
+    if (update[key] === null) delete next[key];
+    else if (update[key] !== undefined) {
+      const n = Number(update[key]);
+      if (!Number.isFinite(n) || n < 0) throw Object.assign(new Error(`${key} must be a positive number`), { status: 400 });
+      next[key] = n;
+    }
+  }
+  fs.writeFileSync(settingsFile(), JSON.stringify(next, null, 2));
+  emit('settings', next);
+  return next;
 }
 
 export function readCalls() {
@@ -27,7 +75,7 @@ export function readCalls() {
 }
 
 export function clearCalls() {
-  if (fs.existsSync(callsFile())) fs.rmSync(callsFile());
+  for (const file of [callsFile(), runsFile()]) if (fs.existsSync(file)) fs.rmSync(file);
 }
 
 function median(nums) {
@@ -39,12 +87,14 @@ function median(nums) {
 
 // Prices in USD per million tokens. Override with PRICE_IN_PER_M / PRICE_OUT_PER_M.
 function prices() {
+  const settings = getSettings();
   return {
     in: Number(process.env.PRICE_IN_PER_M || 1),
     out: Number(process.env.PRICE_OUT_PER_M || 5),
-    // Adapter numbers are estimates until we read real ones from Try models.
-    adapterCostRatio: Number(process.env.ADAPTER_COST_RATIO || 0.05),
-    adapterLatencyMs: Number(process.env.ADAPTER_LATENCY_MS || 200),
+    // Adapter numbers are estimates until real ones from Try models are saved in settings.
+    adapterCostRatio: settings.adapterCostRatio ?? Number(process.env.ADAPTER_COST_RATIO || 0.05),
+    adapterLatencyMs: settings.adapterLatencyMs ?? Number(process.env.ADAPTER_LATENCY_MS || 200),
+    measured: settings.adapterCostRatio !== undefined || settings.adapterLatencyMs !== undefined,
   };
 }
 
@@ -60,12 +110,13 @@ export function ledgerStats({ provider, model }) {
   const p = prices();
   const byTask = {};
   for (const c of calls) {
-    const t = (byTask[c.task] ||= { task: c.task, calls: 0, live: 0, training: 0, errors: 0, ms: [], inTokens: 0, outTokens: 0, real: 0 });
+    const t = (byTask[c.task] ||= { task: c.task, calls: 0, live: 0, training: 0, trainingViaMubit: 0, errors: 0, ms: [], inTokens: 0, outTokens: 0, real: 0 });
     t.calls++;
     if (c.kind === 'training') t.training++; else t.live++;
     if (!c.ok) { t.errors++; continue; }
     if (c.provider !== 'mock') {
       t.real++;
+      if (c.kind === 'training') t.trainingViaMubit++;
       t.model = c.model;
       t.ms.push(c.ms);
       t.inTokens += c.inTokens || 0;
@@ -81,6 +132,7 @@ export function ledgerStats({ provider, model }) {
       calls: t.calls,
       live: t.live,
       training: t.training,
+      trainingViaMubit: t.trainingViaMubit,
       errors: t.errors,
       sentToMubit: t.real,
       towardsFirstTraining: Math.min(t.real, KEPT_EXAMPLES_TO_TRAIN),
@@ -106,6 +158,8 @@ export function ledgerStats({ provider, model }) {
     savedUsdEstimate: spent * (1 - p.adapterCostRatio),
     p50Ms: median(real.map(c => c.ms)),
     adapterMsEstimate: p.adapterLatencyMs,
+    adapterMeasured: p.measured,
+    adapterCostRatio: p.adapterCostRatio,
   };
   return { provider, model, keptExamplesToTrain: KEPT_EXAMPLES_TO_TRAIN, tasks, totals, totalCalls: calls.length };
 }

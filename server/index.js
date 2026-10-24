@@ -8,8 +8,9 @@ import path from 'node:path';
 import { loadEnv } from './env.js';
 import { TASKS, buildNextActionMessage, buildDoneCheckMessage, buildSafetyMessage } from './prompts.js';
 import { callTask, getConfig, LlmError } from './llm.js';
-import { addDemo, clearDemos, listDemos, recallDemo } from './memory.js';
-import { clearCalls, ledgerStats } from './ledger.js';
+import { formatStep } from './prompts.js';
+import { addDemo, clearDemos, listDemos, recallDemo, updateDemo } from './memory.js';
+import { clearCalls, ledgerStats, recentCalls, addRun, readRuns, getSettings, saveSettings, onEvent, emit } from './ledger.js';
 
 loadEnv();
 
@@ -31,6 +32,7 @@ const routes = {
     const userMessage = buildNextActionMessage({ goal, page, history, demo });
     const { json, ms, requestId, usage } = await callTask({
       task: TASKS.nextAction, userMessage, sessionId, mockContext: { goal, page, history, demo },
+      summarize: j => describeChoice(j, page),
     });
     const action = normaliseAction(json, page);
     return { ...action, ms, requestId, usage, demoUsed: demo ? { id: demo.id, goal: demo.goal } : null };
@@ -40,6 +42,7 @@ const routes = {
     requireFields({ goal, page, sessionId });
     const { json, ms, requestId, usage } = await callTask({
       task: TASKS.doneCheck, userMessage: buildDoneCheckMessage({ goal, page }), sessionId, mockContext: { goal, page },
+      summarize: j => `${j.done ? 'goal met' : 'goal not met'}: ${j.reason || ''}`,
     });
     return { done: json.done === true, reason: String(json.reason || ''), ms, requestId, usage };
   },
@@ -48,6 +51,7 @@ const routes = {
     requireFields({ goal, action, sessionId });
     const { json, ms, requestId, usage } = await callTask({
       task: TASKS.safetyGate, userMessage: buildSafetyMessage({ goal, action, element }), sessionId, mockContext: { goal, action, element },
+      summarize: j => `${j.allow === false ? 'blocked' : 'allowed'}: ${j.reason || ''}`,
     });
     return { allow: json.allow !== false, reason: String(json.reason || ''), ms, requestId, usage };
   },
@@ -59,13 +63,13 @@ const routes = {
   // A finished "show me": store it in memory, then re-send every step through Mubit
   // as a next-action call with the demonstration recalled, so each step becomes a
   // recorded example of the next-action task.
-  'POST /api/demonstrations': async ({ goal, url, steps }) => {
+  'POST /api/demonstrations': async ({ goal, url, steps, mistake }) => {
     requireFields({ goal, url, steps });
     if (!Array.isArray(steps) || !steps.length) throw httpError(400, 'steps must be a non-empty array');
     if (steps.some(s => !s || !s.page || !Array.isArray(s.page.elements) || !s.action)) {
       throw httpError(400, 'each step needs an action and the page it happened on');
     }
-    const demo = addDemo({ goal, url, steps });
+    const demo = addDemo({ goal, url, steps, mistake });
     const sessionId = `demo-${demo.id}`;
     const results = await mapLimit(steps, 4, async (step, i) => {
       const history = steps.slice(0, i).map(s => ({ action: s.action, label: s.label, role: s.role, value: s.value }));
@@ -74,6 +78,7 @@ const routes = {
         const { json } = await callTask({
           task: TASKS.nextAction, userMessage, sessionId, kind: 'training',
           mockContext: { goal, page: step.page, history, demo },
+          summarize: () => `taught step ${i + 1} of ${steps.length}: ${formatStep(step)}`,
         });
         const chosen = (step.page.elements || []).find(e => e.id === json.element_id);
         const agreed = json.action === step.action && (step.label ? !!chosen && sameText(chosen.label, step.label) : sameText(json.value, step.value));
@@ -82,15 +87,48 @@ const routes = {
         return { step: i + 1, agreed: false, error: err.message };
       }
     });
+    const training = {
+      viaMubit: getConfig().provider !== 'mock',
+      sent: results.filter(r => !r.error).length,
+      agreed: results.filter(r => r.agreed).length,
+      errors: results.filter(r => r.error).length,
+      results,
+    };
+    const saved = updateDemo(demo.id, { training: { viaMubit: training.viaMubit, sent: training.sent, agreed: training.agreed, errors: training.errors } });
+    emit('lesson', saved);
+    return { demo: saved, training };
+  },
+
+  'GET /api/calls': async () => ({ calls: recentCalls(60) }),
+
+  // The panel reports how each run ended, for "failures → improvements".
+  'POST /api/runs': async ({ goal, outcome, usedLesson, steps, tools, url, mistake, decisions, invalid }) => {
+    requireFields({ goal, outcome });
+    if (!['done', 'failed', 'asked', 'error', 'stopped'].includes(outcome)) throw httpError(400, 'unknown outcome');
+    return addRun({
+      goal: String(goal).slice(0, 200), outcome, usedLesson: !!usedLesson, steps: Number(steps) || 0,
+      tools: Array.isArray(tools) ? tools.slice(0, 20).map(String) : [], url: url ? String(url).slice(0, 300) : null,
+      mistake: mistake ? String(mistake).slice(0, 300) : null,
+      decisions: Number(decisions) || 0, invalid: Number(invalid) || 0,
+    });
+  },
+
+  'GET /api/runs': async () => ({ runs: readRuns().slice(-200) }),
+
+  'GET /api/settings': async () => getSettings(),
+
+  'POST /api/settings': async body => saveSettings(body),
+
+  // Everything the Mubit and Judges tabs draw, in one request.
+  'GET /api/overview': async () => {
+    const config = getConfig();
     return {
-      demo,
-      training: {
-        viaMubit: getConfig().provider !== 'mock',
-        sent: results.filter(r => !r.error).length,
-        agreed: results.filter(r => r.agreed).length,
-        errors: results.filter(r => r.error).length,
-        results,
-      },
+      health: { provider: config.provider, model: config.model, viaMubit: config.provider !== 'mock' },
+      ledger: ledgerStats(config),
+      calls: recentCalls(40),
+      runs: readRuns().slice(-200),
+      lessons: listDemos().map(d => ({ id: d.id, goal: d.goal, steps: d.steps.length, createdAt: d.createdAt, training: d.training || null, mistake: d.mistake || null })),
+      settings: getSettings(),
     };
   },
 
@@ -98,6 +136,11 @@ const routes = {
 
   'DELETE /api/ledger': async () => { clearCalls(); return { ok: true }; },
 };
+
+function describeChoice(json, page) {
+  const element = (page.elements || []).find(e => e.id === json.element_id);
+  return formatStep({ ...json, label: element?.label, role: element?.role });
+}
 
 const NEEDS_ELEMENT = new Set(['click', 'type', 'select']);
 const PAGE_ACTIONS = new Set(['back', 'wait', 'ask_human', 'done']);
@@ -148,6 +191,20 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
+// Server-sent events: the side panel's live feed of calls, runs and lessons.
+function streamEvents(req, res) {
+  res.writeHead(200, {
+    'content-type': 'text/event-stream',
+    'cache-control': 'no-cache',
+    connection: 'keep-alive',
+    'access-control-allow-origin': '*',
+  });
+  res.write(': connected\n\n');
+  const off = onEvent((type, data) => res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`));
+  const ping = setInterval(() => res.write(': ping\n\n'), 20000);
+  req.on('close', () => { off(); clearInterval(ping); });
+}
+
 function send(res, status, body, type = 'application/json') {
   res.writeHead(status, {
     'content-type': type,
@@ -189,6 +246,7 @@ export function createServer() {
     if (req.method === 'OPTIONS') return send(res, 204, '', 'text/plain');
     if (url.pathname === '/') { res.writeHead(302, { location: '/demo/' }); return res.end(); }
     if (req.method === 'GET' && url.pathname.startsWith('/demo')) return serveStatic(res, url.pathname);
+    if (req.method === 'GET' && url.pathname === '/api/events') return streamEvents(req, res);
     const handler = routes[`${req.method} ${url.pathname}`];
     if (!handler) return send(res, 404, { error: 'Not found' });
     try {

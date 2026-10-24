@@ -31,7 +31,7 @@ function saveDemos(demos) {
   fs.writeFileSync(demosFile(), JSON.stringify(demos, null, 2));
 }
 
-export function addDemo({ goal, url, steps }) {
+export function addDemo({ goal, url, steps, mistake }) {
   // Steps are stored by element label, not id: ids change between page loads.
   // Each step keeps the page it happened on, so a lesson spanning several pages
   // is recalled on every one of them.
@@ -45,10 +45,20 @@ export function addDemo({ goal, url, steps }) {
     page: pageKey(url),
     pages: [...new Set([pageKey(url), ...stored.map(s => s.page)])],
     steps: stored,
+    mistake: mistake ? String(mistake).slice(0, 300) : null,
     createdAt: new Date().toISOString(),
   };
   const demos = listDemos();
   demos.push(demo);
+  saveDemos(demos);
+  return demo;
+}
+
+export function updateDemo(id, fields) {
+  const demos = listDemos();
+  const demo = demos.find(d => d.id === id);
+  if (!demo) return null;
+  Object.assign(demo, fields);
   saveDemos(demos);
   return demo;
 }

@@ -9,12 +9,17 @@
 <body>
   <header>
     <div class="brand">Show Me <span class="tag">fail once · teach once</span></div>
-    <span id="mode" class="pill">connecting…</span>
+    <div class="header-right">
+      <span id="live-dot" class="live-dot" title="Lights up on every Mubit call"></span>
+      <span id="mode" class="pill">connecting…</span>
+      <button id="present" class="icon-sm" title="Present mode (bigger, for the projector)" aria-label="Present mode">⤢</button>
+    </div>
   </header>
 
   <nav class="tabs" role="tablist">
     <button role="tab" class="tab active" data-view="agent" aria-selected="true">Agent</button>
-    <button role="tab" class="tab" data-view="ledger" aria-selected="false">Ledger</button>
+    <button role="tab" class="tab" data-view="mubit" aria-selected="false">Mubit</button>
+    <button role="tab" class="tab" data-view="judges" aria-selected="false">Judges</button>
   </nav>
 
   <section id="view-agent" class="view">
@@ -66,9 +71,50 @@
     </div>
   </section>
 
-  <section id="view-ledger" class="view" hidden>
-    <p class="muted small">With a Mubit key, every call below goes through <b>Mubit</b>. Mubit's console is the source of truth for kept examples and adapter versions; adapter cost and latency here are estimates until you read them from Try models.</p>
+  <section id="view-mubit" class="view" hidden>
+    <svg id="flow" class="flow" viewBox="0 0 340 120" role="img" aria-label="Every model call goes from the browser through Show Me and the Mubit gateway to Claude; taught steps also become training examples">
+      <path id="flow-main" class="flow-line" d="M30 40 H310" />
+      <path id="flow-train" class="flow-line train" d="M230 40 C230 80 230 92 262 96" />
+      <g class="flow-node"><circle cx="30" cy="40" r="15" /><text x="30" y="72">Browser</text></g>
+      <g class="flow-node"><circle cx="120" cy="40" r="15" /><text x="120" y="72">Show Me</text></g>
+      <g class="flow-node mubit"><circle cx="230" cy="40" r="18" /><text x="230" y="44" class="inner">μ</text><text x="200" y="72">Mubit</text></g>
+      <g class="flow-node"><circle cx="310" cy="40" r="15" /><text x="310" y="72">Claude</text></g>
+      <g class="flow-node bucket"><rect x="262" y="84" width="72" height="24" rx="6" /><text x="298" y="100" class="inner" id="flow-bucket">0 examples</text></g>
+      <g id="packets"></g>
+    </svg>
+
+    <div class="stats" id="stats">
+      <div><span class="num" id="stat-calls">0</span><span class="cap">calls via Mubit</span></div>
+      <div><span class="num" id="stat-taught">0</span><span class="cap">taught examples</span></div>
+      <div><span class="num" id="stat-lessons">0</span><span class="cap">lessons</span></div>
+      <div><span class="num" id="stat-spent">$0</span><span class="cap">spent</span></div>
+    </div>
+
+    <h3 class="section">Live calls</h3>
+    <ol id="calls" class="calls"><li class="muted small">Waiting for the first call…</li></ol>
+
+    <h3 class="section">Tasks → adapters</h3>
     <div id="ledger"></div>
+    <p id="bridge-status" class="muted small"></p>
+
+    <h3 class="section">Corrections → model updates</h3>
+    <ol id="lessons" class="lessons"><li class="muted small">No lessons yet. When the agent fails, press “Show me how”.</li></ol>
+
+    <h3 class="section">Failures → improvements</h3>
+    <div id="improvements" class="improvements"><p class="muted small">Runs appear here.</p></div>
+
+    <h3 class="section">Cost &amp; speed</h3>
+    <div id="costs"></div>
+    <details class="settings" id="real-numbers">
+      <summary>Enter real adapter numbers from Try models</summary>
+      <p class="muted small">Compare a passing version with Claude in Mubit → Try models, then enter what you saw.</p>
+      <div class="row">
+        <label class="small">Adapter cost, % of Claude <input id="set-ratio" type="number" min="0" max="100" step="0.1" placeholder="5"></label>
+        <label class="small">Adapter latency, ms <input id="set-latency" type="number" min="0" step="1" placeholder="200"></label>
+      </div>
+      <div class="row"><button id="save-real" class="ghost">Save</button><button id="clear-real" class="link small">Back to estimates</button></div>
+    </details>
+
     <div class="row">
       <button id="refresh-ledger" class="ghost">Refresh</button>
       <a class="link small" href="https://app.mubit.ai/console/" target="_blank" rel="noreferrer">Open Mubit console ↗</a>
@@ -79,6 +125,10 @@
       <input id="server" type="text" value="http://localhost:8787">
       <button id="reset-ledger" class="link small">Reset local ledger</button>
     </details>
+  </section>
+
+  <section id="view-judges" class="view" hidden>
+    <div id="judges"></div>
   </section>
 
   <script src="sidepanel.js" type="module"></script>

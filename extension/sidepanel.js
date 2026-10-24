@@ -1,6 +1,9 @@
 // Show Me side panel: runs the agent loop against the current tab, asks for a
 // demonstration when the run fails, and shows the Mubit ledger.
 
+import { createMubitView, esc, fmtUsd } from './panel-mubit.js';
+import { createJudgesView } from './panel-judges.js';
+
 const $ = id => document.getElementById(id);
 const MAX_STEPS = 20;
 const RISKY = /pay|purchase|buy now|place order|delete|remove|transfer|send/i;
@@ -162,7 +165,6 @@ function shortUrl(url) {
 // Each call's real provider cost (tokens × price) next to what the same call would
 // cost on a Mubit adapter (estimate until Try models gives real numbers).
 
-const fmtUsd = n => (n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(3)}` : `$${n.toFixed(4)}`);
 
 function addUsage(usage, ms) {
   if (!state.run || !usage?.viaMubit) return;
@@ -209,7 +211,6 @@ function addStep(html, { error = false } = {}) {
   return li;
 }
 
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function setVerdict(ok, text) {
   const v = $('verdict');
@@ -243,6 +244,9 @@ async function run(goal) {
   let infra = false;
   let finished = false;
   let asked = false;
+  let usedLesson = false;
+  let decisions = 0;
+  let invalid = 0;
 
   try {
     const tab = await targetTab();
@@ -257,6 +261,9 @@ async function run(goal) {
       const page = await snapshot(tab.id);
       const next = await api('/api/next-action', { method: 'POST', body: { goal, page, history, sessionId }, signal });
       addUsage(next.usage, next.ms);
+      decisions++;
+      if (!next.valid) invalid++;
+      if (next.demoUsed) usedLesson = true;
       const lesson = next.demoUsed ? '<span class="badge lesson">from lesson</span>' : '';
       const cost = next.usage?.viaMubit ? ` · ${fmtUsd(next.usage.costUsd)}` : '';
       const li = addStep(`<b>${step}.</b> ${esc(describeAction(next))}${lesson}<div class="meta">${esc(next.reason)} · ${next.ms} ms${cost}</div>`, { error: !next.valid });
@@ -312,6 +319,11 @@ async function run(goal) {
   }
 
   refreshTotals();
+  const outcome = !failure ? 'done' : failure === 'Stopped.' ? 'stopped' : infra ? 'error' : asked ? 'asked' : 'failed';
+  const finalTab = state.runTabId ? await chrome.tabs.get(state.runTabId).catch(() => null) : null;
+  reportRun({ goal, outcome, usedLesson, steps: history.length, decisions, invalid,
+    tools: [...new Set(history.map(h => h.action).concat(finished ? ['done'] : []))], url: finalTab?.url || null });
+  note(outcome === 'done' ? (usedLesson ? 'rerun-done' : 'done') : outcome === 'failed' || outcome === 'asked' ? 'fail' : outcome);
   if (failure) {
     setVerdict(false, failure === 'Stopped.' ? 'Stopped' : infra ? 'Error — not the agent\'s fault, so nothing to teach' : asked ? 'Asked for help' : 'Failed');
     if (failure !== 'Stopped.' && !infra) {
@@ -404,11 +416,12 @@ async function finishTeaching() {
   $('saved-summary').textContent = `Saving ${steps.length} steps and sending them through Mubit…`;
   $('rerun').disabled = true;
   try {
-    const { training } = await api('/api/demonstrations', {
-      method: 'POST', body: { goal: state.lastGoal, url: steps[0].page.url, steps },
-    });
-    const where = training.viaMubit ? 'through Mubit' : 'to the mock model (no Mubit key, so nothing was recorded)';
     const mistake = markMistake(state.runSteps, steps);
+    const { training } = await api('/api/demonstrations', {
+      method: 'POST', body: { goal: state.lastGoal, url: steps[0].page.url, steps, mistake },
+    });
+    note('taught');
+    const where = training.viaMubit ? 'through Mubit' : 'to the mock model (no Mubit key, so nothing was recorded)';
     $('saved-summary').innerHTML =
       (mistake ? `<span class="mistake-note">✗ ${esc(mistake)}</span><br>` : '') +
       `<b>Learned.</b> Saved ${steps.length} steps to memory and sent ${training.sent} training examples ${where}` +
@@ -502,6 +515,7 @@ function toggleMic() {
     $('goal').value = text;
     if (event.results[event.results.length - 1].isFinal) {
       heard = text.trim();
+      note('voice');
       status.textContent = 'Got it. Press Run, or speak again.';
     }
   };
@@ -524,39 +538,16 @@ function toggleMic() {
   recognition.start();
 }
 
-// ---- Ledger -------------------------------------------------------------------
+// ---- Mubit and Judges tabs ----------------------------------------------------------
 
-const money = n => (n == null ? '—' : n < 0.01 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`);
+const session = { startedAt: Date.now(), events: [] }; // what happened in this panel, for the Judges tab
+const note = type => { session.events.push({ type, at: Date.now() }); judges.render(); };
 
-async function refreshLedger() {
-  const box = $('ledger');
-  try {
-    const l = await api('/api/ledger');
-    if (!l.tasks.length) { box.innerHTML = '<p class="muted">No calls yet. Run the agent first.</p>'; return; }
-    const rows = l.tasks.map(t => `
-      <tr>
-        <td><b>${esc(t.task)}</b></td>
-        <td>${t.live}</td>
-        <td>${t.training}</td>
-        <td>${t.sentToMubit}/${t.keptExamplesNeeded}<div class="bar"><span style="width:${Math.round(100 * t.towardsFirstTraining / t.keptExamplesNeeded)}%"></span></div></td>
-        <td>${t.p50Ms ?? '—'}</td>
-      </tr>`).join('');
-    const next = l.tasks.find(t => t.task === 'next-action') || l.tasks[0];
-    const m = next.monthlyAt50kPerDay;
-    box.innerHTML = `
-      <table>
-        <thead><tr><th>Task</th><th>Live</th><th>Taught</th><th>Sent / 25</th><th>p50 ms</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p class="muted small">“Sent / 25” counts calls we sent; Mubit keeps only some of them as examples. Check the task's count in the console.</p>
-      <div class="compare">
-        <div><div class="muted small">${esc(next.model || l.model)} · per 1k decisions</div><div class="num">${money(next.providerCostPer1k)}</div><div class="muted small">p50 ${next.p50Ms ?? '—'} ms</div></div>
-        <div><div class="muted small">Adapter (estimate) · per 1k</div><div class="num">${money(next.adapterCostPer1kEstimate)}</div><div class="muted small">p50 ~${next.adapterP50MsEstimate} ms</div></div>
-      </div>
-      ${m ? `<p class="small">At 50k decisions a day: <b>${money(m.provider)}</b>/month on the provider vs <b>${money(m.adapterEstimate)}</b> on the adapter (estimate).</p>` : '<p class="muted small">Costs appear once calls go through Mubit (mock calls are free and not counted).</p>'}`;
-  } catch (err) {
-    box.innerHTML = `<p class="muted">Backend offline: ${esc(err.message)}</p>`;
-  }
+const mubit = createMubitView({ api, getServer: () => state.server, onOverview: data => judges.update(data) });
+const judges = createJudgesView({ session });
+
+async function reportRun(run) {
+  await api('/api/runs', { method: 'POST', body: run }).catch(() => {});
 }
 
 // ---- Wiring -------------------------------------------------------------------
@@ -572,13 +563,14 @@ function switchView(view) {
     t.classList.toggle('active', active);
     t.setAttribute('aria-selected', String(active));
   });
-  $('view-agent').hidden = view !== 'agent';
-  $('view-ledger').hidden = view !== 'ledger';
-  if (view === 'ledger') refreshLedger();
+  for (const name of ['agent', 'mubit', 'judges']) $(`view-${name}`).hidden = view !== name;
+  if (view !== 'agent') mubit.refresh();
+  if (view === 'mubit') note('ledger');
 }
 
 async function init() {
-  const saved = await chrome.storage.local.get(['server', 'goal', 'speak']);
+  const saved = await chrome.storage.local.get(['server', 'goal', 'speak', 'present']);
+  if (saved.present) document.body.classList.add('present');
   if (saved.server) state.server = saved.server;
   if (saved.goal) $('goal').value = saved.goal;
   if (saved.speak === false) $('speak').checked = false;
@@ -596,12 +588,15 @@ async function init() {
   $('cancel-teaching').addEventListener('click', async () => { await stopRecording(); offerTeaching('Demonstration cancelled.'); });
   $('rerun').addEventListener('click', rerun);
   $('forget').addEventListener('click', async () => { await api('/api/demonstrations', { method: 'DELETE' }).catch(() => {}); refreshMemory(); });
-  $('refresh-ledger').addEventListener('click', refreshLedger);
-  $('reset-ledger').addEventListener('click', async () => { await api('/api/ledger', { method: 'DELETE' }).catch(() => {}); refreshLedger(); });
+  $('refresh-ledger').addEventListener('click', () => mubit.refresh());
+  $('reset-ledger').addEventListener('click', async () => { await api('/api/ledger', { method: 'DELETE' }).catch(() => {}); mubit.refresh(); });
+  $('save-real').addEventListener('click', () => mubit.saveRealNumbers().catch(err => alertInline(err.message)));
+  $('clear-real').addEventListener('click', () => mubit.saveRealNumbers(true).catch(err => alertInline(err.message)));
+  $('present').addEventListener('click', () => { document.body.classList.toggle('present'); chrome.storage.local.set({ present: document.body.classList.contains('present') }); });
   $('server').addEventListener('change', async () => {
     state.server = $('server').value.replace(/\/$/, '');
     await chrome.storage.local.set({ server: state.server });
-    refreshHealth(); refreshMemory();
+    refreshHealth(); refreshMemory(); mubit.connect(); mubit.refresh();
   });
   chrome.tabs.onActivated.addListener(updateTargetLabel);
   chrome.tabs.onUpdated.addListener((_id, info) => { if (info.title || info.status === 'complete') updateTargetLabel(); });
@@ -610,7 +605,13 @@ async function init() {
   refreshHealth();
   refreshMemory();
   refreshTotals();
+  mubit.connect();
+  mubit.refresh();
   setInterval(refreshHealth, 15000);
+}
+
+function alertInline(message) {
+  $('bridge-status').textContent = message;
 }
 
 init();

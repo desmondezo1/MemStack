@@ -29,7 +29,8 @@ export class LlmError extends Error {
 }
 
 // task: one of TASKS. kind: 'live' (agent run) or 'training' (re-sent demonstration).
-export async function callTask({ task, userMessage, sessionId, kind = 'live', mockContext }) {
+// summarize(json) gives the one-line description shown in the live call list.
+export async function callTask({ task, userMessage, sessionId, kind = 'live', mockContext, summarize }) {
   const config = getConfig();
   const system = SYSTEM_PROMPTS[task];
   if (!system) throw new Error(`Unknown task ${task}`);
@@ -54,12 +55,17 @@ export async function callTask({ task, userMessage, sessionId, kind = 'live', mo
   logCall({
     task, kind, ms, ok: !!json, model: config.model, provider: config.provider, sessionId,
     inTokens: result.inTokens, outTokens: result.outTokens, requestId: result.requestId,
+    summary: json ? safeSummary(summarize, json) : 'reply was not JSON',
   });
   if (!json) throw new LlmError(`Model reply was not JSON: ${result.text.slice(0, 200)}`, { requestId: result.requestId, code: 'bad_reply' });
   const usage = config.provider === 'mock'
     ? { inTokens: 0, outTokens: 0, costUsd: 0, adapterCostUsd: 0, adapterMs: null, viaMubit: false }
     : { inTokens: result.inTokens, outTokens: result.outTokens, ...costOf(result.inTokens, result.outTokens), viaMubit: true };
   return { json, ms, requestId: result.requestId, raw: result.text, usage };
+}
+
+function safeSummary(summarize, json) {
+  try { return summarize ? summarize(json) : (json.action || (json.done !== undefined ? `done: ${json.done}` : '')); } catch { return ''; }
 }
 
 async function post(url, headers, body) {
