@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tariff Desk</title>
+<style>
+  :root {
+    --bg: #f4f2ee;
+    --panel: #ffffff;
+    --ink: #1d232b;
+    --muted: #66707c;
+    --line: #e2ded6;
+    --accent: #1f5f8b;
+    --accent-ink: #ffffff;
+    --small: #1e7a4f;
+    --small-bg: #e3f3ea;
+    --big: #7a5a1e;
+    --big-bg: #f6ecd8;
+    --fix: #a33a2b;
+    --fix-bg: #f8e4e0;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181d;
+      --panel: #1c2128;
+      --ink: #e6e9ed;
+      --muted: #97a1ad;
+      --line: #2c333c;
+      --accent: #5aa4d6;
+      --accent-ink: #0d1319;
+      --small: #6fd3a0;
+      --small-bg: #183326;
+      --big: #e2bd77;
+      --big-bg: #362c1a;
+      --fix: #f08b7c;
+      --fix-bg: #3a201c;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); }
+
+  .counters {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 18px;
+  }
+  .counter { padding: 12px 16px; border-left: 1px solid var(--line); }
+  .counter:first-child { border-left: 0; }
+  .counter b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .counter span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .card + .card { margin-top: 18px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 10px; }
+
+  textarea {
+    width: 100%;
+    min-height: 92px;
+    resize: vertical;
+    padding: 10px 12px;
+    font: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button:disabled { opacity: 0.55; cursor: progress; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip {
+    font-weight: 400;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    color: var(--muted);
+    background: var(--bg);
+  }
+  .hint { color: var(--muted); font-size: 13px; }
+
+  .code { font: 600 40px/1.1 var(--mono); letter-spacing: 0.02em; }
+  .code-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .pill {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .pill.small { background: var(--small-bg); color: var(--small); }
+  .pill.big { background: var(--big-bg); color: var(--big); }
+  .pill.fixed { background: var(--fix-bg); color: var(--fix); }
+  .pill.accepted { background: var(--small-bg); color: var(--small); }
+  .sure-high { color: var(--small); }
+  .sure-medium { color: var(--big); }
+  .sure-low { color: var(--fix); }
+  .reason { margin: 10px 0 12px; }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+  .meta code { font-family: var(--mono); font-size: 12px; }
+  .fix-box input {
+    font: 600 18px var(--mono);
+    width: 8.5em;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .status { font-size: 14px; font-weight: 600; }
+  .error { color: var(--fix); font-size: 14px; margin-top: 10px; }
+
+  .history { list-style: none; margin: 0; padding: 0; }
+  .history li { padding: 10px 0; border-top: 1px solid var(--line); }
+  .history li:first-child { border-top: 0; padding-top: 0; }
+  .h-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .h-code { font: 600 15px var(--mono); }
+  .h-code s { color: var(--muted); font-weight: 400; margin-right: 4px; }
+  .h-desc { color: var(--muted); font-size: 13px; margin-top: 2px; overflow-wrap: anywhere; }
+  .empty { color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 820px) {
+    .grid { grid-template-columns: 1fr; }
+    .counters { grid-template-columns: repeat(3, 1fr); }
+    .counter:nth-child(4) { border-left: 0; }
+    .counter:nth-child(n+4) { border-top: 1px solid var(--line); }
+    .code { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Tariff Desk</h1>
+    <p>Describe a product, get its 6-digit HS code. Every fix you make is a training signal.</p>
+  </header>
+
+  <section class="counters" aria-label="Counters">
+    <div class="counter"><b id="c-calls">0</b><span>Calls</span></div>
+    <div class="counter"><b id="c-small">0%</b><span>Small model</span></div>
+    <div class="counter"><b id="c-ms">0 ms</b><span>Avg latency</span></div>
+    <div class="counter"><b id="c-accepts">0</b><span>Accepts</span></div>
+    <div class="counter"><b id="c-fixes">0</b><span>Fixes</span></div>
+  </section>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2><label for="desc">Product description</label></h2>
+        <textarea id="desc" placeholder="e.g. Men's T-shirt, 100% cotton jersey knit, printed with horses"></textarea>
+        <div class="row">
+          <button class="primary" id="go">Classify</button>
+          <span class="hint">or press Ctrl/⌘ + Enter</span>
+        </div>
+        <div class="chips" id="chips">
+          <button class="chip">T-shirt with horses on it</button>
+          <button class="chip">Men's T-shirt, 100% cotton jersey knit, printed with horses</button>
+          <button class="chip">Horse-shaped child's backpack made of plush polyester</button>
+          <button class="chip">Bluetooth speaker shaped like a horse head</button>
+          <button class="chip">Cast iron doorstop shaped like a horse</button>
+        </div>
+        <div class="error" id="error" role="alert"></div>
+      </section>
+
+      <section class="card answer" id="answer" hidden aria-live="polite">
+        <h2>Answer</h2>
+        <div class="code-row">
+          <span class="code" id="a-code"></span>
+          <span class="pill" id="a-sure"></span>
+        </div>
+        <p class="reason" id="a-reason"></p>
+        <div class="meta">
+          <span class="pill" id="a-served"></span>
+          <span id="a-ms"></span>
+          <span>trace <code id="a-trace"></code></span>
+        </div>
+        <div class="row" id="a-actions">
+          <button class="primary" id="accept">Accept</button>
+          <button id="fix">Fix</button>
+        </div>
+        <div class="row fix-box" id="fix-box" hidden>
+          <label for="fix-input" class="hint">Right 6-digit code</label>
+          <input id="fix-input" inputmode="numeric" maxlength="7" placeholder="610910" autocomplete="off">
+          <button class="primary" id="fix-save">Save fix</button>
+        </div>
+        <div class="row"><span class="status" id="a-status"></span></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>History</h2>
+      <ul class="history" id="history"></ul>
+    </section>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let current = null;
+
+  const fmtCode = (c) => c ? `${c.slice(0, 4)}.${c.slice(4)}` : "";
+  const shortTrace = (t) => t.length > 14 ? `${t.slice(0, 12)}…` : t;
+  const served = (small) => small ? ["small model", "pill small"] : ["big model", "pill big"];
+
+  async function api(path, body) {
+    const res = await fetch(path, body ? {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    } : {});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+    return data;
+  }
+
+  function renderStats(s) {
+    $("c-calls").textContent = s.calls;
+    $("c-small").textContent = `${s.small_pct}%`;
+    $("c-ms").textContent = `${s.avg_latency_ms} ms`;
+    $("c-accepts").textContent = s.accepts;
+    $("c-fixes").textContent = s.fixes;
+  }
+
+  function renderAnswer(call) {
+    current = call;
+    const a = call.answer;
+    $("a-code").textContent = fmtCode(a.hs6);
+    $("a-sure").textContent = `${a.sure} confidence`;
+    $("a-sure").className = `pill sure-${a.sure}`;
+    $("a-reason").textContent = a.reason;
+    const [label, cls] = served(call.small_model);
+    $("a-served").textContent = label;
+    $("a-served").className = cls;
+    $("a-served").title = call.served_by || "no served-by header";
+    $("a-ms").textContent = `${call.latency_ms} ms`;
+    $("a-trace").textContent = shortTrace(call.trace_id);
+    $("a-trace").title = call.trace_id;
+    $("a-actions").hidden = false;
+    $("fix-box").hidden = true;
+    $("a-status").textContent = "";
+    $("answer").hidden = false;
+  }
+
+  function renderHistory(rows) {
+    const list = $("history");
+    list.replaceChildren();
+    if (!rows.length) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "No answers yet.";
+      list.append(li);
+      return;
+    }
+    for (const r of rows) {
+      const li = document.createElement("li");
+      const top = document.createElement("div");
+      top.className = "h-top";
+      const code = document.createElement("span");
+      code.className = "h-code";
+      if (r.verdict === "fixed") {
+        const old = document.createElement("s");
+        old.textContent = fmtCode(r.answer.hs6);
+        code.append(old, fmtCode(r.final_hs6));
+      } else {
+        code.textContent = fmtCode(r.answer.hs6);
+      }
+      const [label, cls] = served(r.small_model);
+      const pill = document.createElement("span");
+      pill.className = cls;
+      pill.textContent = label;
+      const ms = document.createElement("span");
+      ms.className = "hint";
+      ms.textContent = `${r.latency_ms} ms`;
+      top.append(code, pill, ms);
+      if (r.verdict) {
+        const v = document.createElement("span");
+        v.className = `pill ${r.verdict}`;
+        v.textContent = r.verdict;
+        top.append(v);
+      }
+      const desc = document.createElement("div");
+      desc.className = "h-desc";
+      desc.textContent = r.input;
+      li.append(top, desc);
+      list.append(li);
+    }
+  }
+
+  async function refresh() {
+    const [s, h] = await Promise.all([api("/api/stats"), api("/api/history")]);
+    renderStats(s);
+    renderHistory(h);
+  }
+
+  async function classify() {
+    const description = $("desc").value.trim();
+    if (!description) return;
+    $("error").textContent = "";
+    $("go").disabled = true;
+    $("go").textContent = "Classifying…";
+    try {
+      const data = await api("/api/classify", { description });
+      renderAnswer(data.call);
+      renderStats(data.stats);
+      renderHistory(await api("/api/history"));
+    } catch (e) {
+      $("error").textContent = e.message;
+    } finally {
+      $("go").disabled = false;
+      $("go").textContent = "Classify";
+    }
+  }
+
+  async function sendFeedback(hs6) {
+    if (!current) return;
+    try {
+      const data = await api("/api/feedback", { trace_id: current.trace_id, hs6 });
+      const fb = data.feedback;
+      $("a-actions").hidden = true;
+      $("fix-box").hidden = true;
+      $("a-status").textContent = fb.verdict === "fixed"
+        ? `Fixed to ${fmtCode(fb.final_answer.hs6)}. Logged as a training signal.`
+        : "Accepted. Logged as a training signal.";
+      renderStats(data.stats);
+      renderHistory(await api("/api/history"));
+    } catch (e) {
+      $("a-status").textContent = e.message;
+    }
+  }
+
+  $("go").addEventListener("click", classify);
+  $("desc").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) classify();
+  });
+  $("chips").addEventListener("click", (e) => {
+    if (e.target.classList.contains("chip")) {
+      $("desc").value = e.target.textContent;
+      $("desc").focus();
+    }
+  });
+  $("accept").addEventListener("click", () => sendFeedback(current.answer.hs6));
+  $("fix").addEventListener("click", () => {
+    $("fix-box").hidden = false;
+    $("fix-input").value = "";
+    $("fix-input").focus();
+  });
+  $("fix-save").addEventListener("click", () => sendFeedback($("fix-input").value));
+  $("fix-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendFeedback($("fix-input").value);
+  });
+
+  refresh().catch((e) => { $("error").textContent = e.message; });
+</script>
+</body>
+</html>
