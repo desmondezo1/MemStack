@@ -10,6 +10,7 @@ import { TASKS, buildNextActionMessage, buildDoneCheckMessage, buildSafetyMessag
 import { callTask, getConfig, LlmError } from './llm.js';
 import { formatStep } from './prompts.js';
 import { addDemo, clearDemos, listDemos, recallDemo, updateDemo } from './memory.js';
+import { verifyDone, verifySafe, verifierEnabled } from './verifier.js';
 import { clearCalls, ledgerStats, recentCalls, addRun, readRuns, getSettings, saveSettings, onEvent, emit } from './ledger.js';
 
 loadEnv();
@@ -38,22 +39,35 @@ const routes = {
     return { ...action, ms, requestId, usage, demoUsed: demo ? { id: demo.id, goal: demo.goal } : null };
   },
 
+  // Claude's check (through Mubit) and Sapling's independent check run side by side;
+  // a Sapling "fail" overrides a "goal met", which sends the user to "Show me".
   'POST /api/done-check': async ({ goal, page, sessionId }) => {
     requireFields({ goal, page, sessionId });
-    const { json, ms, requestId, usage } = await callTask({
-      task: TASKS.doneCheck, userMessage: buildDoneCheckMessage({ goal, page }), sessionId, mockContext: { goal, page },
-      summarize: j => `${j.done ? 'goal met' : 'goal not met'}: ${j.reason || ''}`,
-    });
-    return { done: json.done === true, reason: String(json.reason || ''), ms, requestId, usage };
+    const [{ json, ms, requestId, usage }, sapling] = await Promise.all([
+      callTask({
+        task: TASKS.doneCheck, userMessage: buildDoneCheckMessage({ goal, page }), sessionId, mockContext: { goal, page },
+        summarize: j => `${j.done ? 'goal met' : 'goal not met'}: ${j.reason || ''}`,
+      }),
+      verifierEnabled() ? verifyDone({ goal, pageText: page.text }) : null,
+    ]);
+    const vetoed = json.done === true && sapling?.verdict === 'fail';
+    const reason = vetoed ? `The verifier disagrees: the page doesn't show "${goal}" was done` : String(json.reason || '');
+    return { done: json.done === true && !vetoed, reason, ms, requestId, usage, verifier: sapling };
   },
 
-  'POST /api/safety-gate': async ({ goal, action, element, sessionId }) => {
+  // Before a submit/pay/delete click. evidence = the visible text of the form or page.
+  'POST /api/safety-gate': async ({ goal, action, element, sessionId, evidence, constraints }) => {
     requireFields({ goal, action, sessionId });
-    const { json, ms, requestId, usage } = await callTask({
-      task: TASKS.safetyGate, userMessage: buildSafetyMessage({ goal, action, element }), sessionId, mockContext: { goal, action, element },
-      summarize: j => `${j.allow === false ? 'blocked' : 'allowed'}: ${j.reason || ''}`,
-    });
-    return { allow: json.allow !== false, reason: String(json.reason || ''), ms, requestId, usage };
+    const [{ json, ms, requestId, usage }, sapling] = await Promise.all([
+      callTask({
+        task: TASKS.safetyGate, userMessage: buildSafetyMessage({ goal, action, element }), sessionId, mockContext: { goal, action, element },
+        summarize: j => `${j.allow === false ? 'blocked' : 'allowed'}: ${j.reason || ''}`,
+      }),
+      verifierEnabled() ? verifySafe({ goal, constraints, evidence: evidence || `${element?.label || ''} ${goal}` }) : null,
+    ]);
+    const blocked = !!sapling?.block;
+    const reason = blocked ? `The verifier scored this click unsafe (${Math.round(sapling.safeScore * 100)}% safe)` : String(json.reason || '');
+    return { allow: json.allow !== false && !blocked, reason, ms, requestId, usage, verifier: sapling };
   },
 
   'GET /api/demonstrations': async () => ({ demos: listDemos() }),
