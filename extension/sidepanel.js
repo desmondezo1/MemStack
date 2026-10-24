@@ -717,6 +717,15 @@ async function init() {
   mubit.connect();
   mubit.refresh();
   listenIfAsked();
+  // Kept examples and adapter status, read from Mubit's console when it's open in a tab.
+  const { mubitBridge } = await chrome.storage.local.get('mubitBridge');
+  if (mubitBridge) { mubit.setBridge(mubitBridge); judges.setBridge(mubitBridge); }
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.mubitBridge?.newValue) {
+      mubit.setBridge(changes.mubitBridge.newValue);
+      judges.setBridge(changes.mubitBridge.newValue);
+    }
+  });
   setInterval(refreshHealth, 15000);
 }
 

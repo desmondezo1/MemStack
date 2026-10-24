@@ -1,6 +1,6 @@
 # Show Me — UI plan: mascot, voice hotkey, and making Mubit visible
 
-Plan only, nothing built yet. Written 24 Oct 2026, before the Sunday 10:00 demo.
+Written 24 Oct 2026, before the Sunday 10:00 demo. **Status: built** (items 1–5); the optional 3D Mo (item 6) is not. How to use it: [TESTING.md](../TESTING.md).
 
 Three goals:
 

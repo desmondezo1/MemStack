@@ -31,6 +31,15 @@
         "mascot.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://app.mubit.ai/*"
+      ],
+      "js": [
+        "mubit-bridge.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "commands": {

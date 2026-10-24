@@ -16,7 +16,8 @@ Leave it running.
 ## 2. Load the extension
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
-2. Click **Load unpacked** and choose the `MemStack/extension` folder.
+2. Click **Load unpacked** and choose the `MemStack/extension` folder. (Already loaded? Press the
+   reload icon on its card: new versions add files and the ⌥Space shortcut.)
 3. Pin **Show Me** from the puzzle-piece menu.
 
 After any change to files in `extension/`, press the reload icon on the Show Me card.
@@ -54,7 +55,22 @@ Try, from any tab (even a new tab):
 - `open http://localhost:8787/demo/tube/ and play a Burna Boy video`: **Tubely**, an offline copy of a
   video site for a stage demo that can't break. Works with the mock too.
 
+### Mo, the mascot
+
+Mo is the orange orb in the bottom-right corner of every page. It bobs and wanders when idle. It shows
+dots while Claude is thinking, floats to whatever the agent is about to click, and asks *"Can you show
+me?"* when stuck. When a lesson is sent it throws **+1 → Mubit** cards, and it jumps when it's done.
+
+- **Click Mo** to talk. **Drag** it to any corner. **⋯** (on hover) has *Open the Show Me panel* and
+  *Hide on this site*.
+- When it asks for help, clicking its bubble starts **Show me how**.
+
 ### Reading the side panel
+
+Three tabs: **Agent**, **Mubit**, **Judges**. The ⤢ button is Present mode (bigger text for a projector).
+The small dot next to the model name flashes purple on every Mubit call.
+
+**Agent tab**
 
 - **Timeline**: every decision with its reason, time, cost on Claude, and the page it led to (`now on …`).
 - **Green strip**: live savings: this run's calls through Mubit, cost on Claude vs on an adapter, and
@@ -63,6 +79,26 @@ Try, from any tab (even a new tab):
   I did click Sitting D, you did click Sitting C."*
 - When you teach, typing an address in the address bar is recorded too (as `open …`), and so is
   typing in a search box and pressing Enter.
+
+**Mubit tab** (the proof that Mubit is used)
+
+- **Flow diagram**: a dot travels Browser → Show Me → Mubit → Claude on every call. Taught steps drop
+  into the purple **examples** box.
+- **Live calls**: every call as it happens: task, what was decided, time, cost and the Mubit request
+  ID. Click an ID to copy it and find the same call in Mubit → Requests. Taught steps are marked
+  **training**.
+- **Tasks → adapters**: calls sent per task. **Kept** and **Mubit status** fill in by themselves while
+  Mubit's console is open in another tab (Tasks page). A read-only reader (the Mubit bridge) picks them up.
+- **Corrections → model updates**: each lesson, and how many training examples it sent through Mubit.
+- **Failures → improvements**: each goal's history (✗ ✗ ✓), and whether a lesson fixed it.
+- **Cost & speed**: Claude vs adapter per 1,000 decisions and per month at 50k a day. Once you've compared
+  a passing version in Try models, enter the real numbers under *Enter real adapter numbers*.
+
+**Judges tab**
+
+One card per judging criterion; each item ticks itself when it happens (e.g. *A correction became
+training data*). The Demo card has a 3-minute timer and the five scenes: voice command, it fails, you
+teach it, rerun works, Mubit tab.
 
 ## 4. Connect Claude through Mubit
 
@@ -103,6 +139,9 @@ ratio in `.env` (`ADAPTER_COST_RATIO`, `ADAPTER_LATENCY_MS`) so the ledger stops
 
 ## 6. Voice
 
+- **⌥ Space** (Option + Space) from any page opens the panel and starts listening. A waveform appears
+  next to Mo with your words; when you stop talking, it runs. Press it again to stop listening. Change
+  the key at `chrome://extensions/shortcuts`. (The Fn/Globe key can't be used: macOS keeps it.)
 - **Mic button**: uses Chrome's built-in speech recognition. The first time, Chrome opens a tab to allow
   the microphone (side panels can't ask). Allow it, close the tab and press the mic again. With
   "Run as soon as I finish speaking" ticked, the agent starts when you stop talking.

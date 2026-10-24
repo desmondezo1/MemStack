@@ -281,3 +281,50 @@ test('⌥Space: the panel listens, the waveform shows on the page, then the agen
   assert.equal(await panel.isHidden('#wave'), true);
   await panel.close(); await site.close();
 });
+
+test('Mubit bridge: kept examples and adapter status from the console page reach the panel', { timeout: 60_000 }, async () => {
+  // Stand-in for Mubit's Tasks page text (the real console needs a sign-in).
+  const fixture = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end(`<!doctype html><title>Tasks — Middleware console</title><main>
+      <h1>Tasks</h1>
+      <div><p>You control a web browser for a user. You get…</p><p>Training</p><p>28 of 25 examples</p></div>
+      <div><p>You check whether a browser task succeeded…</p><p>v1 passed its tests</p><p>Matched 92% of your provider model's answers on 12 test cases</p><p>35 of 25 examples</p></div>
+      <div><p>Sort the support message into one category…</p><p>Collecting examples</p><p>3 of 25 examples</p></div>
+    </main>`);
+  });
+  await new Promise(r => fixture.listen(0, r));
+  try {
+    const url = `http://localhost:${fixture.address().port}/console/tasks`;
+    const { site, tabId } = await tabAt(url);
+    await worker.evaluate(id => chrome.scripting.executeScript({ target: { tabId: id }, files: ['mubit-bridge.js'] }), tabId);
+    await site.waitForFunction(() => document.documentElement.dataset.showmeBridge === '2');
+    const stored = await worker.evaluate(() => chrome.storage.local.get('mubitBridge'));
+    console.log('bridge:', JSON.stringify(stored.mubitBridge.tasks));
+    assert.deepEqual(stored.mubitBridge.tasks.map(t => [t.task, t.kept, t.status]), [
+      ['next-action', 28, 'Training'],
+      ['done-check', 35, 'v1 passed its tests'],
+    ]);
+
+    const panel = await panelFor(tabId);
+    // The ledger needs calls for its task rows: one mock decision is enough.
+    await fetch(`${base}/api/next-action`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ goal: 'x', sessionId: 'b', page: { url: 'http://x/', elements: [] } }) });
+    await fetch(`${base}/api/done-check`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ goal: 'x', sessionId: 'b', page: { url: 'http://x/', text: '' } }) });
+    await panel.click('.tab[data-view=mubit]');
+    await panel.waitForFunction(() => /28\/25/.test(document.querySelector('#ledger').textContent));
+    const ledger = (await panel.textContent('#ledger')).replace(/\s+/g, ' ');
+    console.log('ledger:', ledger);
+    assert.match(ledger, /done-check .*35\/25 v1 passed its tests · matched 92%/);
+    assert.match(await panel.textContent('#bridge-status'), /read from your Mubit console/);
+    await panel.click('.tab[data-view=judges]');
+    const judges = (await panel.textContent('#judges')).replace(/\s+/g, ' ');
+    assert.match(judges, /✓\s*A task reached 25 kept examples/);
+    assert.match(judges, /✓\s*An adapter version passed its tests/);
+    await worker.evaluate(() => chrome.storage.local.remove('mubitBridge'));
+    await panel.close(); await site.close();
+  } finally {
+    fixture.close();
+  }
+});

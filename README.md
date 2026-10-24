@@ -24,6 +24,10 @@ Show Me icon. Details in [TESTING.md](TESTING.md).
 | --- | --- |
 | `extension/content.js` | Reads the page as a short list of interactive elements (text, no screenshots), performs actions, records your demonstrations. |
 | `extension/sidepanel.*` | Goal box with voice and talk-back; agent loop (open URL, click, type + Enter, keys, back, scroll, ask for help); "Show me how" teaching; mistake view; live savings; ledger. |
+| `extension/panel-mubit.js`, `panel-judges.js` | The Mubit tab (live calls, flow, tasks, lessons, savings) and the Judges tab (criteria that tick from live evidence). |
+| `extension/mascot.js` | Mo, the mascot on every page, and the voice waveform next to it. |
+| `extension/mubit-bridge.js` | Reads kept examples and adapter status from Mubit's console when it's open in a tab (read-only). |
+| `extension/background.js` | Toolbar icon and the ⌥Space talk shortcut. |
 | `server/index.js` | Backend the extension calls. Holds the Mubit key; Mubit refuses browser calls. |
 | `server/llm.js` | Sends every model call to Claude (or OpenAI) through Mubit's gateway; mock model when no key is set. |
 | `server/prompts.js` | The three fixed system prompts, one per Mubit task: `next-action`, `done-check`, `safety-gate`. |

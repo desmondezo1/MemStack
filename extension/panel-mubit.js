@@ -146,7 +146,7 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
     const rows = ledger.tasks.map(t => {
       const b = fromConsole(t.task);
       const kept = b?.kept != null ? `${b.kept}/${b.needed ?? 25}` : '—';
-      const status = b?.status ? esc(b.status) : '<span class="muted">open the console</span>';
+      const status = b?.status ? esc(b.status) + (b.matched != null ? ` · matched ${b.matched}%` : '') : '<span class="muted">open the console</span>';
       return `
       <tr>
         <td><b>${esc(t.task)}</b></td>
