@@ -9,10 +9,12 @@
 
   // Mubit names each task after the first words of its system prompt.
   const OUR_TASKS = [
-    ['next-action', /you control a web browser/i],
-    ['done-check', /you check whether a browser task/i],
-    ['safety-gate', /you protect a user/i],
-    ['link-check', /you check links for phishing/i],
+    // The task page shows the instructions; the Tasks list shows Mubit's names for them.
+    ['next-action', /you control a web browser|^control web browser( \d+)?$/i],
+    ['done-check', /you check whether a browser task|^check whether browser task( \d+)?$/i],
+    ['safety-gate', /you protect a user|^protect user( \d+)?$/i],
+    ['link-check', /you check links for phishing|^check links( \d+)?$/i],
+    ['locate', /you find information|^find information( \d+)?$/i],
   ];
   const STATUS = /(v\d+ passed[^\n]*|passed its tests|Passed|Below target[^\n]*|Prompt only|Malformed tool calls|Not tested|Collecting examples|Reviewing examples|Training|Testing|Waiting[^\n]*|Can't train[^\n]*|No adapter yet[^\n]*|Not ready yet)/i;
 
@@ -33,6 +35,7 @@
       const matched = text.match(/Matched\s+(\d+)%/i);
       const status = text.match(STATUS);
       found.push({
+        name: line.slice(0, 60),
         task: match[0],
         kept: kept ? Number(kept[1]) : null,
         needed: kept ? Number(kept[2]) : null,

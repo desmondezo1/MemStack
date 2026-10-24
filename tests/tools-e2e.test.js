@@ -367,11 +367,12 @@ test('with the side panel closed, holding ⌥Space listens offscreen and Mo runs
 test('Mubit bridge: kept examples and adapter status from the console page reach the panel', { timeout: 60_000 }, async () => {
   // Stand-in for Mubit's Tasks page text (the real console needs a sign-in).
   const fixture = http.createServer((req, res) => {
-    res.writeHead(200, { 'content-type': 'text/html' });
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(`<!doctype html><title>Tasks — Middleware console</title><main>
       <h1>Tasks</h1>
       <div><p>You control a web browser for a user. You get…</p><p>Training</p><p>28 of 25 examples</p></div>
       <div><p>You check whether a browser task succeeded…</p><p>v1 passed its tests</p><p>Matched 92% of your provider model's answers on 12 test cases</p><p>35 of 25 examples</p></div>
+      <div><p>Check links 3</p><p>Reviewing examples</p><p>0 of 25 examples</p></div>
       <div><p>Sort the support message into one category…</p><p>Collecting examples</p><p>3 of 25 examples</p></div>
     </main>`);
   });
@@ -380,12 +381,13 @@ test('Mubit bridge: kept examples and adapter status from the console page reach
     const url = `http://localhost:${fixture.address().port}/console/tasks`;
     const { site, tabId } = await tabAt(url);
     await worker.evaluate(id => chrome.scripting.executeScript({ target: { tabId: id }, files: ['mubit-bridge.js'] }), tabId);
-    await site.waitForFunction(() => document.documentElement.dataset.showmeBridge === '2');
+    await site.waitForFunction(() => document.documentElement.dataset.showmeBridge === '3');
     const stored = await worker.evaluate(() => chrome.storage.local.get('mubitBridge'));
     console.log('bridge:', JSON.stringify(stored.mubitBridge.tasks));
     assert.deepEqual(stored.mubitBridge.tasks.map(t => [t.task, t.kept, t.status]), [
       ['next-action', 28, 'Training'],
       ['done-check', 35, 'v1 passed its tests'],
+      ['link-check', 0, 'Reviewing examples'], // listed by Mubit's name, as on the real Tasks page
     ]);
 
     const panel = await panelFor(tabId);
@@ -398,7 +400,7 @@ test('Mubit bridge: kept examples and adapter status from the console page reach
     await panel.waitForFunction(() => /28\/25/.test(document.querySelector('#ledger').textContent));
     const ledger = (await panel.textContent('#ledger')).replace(/\s+/g, ' ');
     console.log('ledger:', ledger);
-    assert.match(ledger, /done-check .*35\/25 v1 passed its tests · matched 92%/);
+    assert.match(ledger, /done-check\s?You check whether a browser task succeeded.*35\/25 v1 passed its tests · matched 92%/);
     assert.match(await panel.textContent('#bridge-status'), /read from your Mubit console/);
     await panel.click('.tab[data-view=judges]');
     const judges = (await panel.textContent('#judges')).replace(/\s+/g, ' ');

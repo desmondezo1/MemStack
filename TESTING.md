@@ -88,6 +88,23 @@ can't find it, it asks you to show it: go to the page and **select the answer te
   are suggested for removal. You review them (*Check your lesson*), and only the ticked steps are
   taught. If nothing looks unneeded, it saves straight away.
 
+### The gym: cancelling through a maze (the main demo)
+
+Open <http://localhost:8787/demo/gym/>, Iron Gym's members' page for "Ada". Ask Mo: `Cancel my Iron Gym membership`.
+
+- The page fights back: a big **Pause my membership (recommended)** button that only pauses (and still charges),
+  the real exit under **Manage plan → Cancel membership**, a form that defaults to ending "at the end of this billing
+  period" with **Keep my Recovery+ add-on (£9 a month)** ticked, a **50% off** offer and an "Are you sure? 😢" screen.
+- If Mo takes the pause button, or finishes with the add-on still charging, the check fails and Mo asks **Can you show
+  me how?** If it finishes but not the way you'd want, for example ending "later" when you wanted "now", press
+  **Not what you wanted? Show me how you'd do it**.
+- Teach it once: **Manage plan → Cancel membership →** pick a reason **→ Immediately →** untick the add-on **→ Continue →
+  No thanks, continue cancelling → Yes, cancel my membership**. Mo marks its mistake, saves the lesson, and sends each
+  step to Mubit. **Run it again** and it cancels your way.
+- **To see it in Mubit:** after a run or a lesson, the panel shows the Mubit session (`run-…` or `demo-…`). Click it to
+  copy, then paste it into **Requests → Session** in Mubit's console to see those exact calls. The task is
+  **Control web browser** (the newest number).
+
 ### Mo Guard (phishing links)
 
 Mo keeps an eye on the links on every page, and on the page itself.
@@ -166,9 +183,10 @@ and Mubit records each call (you can read every message in Mubit → **Requests*
    cp .env.example .env
    ```
    Put your key in `MUBIT_API_KEY=`. Leave `MUBIT_PROVIDER=anthropic` for Claude.
-4. Restart `npm start`. It should say `anthropic / claude-haiku-4-5 via Mubit`, and the side panel pill turns green.
+4. Restart `npm start`. It should say `anthropic / claude-haiku-5-5 via Mubit`, and the side panel pill turns green.
 5. Run the demo again (step 3). Then open Mubit → **Requests**: every agent step is there, grouped into
-   the tasks **next-action** and **done-check**.
+   the tasks Mubit names **Control web browser** (next-action) and **Check whether browser task** (done-check).
+   To find one run, copy the session ID the panel shows after it and filter **Requests** by that session.
 
 If a call fails with `starter_credit_model`, the starter credit doesn't serve that model. The error lists
 the ones it does serve: put one in `MUBIT_MODEL` and restart. To use OpenAI instead, set `MUBIT_PROVIDER=openai`
@@ -251,8 +269,8 @@ to another site, not to try to get past it.
 ## Sapling verifier
 
 Every done-check and every risky click (pay, submit, confirm, reserve, delete…) also gets an
-independent check from Banyan Sapling. It's on with a Mubit key and off in practice mode. Set
-`SAPLING=on` or `SAPLING=off` to choose. Every call is logged to `verifier.log`. Try it on saved pages:
+independent check from Banyan Sapling. It's **on by default whenever a Mubit key is set**, and off in practice
+mode. Set `SAPLING=off` to turn it off (or `SAPLING=on` to force it on). Every call is logged to `verifier.log`. Try it on saved pages:
 
 ```bash
 node verify-demo.js fixtures/booking-correct.txt

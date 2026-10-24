@@ -62,10 +62,12 @@
     <div id="savings" class="savings" hidden aria-live="polite"></div>
     <ol id="timeline" class="steps"></ol>
     <div id="verdict" class="verdict" hidden></div>
+    <p id="run-session" class="mubit-where run-session" hidden></p>
+    <button id="not-right" class="text-btn not-right" hidden>Not what you wanted? Show me how you'd do it</button>
 
     <div id="teach" class="teach" hidden>
       <div id="teach-ask">
-        <p class="teach-title">I couldn't finish this</p>
+        <p class="teach-title" id="teach-title">I couldn't finish this</p>
         <p id="teach-reason" class="teach-reason"></p>
         <p class="teach-help">Do it once yourself. I'll remember each step, and each one goes to Mubit as a training example.</p>
         <button id="show-me" class="btn primary">Show me how</button>
@@ -117,7 +119,8 @@
       <g id="packets"></g>
     </svg>
 
-    <h2 class="section">Live calls</h2>
+    <h2 class="section">Live calls <a class="text-btn section-link" href="https://app.mubit.ai/console/" target="_blank" rel="noreferrer">Open Mubit's console ↗</a></h2>
+    <p class="note">Click a request ID to copy it, then paste it into Requests in Mubit's console to see the same call there.</p>
     <ol id="calls" class="calls"><li class="empty">Calls show up here the moment the agent makes them.</li></ol>
 
     <h2 class="section">Tasks and adapters</h2>

@@ -15,7 +15,24 @@ make teaches it.
 > into an assistant that helps and keeps you safe, so we named it after the character at its centre. Some internal
 > names (`showme:` messages, `SHOWME_*` settings) keep the old name.
 
-## What you can use it for
+## One user, one chore: Ada cancels her gym
+
+Ada wants to cancel her gym membership. The gym's site is built to stop her. The big button only *pauses* the
+membership (and still charges her). The real exit hides under "Manage plan". The form defaults to ending "later"
+and keeps a paid add-on ticked. Then there's a "50% off" offer and an "Are you sure? You'll lose your streak 😢".
+
+Ada holds <kbd>⌥</kbd> <kbd>Space</kbd> and says *"Cancel my Iron Gym membership"*. Mo works through it. Where it
+can't know what she wants (end it now or later? keep the add-on?) or gets it wrong, it asks *"Can you show me
+how?"*, or she presses *"Not what you wanted?"*. She does it once. Mo marks the step where it went wrong, saves the
+lesson, and sends each step to Mubit as a training example. Next time, Mo cancels her way, start to finish.
+
+Every subscription uses the same tricks, so Ada comes back. Mo learns them once from her, then does the chore
+for her: faster each time, cheaper once Mubit's adapter takes over. The same Mo keeps an eye on the links in her
+chats and warns her before a phishing link can trick her.
+
+Try it: <http://localhost:8787/demo/gym/> (a demo gym; nothing is real or charged).
+
+## What else you can use it for
 
 | You want to… | What Mo does |
 | --- | --- |
@@ -41,6 +58,7 @@ npm start                 # backend on http://localhost:8787
 
 1. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension/` folder.
 2. Try the demos:
+   - **The gym (main demo):** <http://localhost:8787/demo/gym/>. "Cancel my Iron Gym membership", then show Mo how you'd do it.
    - **The restaurant:** <http://localhost:8787/demo/>. Ask Mo to "book a table for two at eight", and teach it when it gets stuck.
    - **The video site:** <http://localhost:8787/demo/tube/>. "Play a Wizkid video".
    - **The phishing chat:** <http://localhost:8787/demo/guard/>. Watch Mo flag the fake links.
@@ -89,8 +107,8 @@ The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). 
 | `server/llm.js`, `server/prompts.js` | Every model call goes through Mubit; the fixed instructions per task live here (a test guards them). |
 | `server/memory.js`, `server/refine.js` | Lessons, recalled into later runs; detours removed from demonstrations before they train anything. |
 | `server/ledger.js` | Local log of every call: counts, speed, cost. |
-| `server/verifier.js` | Optional Banyan Sapling check on "did it work?" and before risky clicks (`SAPLING=on`). |
-| `server/demo-site/` | Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
+| `server/verifier.js` | A second, independent check from Banyan Sapling on "did it work?" and before risky clicks. On whenever a Mubit key is set; `SAPLING=off` turns it off; always off in practice mode. |
+| `server/demo-site/` | Iron Gym (a cancel-your-membership maze), Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
 | `scripts/seed-traffic.js`, `scripts/seed-guard.js` | Send practice calls through Mubit so each task has enough examples to train; `seed-guard` also scores Claude on known phishing and real links. |
 | `exam/` | Does the adapter learn? Mubit-routed vs provider-only on Mind2Web and the demo sites. |
 

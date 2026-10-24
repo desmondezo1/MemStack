@@ -9,7 +9,7 @@
 
 import { loadEnv } from '../server/env.js';
 import { TASKS, buildNextActionMessage, buildDoneCheckMessage } from '../server/prompts.js';
-import { NEW_TAB, TUBE_URL, resultTitles, trattoria, trattoriaLesson, tubelyHome, tubelyResults, tubelyWatch } from '../exam/showme/pages.js';
+import { GYM_REASONS, NEW_TAB, TUBE_URL, gymAfter, gymDoneText, gymLesson, resultTitles, trattoria, trattoriaLesson, tubelyHome, tubelyResults, tubelyWatch } from '../exam/showme/pages.js';
 
 loadEnv();
 const { callTask, getConfig } = await import('../server/llm.js');
@@ -182,6 +182,23 @@ const generators = [
     return { goal, page: pages[stage], history: steps.slice(0, stage) };
   },
 
+  // Iron Gym: cancel through the maze. A plain "cancel" goal leaves the end date and the paid
+  // add-on unknown, so those calls always carry Ada's lesson; the rest spell her wishes out.
+  function ironGym() {
+    const reason = pick(GYM_REASONS);
+    const taught = Math.random() < 0.6;
+    const goal = taught
+      ? pick(['Cancel my Iron Gym membership', 'Cancel my gym membership', 'Get me out of my Iron Gym contract', 'Cancel Iron Gym for me'])
+      : pick([
+        `Cancel my Iron Gym membership today, drop the Recovery+ add-on, reason: ${reason.toLowerCase()}`,
+        `Cancel my gym membership immediately and the add-on too. I'm leaving because: ${reason.toLowerCase()}`,
+        `End my Iron Gym membership now, no add-on, no offers. Reason ${reason.toLowerCase()}`,
+      ]);
+    const lesson = gymLesson({ reason });
+    const stage = Math.floor(Math.random() * lesson.steps.length);
+    return { goal, page: gymAfter(stage, reason), history: lesson.steps.slice(0, stage), lesson: taught ? lesson : null, alwaysLesson: taught };
+  },
+
   function support() {
     idCounter = Math.floor(Math.random() * 25) + 1;
     const order = `#${Math.floor(10000 + Math.random() * 90000)}`;
@@ -196,7 +213,7 @@ const generators = [
 ];
 
 // Half the calls are on the demo sites, the pages the live demo sends.
-const DEMO_SITES = ['trattoriaNove', 'tubely'];
+const DEMO_SITES = ['trattoriaNove', 'tubely', 'ironGym', 'ironGym'];
 const sample = () => (Math.random() < 0.5
   ? pick(generators.filter(g => DEMO_SITES.includes(g.name)))
   : pick(generators.filter(g => !DEMO_SITES.includes(g.name))))();
@@ -204,7 +221,9 @@ const sample = () => (Math.random() < 0.5
 // About a third of restaurant calls carry a recalled lesson, as the live agent's do
 // after a "show me". Lessons are always sensible: a wrong lesson would train a wrong adapter.
 function maybeDemo(sample) {
-  if (!sample.lesson || Math.random() > 0.35) return null;
+  if (!sample.lesson) return null;
+  if (sample.alwaysLesson) return sample.lesson;
+  if (Math.random() > 0.35) return null;
   return sample.lesson;
 }
 
@@ -220,7 +239,19 @@ const other = (list, not) => pick(list.filter(x => x !== not));
 
 function doneCheckSample() {
   const roll = Math.random(); // < .5 success, < .9 near-miss, else nothing confirmed
-  const kind = pick(['restaurant', 'restaurant', 'video', 'waitlist', 'search', 'support']);
+  const kind = pick(['restaurant', 'restaurant', 'gym', 'gym', 'video', 'waitlist', 'search', 'support']);
+  if (kind === 'gym') {
+    const reason = pick(GYM_REASONS);
+    const goal = pick(['Cancel my Iron Gym membership today and drop the add-on', 'Cancel my gym membership immediately, add-on too', 'Cancel Iron Gym now with no add-on']);
+    if (roll < 0.5) return { goal, text: gymDoneText({ reason }) };
+    if (roll < 0.9) return { goal, text: pick([
+      gymDoneText({ reason, addon: true }),
+      gymDoneText({ reason, end: 'period' }),
+      'Membership paused for 1 month Your membership is paused, not cancelled. You\'ll be charged £5 a month while it\'s paused, and it restarts on 2 December.',
+      'Great, you\'re staying! 🎉 Your membership continues at 50% off for 3 months. It has not been cancelled.',
+    ]) };
+    return { goal, text: pick(['Cancel your membership Why are you leaving? Choose a reason… Please choose a reason. Continue', 'Are you sure? 😢 You\'ll lose your 42-day streak and all your class history. Keep my membership Yes, cancel my membership']) };
+  }
   if (kind === 'restaurant') {
     const n = Math.floor(Math.random() * 5) + 2;
     const [time, spoken] = pick(SITTINGS);

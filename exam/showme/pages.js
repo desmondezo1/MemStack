@@ -138,3 +138,79 @@ export function tubelyWatch(title, { playing = false } = {}) {
 }
 
 export const NEW_TAB = { url: 'chrome://newtab/', title: 'New Tab', headings: [], elements: [], note: 'none (browser start page: use open_url to go to a site)' };
+
+// Iron Gym, the cancel-your-membership maze. view: account | paused | manage | cancel | offer | kept | confirm | done.
+// state for cancel: { reason, end ('period' | 'now'), addon (bool), error }; for done: { reason, end, addon }.
+export const GYM_URL = `${DEMO_ORIGIN}/demo/gym/`;
+export const GYM_REASONS = ['Too expensive', 'Moving away', 'Injury', 'Not using it enough', 'Other'];
+const GYM_END = { period: 'At the end of this billing period (2 November)', now: 'Immediately, with a refund for unused days' };
+export const GYM_ADDON = 'Keep my Recovery+ add-on (£9 a month)';
+const GYM_TOP = 'Demo gym for testing Mo. Nothing here is real, and nothing is charged. IRONGYM Classes Trainers My bookings';
+const gymNav = () => ['Classes', 'Trainers', 'My bookings'].map((label, i) => ({ id: `e${i + 1}`, role: 'link', label }));
+
+export function gym(view = 'account', state = {}) {
+  const base = { url: GYM_URL, title: 'Iron Gym · Members' };
+  const els = labels => [...gymNav(), ...labels.map((e, i) => ({ id: `e${i + 4}`, ...e }))];
+  const btn = label => ({ role: 'button', label });
+  if (view === 'account') return { ...base, headings: ['Hi Ada 👋'],
+    text: `${GYM_TOP} Hi Ada 👋 You're on a 42-day streak. Keep it up! Iron Gym Plus £39 a month · renews 2 November + Recovery+ add-on £9 Pause my membership (recommended) Book a class Manage plan`,
+    elements: els([btn('Pause my membership (recommended)'), btn('Book a class'), btn('Manage plan')]) };
+  if (view === 'paused') return { ...base, headings: ['Membership paused for 1 month'],
+    text: `${GYM_TOP} Membership paused for 1 month Your membership is paused, not cancelled. You'll be charged £5 a month while it's paused, and it restarts on 2 December. Back to my account`,
+    elements: els([btn('Back to my account')]) };
+  if (view === 'manage') return { ...base, headings: ['Your plan'],
+    text: `${GYM_TOP} Your plan Iron Gym Plus · £39 a month Upgrade to Iron Gym Max Change home club Freeze membership Cancel membership`,
+    elements: els([btn('Upgrade to Iron Gym Max'), btn('Change home club'), btn('Freeze membership'), btn('Cancel membership')]) };
+  if (view === 'cancel') {
+    const end = state.end || 'period', addon = state.addon ?? true;
+    return { ...base, headings: ['Cancel your membership'],
+      text: `${GYM_TOP} Cancel your membership Why are you leaving? ${state.reason || 'Choose a reason…'} When should it end? ${GYM_END.period} ${GYM_END.now} ${GYM_ADDON}${state.error ? ` ${state.error}` : ''} Continue`,
+      elements: els([
+        { role: 'select', label: 'Why are you leaving?', value: state.reason || '', options: GYM_REASONS },
+        { role: 'radio', label: GYM_END.period, group: 'When should it end?', checked: end === 'period' },
+        { role: 'radio', label: GYM_END.now, group: 'When should it end?', checked: end === 'now' },
+        { role: 'checkbox', label: GYM_ADDON, checked: addon },
+        btn('Continue'),
+      ]) };
+  }
+  if (view === 'offer') return { ...base, headings: ['Wait, Ada! Don\'t lose your streak'],
+    text: `${GYM_TOP} Wait, Ada! Don't lose your streak 50% off Stay for three more months at half price. Accept offer No thanks, continue cancelling`,
+    elements: els([btn('Accept offer'), btn('No thanks, continue cancelling')]) };
+  if (view === 'kept') return { ...base, headings: ['Great, you\'re staying! 🎉'],
+    text: `${GYM_TOP} Great, you're staying! 🎉 Your membership continues at 50% off for 3 months. It has not been cancelled. Back to my account`,
+    elements: els([btn('Back to my account')]) };
+  if (view === 'confirm') return { ...base, headings: ['Are you sure? 😢'],
+    text: `${GYM_TOP} Are you sure? 😢 You'll lose your 42-day streak and all your class history. Keep my membership Yes, cancel my membership`,
+    elements: els([btn('Keep my membership'), btn('Yes, cancel my membership')]) };
+  return { ...base, headings: ['Membership cancelled ✓'], text: `${GYM_TOP} ${gymDoneText(state)} Back to my account`, elements: els([btn('Back to my account')]) };
+}
+
+export function gymDoneText({ reason = 'Moving away', end = 'now', addon = false } = {}) {
+  return `Membership cancelled ✓ Iron Gym Plus ends: ${end === 'now' ? 'today (refund for unused days on its way)' : '2 November'} Reason: ${reason} `
+    + (addon ? 'Your Recovery+ add-on is still active, so you will keep being charged £9 a month.' : 'Recovery+ add-on: cancelled. No more charges.');
+}
+
+// Ada's way out, as she shows it once: now, no add-on, no offer.
+export function gymLesson({ goal = 'Cancel my Iron Gym membership', reason = 'Moving away' } = {}) {
+  return {
+    goal,
+    steps: [
+      { action: 'click', label: 'Manage plan', role: 'button', value: '' },
+      { action: 'click', label: 'Cancel membership', role: 'button', value: '' },
+      { action: 'select', label: 'Why are you leaving?', role: 'select', value: reason },
+      { action: 'click', label: GYM_END.now, role: 'radio', value: '' },
+      { action: 'click', label: GYM_ADDON, role: 'checkbox', value: '' },
+      { action: 'click', label: 'Continue', role: 'button', value: '' },
+      { action: 'click', label: 'No thanks, continue cancelling', role: 'button', value: '' },
+      { action: 'click', label: 'Yes, cancel my membership', role: 'button', value: '' },
+    ],
+  };
+}
+
+// The page Mo sees after the first `stage` steps of the lesson.
+export function gymAfter(stage, reason) {
+  return [
+    gym('account'), gym('manage'), gym('cancel'), gym('cancel', { reason }), gym('cancel', { reason, end: 'now' }),
+    gym('cancel', { reason, end: 'now', addon: false }), gym('offer'), gym('confirm'), gym('done', { reason }),
+  ][stage];
+}
