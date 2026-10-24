@@ -1,0 +1,150 @@
+{"id": 1, "text": "My 3 year old has had a temperature since last night and is pulling at her ear and crying.", "route": "same_day_gp"}
+{"id": 2, "text": "I've had a burning feeling when I wee for two days and now I've got a bit of a fever. I'm a man, 54.", "route": "same_day_gp"}
+{"id": 3, "text": "I'm 28 weeks pregnant and I think I have a water infection.", "route": "same_day_gp"}
+{"id": 4, "text": "My son's eczema has gone crusty and weepy overnight and it's spreading.", "route": "same_day_gp"}
+{"id": 5, "text": "I've had a cough for a week and now I'm getting a pain in my side when I breathe in deeply.", "route": "same_day_gp"}
+{"id": 6, "text": "I cut my hand on a tin yesterday and today it's red, hot and swollen around the cut.", "route": "same_day_gp"}
+{"id": 7, "text": "My asthma is worse than usual, the blue inhaler only helps for an hour.", "route": "same_day_gp"}
+{"id": 8, "text": "My baby is 4 months old and has been off her feeds today and has a temperature of 38.", "route": "same_day_gp"}
+{"id": 9, "text": "I have a really bad earache and some stuff coming out of my ear since this morning.", "route": "same_day_gp"}
+{"id": 10, "text": "My diabetes readings have been really high all day and I feel unwell.", "route": "same_day_gp"}
+{"id": 11, "text": "I've got a painful swollen lump on my bottom that's getting bigger, it's agony to sit.", "route": "same_day_gp"}
+{"id": 12, "text": "My dad is 82 and he's suddenly more confused than usual since yesterday and weeing a lot.", "route": "same_day_gp"}
+{"id": 13, "text": "I've been vomiting since last night and can't keep any water down, I'm on metformin.", "route": "same_day_gp"}
+{"id": 14, "text": "There's a red tender streak going up my arm from an insect bite.", "route": "same_day_gp"}
+{"id": 15, "text": "My eye is red and painful and light hurts it, I wear contact lenses.", "route": "same_day_gp"}
+{"id": 16, "text": "My 6 year old has a sore throat, a high temperature and a rash like sandpaper.", "route": "same_day_gp"}
+{"id": 17, "text": "Bad back pain that came on today, and I've got a temperature too.", "route": "same_day_gp"}
+{"id": 18, "text": "I finished antibiotics for a chest infection but I'm getting worse not better.", "route": "same_day_gp"}
+{"id": 19, "text": "My toddler has had diarrhoea and vomiting since yesterday and has only had one wet nappy today.", "route": "same_day_gp"}
+{"id": 20, "text": "I had my gallbladder out last week and the wound has opened a bit and is leaking.", "route": "same_day_gp"}
+{"id": 21, "text": "My gout has flared up really badly in my foot, I can't walk on it.", "route": "same_day_gp"}
+{"id": 22, "text": "I've got shingles on my face near my eye.", "route": "same_day_gp"}
+{"id": 23, "text": "I'm on chemotherapy and I've started to feel shivery and unwell.", "route": "same_day_gp"}
+{"id": 24, "text": "Sudden pain and swelling in my knee since this morning, no injury.", "route": "same_day_gp"}
+{"id": 25, "text": "My child was bitten by a dog this afternoon and the skin is broken.", "route": "same_day_gp"}
+{"id": 26, "text": "I've had lower back pain on and off for three months, it's not getting better.", "route": "routine_gp"}
+{"id": 27, "text": "I'd like to talk to a doctor about my low mood, it's been going on a few weeks. No thoughts of harming myself.", "route": "routine_gp"}
+{"id": 28, "text": "I keep getting heartburn most days, the pharmacy medicines aren't really working.", "route": "routine_gp"}
+{"id": 29, "text": "The hospital letter says I should see my GP to discuss my blood test results.", "route": "routine_gp"}
+{"id": 30, "text": "I've had a mole on my back for years but my partner says it looks bigger now.", "route": "routine_gp"}
+{"id": 31, "text": "I'm always tired, even after sleeping well, for about two months.", "route": "routine_gp"}
+{"id": 32, "text": "I'd like a review of my blood pressure tablets, I think they make me dizzy sometimes.", "route": "routine_gp"}
+{"id": 33, "text": "I want to talk about my periods, they've got really heavy over the last six months.", "route": "routine_gp"}
+{"id": 34, "text": "My knee has been aching for a few months when I go up stairs.", "route": "routine_gp"}
+{"id": 35, "text": "I think I might have ADHD and want to know how to get assessed.", "route": "routine_gp"}
+{"id": 36, "text": "I've been having trouble sleeping for weeks and it's affecting work.", "route": "routine_gp"}
+{"id": 37, "text": "I've noticed I'm getting up to wee two or three times a night. I'm 61.", "route": "routine_gp"}
+{"id": 38, "text": "I've lost about half a stone without trying over the last few months.", "route": "routine_gp"}
+{"id": 39, "text": "Can I see a doctor about my memory? I keep forgetting things and it worries me.", "route": "routine_gp"}
+{"id": 40, "text": "My son is 7 and still wets the bed most nights.", "route": "routine_gp"}
+{"id": 41, "text": "I get migraines about twice a month and want to talk about prevention.", "route": "routine_gp"}
+{"id": 42, "text": "I'd like to discuss stopping my antidepressants.", "route": "routine_gp"}
+{"id": 43, "text": "My skin has been itchy all over for a month with no rash.", "route": "routine_gp"}
+{"id": 44, "text": "I'd like to talk about the menopause, I'm getting hot flushes and feeling low.", "route": "routine_gp"}
+{"id": 45, "text": "I've had a hoarse voice for about four weeks now.", "route": "routine_gp"}
+{"id": 46, "text": "I want to talk about losing weight, I've tried everything.", "route": "routine_gp"}
+{"id": 47, "text": "My hands get numb and tingly at night, it's been weeks.", "route": "routine_gp"}
+{"id": 48, "text": "I've had tinnitus in one ear for a couple of months.", "route": "routine_gp"}
+{"id": 49, "text": "I'd like to get my hearing looked at, my family say I have the TV too loud.", "route": "routine_gp"}
+{"id": 50, "text": "I've been feeling anxious most days and want some help with it.", "route": "routine_gp"}
+{"id": 51, "text": "I need to book a blood test, the doctor asked for one in three months.", "route": "nurse"}
+{"id": 52, "text": "I've had a letter saying my smear test is due.", "route": "nurse"}
+{"id": 53, "text": "I'm going to Thailand in six weeks, do I need any jabs?", "route": "nurse"}
+{"id": 54, "text": "I need my B12 injection, it's due next week.", "route": "nurse"}
+{"id": 55, "text": "Can I book my baby's 8 week vaccinations?", "route": "nurse"}
+{"id": 56, "text": "I need my dressing changed on my leg ulcer.", "route": "nurse"}
+{"id": 57, "text": "I got a text saying I'm due my asthma review.", "route": "nurse"}
+{"id": 58, "text": "I need my contraceptive injection, it's due in a week.", "route": "nurse"}
+{"id": 59, "text": "I'd like a flu jab please.", "route": "nurse"}
+{"id": 60, "text": "My stitches need to come out, the hospital said 10 days which is Friday.", "route": "nurse"}
+{"id": 61, "text": "I need a blood pressure check, the pharmacy said it was high.", "route": "nurse"}
+{"id": 62, "text": "Can I book my annual diabetes check and foot check?", "route": "nurse"}
+{"id": 63, "text": "I need a pill check to get more of my contraceptive pill.", "route": "nurse"}
+{"id": 64, "text": "I've been told I need an ECG before my operation.", "route": "nurse"}
+{"id": 65, "text": "My son needs his pre-school booster jabs.", "route": "nurse"}
+{"id": 66, "text": "I need a urine sample dropped off and checked, the doctor asked for it.", "route": "nurse"}
+{"id": 67, "text": "I'm due my shingles vaccine, I'm 70.", "route": "nurse"}
+{"id": 68, "text": "Can I get a COVID booster at the practice?", "route": "nurse"}
+{"id": 69, "text": "I'm going to Kenya for work, I think I need yellow fever and malaria advice.", "route": "nurse"}
+{"id": 70, "text": "I need my ear syringed, I had it done here before.", "route": "nurse"}
+{"id": 71, "text": "My warfarin blood test is due.", "route": "nurse"}
+{"id": 72, "text": "I need a health check, I got a letter saying I'm 40 and eligible.", "route": "nurse"}
+{"id": 73, "text": "I need to reorder my blood pressure tablets, I'm nearly out.", "route": "pharmacist"}
+{"id": 74, "text": "My repeat prescription for my inhaler hasn't gone through to the chemist.", "route": "pharmacist"}
+{"id": 75, "text": "Since starting my new statin my muscles ache, is that normal?", "route": "pharmacist"}
+{"id": 76, "text": "Can I take ibuprofen with my blood pressure medicine?", "route": "pharmacist"}
+{"id": 77, "text": "I've run out of my sertraline and the next appointment is weeks away.", "route": "pharmacist"}
+{"id": 78, "text": "The chemist says they can't get my HRT patches, what can I use instead?", "route": "pharmacist"}
+{"id": 79, "text": "I think I've got a water infection. I'm a 30 year old woman, not pregnant, and otherwise well.", "route": "pharmacist"}
+{"id": 80, "text": "I've got a sore throat and it's been 3 days, can someone check it?", "route": "pharmacist"}
+{"id": 81, "text": "My sinuses have been blocked and painful for over a week.", "route": "pharmacist"}
+{"id": 82, "text": "I've got cold sores coming back again.", "route": "pharmacist"}
+{"id": 83, "text": "I need my medication review, the letter says it's overdue.", "route": "pharmacist"}
+{"id": 84, "text": "I've been given two different strengths of the same tablet, which do I take?", "route": "pharmacist"}
+{"id": 85, "text": "Can I take my antibiotics if I'm breastfeeding?", "route": "pharmacist"}
+{"id": 86, "text": "I've got impetigo on my chin, I've had it before.", "route": "pharmacist"}
+{"id": 87, "text": "My child has an earache, no fever, since yesterday.", "route": "pharmacist"}
+{"id": 88, "text": "I keep forgetting my tablets, is there anything that can help?", "route": "pharmacist"}
+{"id": 89, "text": "I want to change from tablets to a liquid, I can't swallow the big ones.", "route": "pharmacist"}
+{"id": 90, "text": "Can my repeat prescription be sent to a different pharmacy?", "route": "pharmacist"}
+{"id": 91, "text": "I've got an insect bite that's swollen and itchy but not spreading.", "route": "pharmacist"}
+{"id": 92, "text": "Can I take my metformin if I'm fasting for Ramadan?", "route": "pharmacist"}
+{"id": 93, "text": "My new tablets are making me feel sick, should I keep taking them?", "route": "pharmacist"}
+{"id": 94, "text": "I need a repeat of my epipen, mine is out of date.", "route": "pharmacist"}
+{"id": 95, "text": "I need a sick note, I've been off work for 9 days with flu.", "route": "admin"}
+{"id": 96, "text": "My employer wants a fit note extended for another two weeks.", "route": "admin"}
+{"id": 97, "text": "Are my blood test results back yet? I had them done last Tuesday.", "route": "admin"}
+{"id": 98, "text": "I need a letter for my landlord about my health condition.", "route": "admin"}
+{"id": 99, "text": "I've moved house, how do I change my address with you?", "route": "admin"}
+{"id": 100, "text": "I want to register with the practice, I've just moved to the area.", "route": "admin"}
+{"id": 101, "text": "Can you chase my hospital referral? It's been 12 weeks.", "route": "admin"}
+{"id": 102, "text": "I need a copy of my vaccination records for university.", "route": "admin"}
+{"id": 103, "text": "I need to cancel my appointment tomorrow at 10.", "route": "admin"}
+{"id": 104, "text": "Can I get access to my medical records online?", "route": "admin"}
+{"id": 105, "text": "I need a form filling in for my blue badge.", "route": "admin"}
+{"id": 106, "text": "My insurance company needs a medical report.", "route": "admin"}
+{"id": 107, "text": "Has my X-ray result come back?", "route": "admin"}
+{"id": 108, "text": "I need a letter to say I'm fit to travel.", "route": "admin"}
+{"id": 109, "text": "I need a sick note for my son for school, he had chickenpox.", "route": "admin"}
+{"id": 110, "text": "Can you send my records to my new dentist?", "route": "admin"}
+{"id": 111, "text": "I need to update my phone number.", "route": "admin"}
+{"id": 112, "text": "I'd like to make a complaint about how I was spoken to.", "route": "admin"}
+{"id": 113, "text": "I need a letter confirming my diagnosis for my PIP claim.", "route": "admin"}
+{"id": 114, "text": "Can I book an appointment for my mum? She's given consent.", "route": "admin"}
+{"id": 115, "text": "I need a copy of my last letter from the hospital.", "route": "admin"}
+{"id": 116, "text": "I need a fit note, I've been off work with my back for 2 weeks.", "route": "admin"}
+{"id": 117, "text": "I've had a cold for three days, blocked nose and sore throat.", "route": "self_care"}
+{"id": 118, "text": "I've got a mild cough since the weekend, otherwise I feel fine.", "route": "self_care"}
+{"id": 119, "text": "How do I do a pregnancy test? My period is late.", "route": "self_care"}
+{"id": 120, "text": "My period is a week late, I want to know if I'm pregnant.", "route": "self_care"}
+{"id": 121, "text": "My hay fever is starting again, sneezing and itchy eyes.", "route": "self_care"}
+{"id": 122, "text": "I've got a mild headache since this morning.", "route": "self_care"}
+{"id": 123, "text": "I've had a bit of an upset stomach since yesterday but I'm drinking fine.", "route": "self_care"}
+{"id": 124, "text": "My daughter has head lice again.", "route": "self_care"}
+{"id": 125, "text": "I sprained my ankle playing football yesterday, it's swollen but I can walk on it.", "route": "self_care"}
+{"id": 126, "text": "I've got a small cut on my finger from cooking.", "route": "self_care"}
+{"id": 127, "text": "I've got a verruca on my foot.", "route": "self_care"}
+{"id": 128, "text": "My lips are chapped and sore.", "route": "self_care"}
+{"id": 129, "text": "I think I have a mild hangover and feel rough.", "route": "self_care"}
+{"id": 130, "text": "I've got a bit of dandruff, it's embarrassing.", "route": "self_care"}
+{"id": 131, "text": "I've got mouth ulcers, two small ones.", "route": "self_care"}
+{"id": 132, "text": "I've got a mild sunburn on my shoulders.", "route": "self_care"}
+{"id": 133, "text": "I've got some mild constipation for a couple of days.", "route": "self_care"}
+{"id": 134, "text": "My baby is teething and grumpy but otherwise well.", "route": "self_care"}
+{"id": 135, "text": "I've got a bruise on my leg from bumping the table.", "route": "self_care"}
+{"id": 136, "text": "I feel run down and have a slight sore throat.", "route": "self_care"}
+{"id": 137, "text": "I've got a stye on my eyelid.", "route": "self_care"}
+{"id": 138, "text": "Is it normal to have a runny nose for a few days with a cold?", "route": "self_care"}
+{"id": 139, "text": "I've got crushing chest pain going down my left arm.", "route": "urgent_111"}
+{"id": 140, "text": "My husband can't breathe properly and his lips are going blue.", "route": "urgent_111"}
+{"id": 141, "text": "My mum's face is drooping on one side and her speech is slurred.", "route": "urgent_111"}
+{"id": 142, "text": "I cut my leg badly and it won't stop bleeding.", "route": "urgent_111"}
+{"id": 143, "text": "I've been having thoughts of ending my life.", "route": "urgent_111"}
+{"id": 144, "text": "I've got the worst headache of my life, it came on suddenly.", "route": "urgent_111"}
+{"id": 145, "text": "My 2 year old is very drowsy and floppy and has a high temperature.", "route": "urgent_111"}
+{"id": 146, "text": "I've got terrible pain in my stomach on the right side and I'm being sick.", "route": "urgent_111"}
+{"id": 147, "text": "My calf is swollen, red and painful and I've just come back from a long flight.", "route": "urgent_111"}
+{"id": 148, "text": "My son hit his head and has been sick twice since.", "route": "urgent_111"}
+{"id": 149, "text": "I took more of my tablets than I should have by mistake.", "route": "urgent_111"}
+{"id": 150, "text": "I'm pregnant and I have bad pain in my belly and some bleeding.", "route": "urgent_111"}

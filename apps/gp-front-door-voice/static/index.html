@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GP Front Door Voice</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --panel: #ffffff; --ink: #14202b; --muted: #5b6b7a; --line: #dde3e9;
+    --accent: #0b6e8a; --accent-ink: #ffffff; --warn-bg: #fff4d6; --warn-ink: #6b4e00;
+    --small: #127a3e; --small-bg: #e2f5ea; --big: #44505c; --big-bg: #e9edf1; --rule: #b3261e; --rule-bg: #fde7e5;
+    --r-same_day_gp: #b45309; --r-routine_gp: #1d4ed8; --r-nurse: #0f766e; --r-pharmacist: #7e22ce;
+    --r-admin: #475569; --r-self_care: #15803d; --r-urgent_111: #b91c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f151b; --panel: #17202a; --ink: #e7edf3; --muted: #9aabbb; --line: #2a3643;
+      --accent: #38a3c2; --accent-ink: #061217; --warn-bg: #3a2f10; --warn-ink: #f5d98b;
+      --small: #6fdc9b; --small-bg: #143823; --big: #c4ced8; --big-bg: #26313c; --rule: #ff8a80; --rule-bg: #3d1a18;
+      --r-same_day_gp: #f59e0b; --r-routine_gp: #60a5fa; --r-nurse: #2dd4bf; --r-pharmacist: #c084fc;
+      --r-admin: #94a3b8; --r-self_care: #4ade80; --r-urgent_111: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 18px 24px 10px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+  h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); }
+  h2 { margin: 0 0 12px; font-size: 16px; }
+  .disclaimer { background: var(--warn-bg); color: var(--warn-ink); padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 0 24px 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  .stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  main { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; padding: 0 24px 24px; }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; min-width: 0; }
+  .talk { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+  #mic { width: 72px; height: 72px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 30px; cursor: pointer; flex: none; }
+  #mic.listening { animation: pulse 1s infinite; background: var(--rule); color: #fff; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 10px rgba(179, 38, 30, 0.2); } }
+  #mic:disabled { opacity: 0.4; cursor: not-allowed; }
+  .talk p { margin: 0; color: var(--muted); }
+  form { display: flex; gap: 8px; }
+  textarea { flex: 1; min-height: 64px; resize: vertical; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
+  button { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: 0.5; cursor: progress; }
+  select { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .options { display: flex; gap: 14px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+  .answer { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .answer.empty { color: var(--muted); text-align: center; padding: 28px 14px; }
+  .answer .said { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+  .answer .reply { font-size: 19px; margin: 10px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; white-space: nowrap; }
+  .route { color: var(--route); }
+  .served-small { color: var(--small); background: var(--small-bg); border-color: transparent; }
+  .served-big { color: var(--big); background: var(--big-bg); border-color: transparent; }
+  .served-rule { color: var(--rule); background: var(--rule-bg); border-color: transparent; }
+  .sure-low, .person { color: var(--rule); }
+  .timing { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .timing b { color: var(--ink); font-size: 16px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  .error { color: var(--rule); font-size: 13px; margin-top: 8px; }
+  .inbox { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 640px; overflow-y: auto; }
+  .inbox li { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .inbox li.needs { border-color: var(--rule); border-width: 2px; }
+  .inbox li.done { opacity: 0.65; }
+  .inbox .text { margin: 0 0 6px; overflow-wrap: anywhere; }
+  .inbox .meta { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .inbox .row-actions { display: flex; gap: 6px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  .empty-inbox { color: var(--muted); padding: 20px 0; text-align: center; }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; padding: 0 16px 16px; }
+    header { padding: 16px 16px 8px; }
+    .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0 16px 12px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>GP Front Door <small>Speak or type a request. Safety rules run first, then Mubit picks the route.</small></h1>
+  <div class="disclaimer" role="note">Demo only - not medical advice. In an emergency call 999.</div>
+</header>
+
+<div class="stats" aria-label="Counters">
+  <div class="stat"><b id="s-calls">0</b><span>Mubit calls</span></div>
+  <div class="stat"><b id="s-small">0%</b><span>small model</span></div>
+  <div class="stat"><b id="s-latency">-</b><span>avg latency</span></div>
+  <div class="stat"><b id="s-accepts">0</b><span>accepts</span></div>
+  <div class="stat"><b id="s-fixes">0</b><span>fixes</span></div>
+  <div class="stat"><b id="s-rules">0</b><span>red-flag rule hits</span></div>
+  <div class="stat"><b id="s-person">0</b><span>need a person</span></div>
+</div>
+
+<main>
+  <section class="panel" aria-labelledby="patient-h">
+    <h2 id="patient-h">Patient</h2>
+    <div class="talk">
+      <button id="mic" type="button" aria-label="Start speaking">&#127908;</button>
+      <p id="mic-hint">Press the microphone and say what you need. It sends when you stop talking.</p>
+    </div>
+    <form id="ask">
+      <textarea id="text" placeholder="Or type here, for example: I need a sick note for work" aria-label="Your request"></textarea>
+      <button class="primary" id="send" type="submit">Send</button>
+    </form>
+    <div class="options">
+      <label><input type="checkbox" id="speak" checked> Speak replies</label>
+    </div>
+    <div id="answer" class="answer empty">The reply appears here and is spoken out loud.</div>
+  </section>
+
+  <section class="panel" aria-labelledby="nav-h">
+    <h2 id="nav-h">Care navigator inbox</h2>
+    <ul id="inbox" class="inbox"><li class="empty-inbox">No requests yet.</li></ul>
+  </section>
+</main>
+
+<script>
+const sessionId = "web-" + Math.random().toString(36).slice(2, 10);
+let routes = {};
+let lastInbox = "";
+const $ = (id) => document.getElementById(id);
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function routeChip(route) {
+  if (!route) return '<span class="chip person">needs a person</span>';
+  return `<span class="chip route" style="--route: var(--r-${esc(route)})">${esc(routes[route] || route)}</span>`;
+}
+function servedChip(item) {
+  const label = { small: "small model", big: "big model", rule: "rule: " + (item.rule || "red flag") }[item.served_by] || item.served_by;
+  return `<span class="chip served-${esc(item.served_by)}">${esc(label)}</span>`;
+}
+function sureChip(item) {
+  return `<span class="chip sure-${esc(item.sure)}">sure: ${esc(item.sure)}</span>`;
+}
+function routeSelect(item, label) {
+  const opts = Object.entries(routes).map(([key, name]) =>
+    `<option value="${esc(key)}"${key === (item.final_route || item.route) ? " disabled" : ""}>${esc(name)}</option>`).join("");
+  return `<select data-fix="${item.id}" aria-label="Change route"><option value="">${label}</option>${opts}</select>`;
+}
+
+function renderStats(s) {
+  $("s-calls").textContent = s.calls;
+  $("s-small").textContent = s.small_pct + "%";
+  $("s-latency").textContent = s.calls ? s.avg_latency_ms + " ms" : "-";
+  $("s-accepts").textContent = s.accepts;
+  $("s-fixes").textContent = s.fixes;
+  $("s-rules").textContent = s.rule_hits;
+  $("s-person").textContent = s.needs_person;
+}
+
+function renderAnswer(item, clientMs) {
+  const box = $("answer");
+  box.className = "answer";
+  const mubit = item.served_by === "rule" ? "no AI call" : `Mubit ${item.latency_ms} ms`;
+  const trace = item.trace_short ? ` &middot; trace <code title="${esc(item.trace_id)}">${esc(item.trace_short)}</code>` : "";
+  const status = item.status === "new" ? "" : `<span class="chip">${item.status === "ok" ? "accepted" : "changed to " + esc(routes[item.final_route] || item.final_route)}</span>`;
+  box.innerHTML = `
+    <p class="said">You said: &ldquo;${esc(item.text)}&rdquo;</p>
+    <div class="chips">${routeChip(item.route)} ${sureChip(item)} ${servedChip(item)} ${status}</div>
+    <p class="reply">${esc(item.reply)}</p>
+    <div class="timing"><b>${clientMs} ms</b> from ${item.source === "voice" ? "end of speech" : "Send"} to reply &middot; ${mubit}${trace}
+      <span id="voice-start"></span></div>
+    ${item.error ? `<div class="error">Model answer could not be used (${esc(item.error)}), so a person will check it.</div>` : ""}
+    <div class="actions">
+      <button type="button" data-accept="${item.id}">Accept</button>
+      ${routeSelect(item, "Fix: pick the right route")}
+    </div>`;
+}
+
+function renderInbox(data) {
+  const key = JSON.stringify(data.items);
+  renderStats(data.stats);
+  if (key === lastInbox) return;
+  if (document.activeElement && document.activeElement.closest && document.activeElement.closest("#inbox select")) return;
+  lastInbox = key;
+  const items = [...data.items].sort((a, b) =>
+    (b.needs_person && b.status === "new") - (a.needs_person && a.status === "new") || b.id - a.id);
+  $("inbox").innerHTML = items.length ? items.map((item) => {
+    const done = item.status !== "new";
+    const state = done ? (item.status === "ok" ? "OK'd" : "changed to " + esc(routes[item.final_route] || item.final_route)) : (item.needs_person ? "needs a person" : "waiting");
+    return `<li class="${item.needs_person && !done ? "needs" : ""} ${done ? "done" : ""}">
+      <p class="text">${esc(item.text)}</p>
+      <div class="chips">${routeChip(item.route)} ${sureChip(item)} ${servedChip(item)}</div>
+      <div class="meta">#${item.id} &middot; ${esc(item.source)} &middot; ${item.served_by === "rule" ? "rule" : item.latency_ms + " ms"}${item.trace_short ? " &middot; " + esc(item.trace_short) : ""} &middot; ${state}</div>
+      <div class="row-actions">
+        <button type="button" data-accept="${item.id}"${item.route ? "" : " disabled"}>OK</button>
+        ${routeSelect(item, "Change route")}
+      </div>
+    </li>`;
+  }).join("") : '<li class="empty-inbox">No requests yet.</li>';
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("/api/inbox");
+    if (res.ok) renderInbox(await res.json());
+  } catch (err) { /* server restarting: try again next tick */ }
+}
+
+function speak(text, t0) {
+  if (!$("speak").checked || !("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-GB";
+  utterance.rate = 1.05;
+  const voice = speechSynthesis.getVoices().find((v) => v.lang === "en-GB");
+  if (voice) utterance.voice = voice;
+  utterance.onstart = () => {
+    const span = $("voice-start");
+    if (span) span.textContent = ` · voice started at ${Math.round(performance.now() - t0)} ms`;
+  };
+  speechSynthesis.speak(utterance);
+}
+
+async function send(text, source, t0) {
+  text = text.trim();
+  if (!text) return;
+  $("send").disabled = true;
+  try {
+    const res = await fetch("/api/triage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, source, session_id: sessionId }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || res.statusText);
+    const clientMs = Math.round(performance.now() - t0);
+    speak(body.reply, t0);
+    renderAnswer(body, clientMs);
+    $("text").value = "";
+    refresh();
+  } catch (err) {
+    const box = $("answer");
+    box.className = "answer";
+    box.innerHTML = `<div class="error">Could not get a reply: ${esc(err.message)}</div>`;
+  } finally {
+    $("send").disabled = false;
+  }
+}
+
+async function review(id, action, route) {
+  const res = await fetch("/api/review", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: Number(id), action, route }),
+  });
+  if (!res.ok) return;
+  const body = await res.json();
+  renderStats(body.stats);
+  const box = $("answer");
+  const answerButton = box.querySelector(`[data-accept="${id}"]`);
+  if (answerButton) {
+    const label = body.item.status === "ok" ? "accepted" : "changed to " + (routes[body.item.final_route] || body.item.final_route);
+    box.querySelector(".chips").insertAdjacentHTML("beforeend", ` <span class="chip">${esc(label)}</span>`);
+    box.querySelector(".actions").innerHTML = '<span class="timing">Saved to the corrections log.</span>';
+  }
+  lastInbox = "";
+  refresh();
+}
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-accept]");
+  if (button) review(button.dataset.accept, "accept");
+});
+document.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-fix]");
+  if (select && select.value) { select.blur(); review(select.dataset.fix, "fix", select.value); }
+});
+
+$("ask").addEventListener("submit", (event) => {
+  event.preventDefault();
+  send($("text").value, "text", performance.now());
+});
+$("text").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); $("ask").requestSubmit(); }
+});
+
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!Recognition) {
+  $("mic").disabled = true;
+  $("mic-hint").textContent = "Voice input is not available in this browser. Please type instead.";
+} else {
+  const recognition = new Recognition();
+  recognition.lang = "en-GB";
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  let listening = false;
+  let sent = false;
+  recognition.onresult = (event) => {
+    const result = event.results[event.results.length - 1];
+    const transcript = Array.from(event.results).map((r) => r[0].transcript).join(" ");
+    $("text").value = transcript;
+    if (result.isFinal && !sent) {
+      sent = true;
+      send(transcript, "voice", performance.now());
+    }
+  };
+  recognition.onend = () => { listening = false; $("mic").classList.remove("listening"); };
+  recognition.onerror = (event) => { $("mic-hint").textContent = "Voice error: " + event.error + ". You can type instead."; };
+  $("mic").addEventListener("click", () => {
+    if (listening) { recognition.stop(); return; }
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    sent = false;
+    listening = true;
+    $("mic").classList.add("listening");
+    recognition.start();
+  });
+}
+
+fetch("/api/config").then((r) => r.json()).then((cfg) => {
+  routes = cfg.routes;
+  refresh();
+  // ?q=... sends a typed request on load (handy for a QR code or a scripted check).
+  const q = new URLSearchParams(location.search).get("q");
+  if (q) { $("text").value = q; send(q, "text", performance.now()); }
+});
+setInterval(refresh, 2500);
+</script>
+</body>
+</html>
