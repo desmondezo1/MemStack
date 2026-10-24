@@ -65,8 +65,9 @@ async function tabAt(url) {
 }
 const blankTab = () => tabAt('about:blank');
 
-async function panelFor(tabId) {
+async function panelFor(tabId, { initScript } = {}) {
   const panel = await context.newPage();
+  if (initScript) await panel.addInitScript(initScript);
   await panel.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${tabId}`);
   await panel.waitForSelector('#mode.mock, #mode.live');
   return panel;
@@ -215,4 +216,68 @@ test('ask_human with a live provider: savings strip, cost per step, help verdict
     Object.assign(process.env, { MUBIT_API_KEY: '', SHOWME_MOCK: '1' });
     delete process.env.MUBIT_BASE_URL;
   }
+});
+
+const moState = site => site.evaluate(() => {
+  const mo = document.querySelector('showme-mo');
+  return mo ? { state: mo.dataset.state, bubble: mo.dataset.bubble || '', voice: mo.dataset.voice || '' } : null;
+});
+
+test('Mo lives on every page and shows the agent\'s state', { timeout: 60_000 }, async () => {
+  await fetch(`${base}/api/demonstrations`, { method: 'DELETE' });
+  const { site, tabId } = await tabAt(`${base}/demo/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  assert.equal((await moState(site)).state, 'idle');
+  // Mo is invisible to the agent: not in the page snapshot, not in the page text.
+  const page = await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:snapshot' }), tabId);
+  assert.ok(!page.page.elements.some(e => /Show Me|Mo menu/.test(e.label)));
+  assert.ok(!/Listening|Talk \(/.test(page.page.text));
+
+  const panel = await panelFor(tabId);
+  const seen = new Set();
+  const watch = setInterval(async () => { try { const m = await moState(site); if (m) seen.add(m.state); } catch {} }, 40);
+  const r = await run(panel, 'Book a table for two at eight');
+  clearInterval(watch);
+  assert.equal(r.verdict, 'Failed');
+  const after = await moState(site);
+  console.log('mo states seen:', [...seen], 'final:', after);
+  assert.ok(seen.has('thinking'), 'thinking while waiting for the model');
+  assert.ok(seen.has('acting'), 'acting while clicking');
+  assert.equal(after.state, 'stuck');
+  assert.match(after.bubble, /show me/i);
+  await panel.close(); await site.close();
+});
+
+test('⌥Space: the panel listens, the waveform shows on the page, then the agent runs', { timeout: 60_000 }, async () => {
+  const fakeVoice = () => {
+    // No real microphone in tests: speech recognition that hears a goal, and no getUserMedia (synthetic wave).
+    navigator.mediaDevices.getUserMedia = () => Promise.reject(new Error('no mic in tests'));
+    window.SpeechRecognition = class {
+      start() {
+        const say = (text, isFinal) => this.onresult?.({ results: Object.assign([Object.assign([{ transcript: text }], { isFinal })], {}) });
+        setTimeout(() => this.onspeechstart?.(), 100);
+        setTimeout(() => say('open http://localhost', false), 400);
+        setTimeout(() => say(window.__goal, true), 1200);
+        setTimeout(() => this.onend?.(), 1400);
+      }
+      stop() { this.onend?.(); }
+    };
+  };
+  const { site, tabId } = await tabAt('about:blank');
+  const panel = await panelFor(tabId, { initScript: fakeVoice });
+  await panel.evaluate(g => { window.__goal = g; }, `open ${base}/demo/tube/ and play a Burna Boy video`);
+  // Load a real page so Mo is there to show the waveform.
+  await site.goto(`${base}/demo/tube/#voice`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+
+  const opened = await worker.evaluate(id => self.handleTalk({ id }), tabId);
+  assert.equal(opened, false); // no window id in this test, so no real side panel opens
+  await site.waitForFunction(() => document.querySelector('showme-mo')?.dataset.voice === 'listening', null, { timeout: 5000 });
+  assert.equal(await panel.isVisible('#wave'), true);
+  await panel.waitForSelector('#verdict:not([hidden])', { timeout: 40_000 });
+  console.log('voice run:', await panel.textContent('#verdict'), '|', (await panel.textContent('#timeline')).replace(/\s+/g, ' ').slice(0, 160));
+  assert.equal(await panel.inputValue('#goal'), `open ${base}/demo/tube/ and play a Burna Boy video`);
+  assert.equal(await panel.textContent('#verdict'), 'Done ✓');
+  assert.equal(await panel.isHidden('#wave'), true);
+  await panel.close(); await site.close();
 });

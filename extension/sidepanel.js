@@ -120,7 +120,7 @@ async function send(tabId, message) {
     } catch {
       // No content script yet (page opened before the extension loaded, or mid-navigation).
       await waitForLoad(tabId).catch(() => {});
-      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }).catch(() => {});
+      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js', 'mascot.js'] }).catch(() => {});
       await sleep(150);
     }
   }
@@ -259,6 +259,7 @@ async function run(goal) {
     renderSavings();
     for (let step = 1; step <= MAX_STEPS && !state.stopRequested; step++) {
       const page = await snapshot(tab.id);
+      mo('thinking', {}, tab.id);
       const next = await api('/api/next-action', { method: 'POST', body: { goal, page, history, sessionId }, signal });
       addUsage(next.usage, next.ms);
       decisions++;
@@ -283,6 +284,7 @@ async function run(goal) {
       }
 
       const before = (await chrome.tabs.get(tab.id)).url;
+      mo('acting', { targetId: next.element_id, text: describeAction(next) }, tab.id);
       const result = await perform(tab.id, next);
       if (!result.ok) { failure = result.error; li.classList.add('error'); break; }
       const entry = { action: next.action, label: next.label, role: next.role, value: next.value, submit: next.submit, element_id: next.element_id };
@@ -324,14 +326,17 @@ async function run(goal) {
   reportRun({ goal, outcome, usedLesson, steps: history.length, decisions, invalid,
     tools: [...new Set(history.map(h => h.action).concat(finished ? ['done'] : []))], url: finalTab?.url || null });
   note(outcome === 'done' ? (usedLesson ? 'rerun-done' : 'done') : outcome === 'failed' || outcome === 'asked' ? 'fail' : outcome);
+  if (failure && infra) mo('idle', { text: 'Something went wrong. Check the Show Me panel.', hold: 5000 });
   if (failure) {
     setVerdict(false, failure === 'Stopped.' ? 'Stopped' : infra ? 'Error — not the agent\'s fault, so nothing to teach' : asked ? 'Asked for help' : 'Failed');
     if (failure !== 'Stopped.' && !infra) {
       offerTeaching(failure);
+      mo('stuck', { text: asked ? `I need help: ${failure.replace(/^I need help: /, '')}` : 'I couldn\'t finish this. Can you show me?' });
       speak(asked ? `I need help. ${failure.replace(/^I need help: /, '')}. Can you show me?` : 'I couldn\'t finish this. Can you show me how?');
     }
   } else {
     setVerdict(true, 'Done ✓');
+    mo('success', { text: usedLesson ? 'Done, using what you taught me!' : 'Done!' });
     speak('Done.');
   }
 }
@@ -388,6 +393,7 @@ async function startTeaching() {
   $('teach-ask').hidden = true;
   $('teach-recording').hidden = false;
   if (isWebPage(page.url)) await send(tab.id, { type: 'showme:record', on: true });
+  mo('idle', { text: 'I\'m watching. Show me how.', hold: 5000 }, tab.id);
 }
 
 function onRecorded(step) {
@@ -421,6 +427,7 @@ async function finishTeaching() {
       method: 'POST', body: { goal: state.lastGoal, url: steps[0].page.url, steps, mistake },
     });
     note('taught');
+    mo('learning', { count: training.sent, text: training.viaMubit ? `+${training.sent} training examples → Mubit` : `Saved ${steps.length} steps (mock: not sent)` }, state.recordTabId);
     const where = training.viaMubit ? 'through Mubit' : 'to the mock model (no Mubit key, so nothing was recorded)';
     $('saved-summary').innerHTML =
       (mistake ? `<span class="mistake-note">✗ ${esc(mistake)}</span><br>` : '') +
@@ -491,34 +498,106 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 });
 
 // ---- Voice --------------------------------------------------------------------
-// Uses Chrome's built-in speech recognition. Dictation apps such as Wispr Flow also
-// work with no setup: they type straight into the goal box.
+// Chrome's built-in speech recognition, started by the mic button, the ⌥Space shortcut or
+// a click on Mo. While listening, the mic's loudness is drawn as a waveform here and in
+// the bubble next to Mo on the page. Dictation apps such as Wispr Flow also work: they
+// type straight into the goal box.
 
+const BARS = 20;
 let recognition = null;
+let meter = null; // { stream, ctx, analyser, timer }
 
-function toggleMic() {
+async function voiceTabId() {
+  if (state.runTabId) {
+    const tab = await chrome.tabs.get(state.runTabId).catch(() => null);
+    if (tab) return tab.id;
+  }
+  return (await targetTab().catch(() => null))?.id;
+}
+
+async function sendVoice(payload) {
+  const id = await voiceTabId();
+  if (id) chrome.tabs.sendMessage(id, { type: 'showme:voice', ...payload }).catch(() => {});
+}
+
+function drawWave(levels) {
+  const wave = $('wave');
+  if (!wave.children.length) wave.innerHTML = '<span></span>'.repeat(BARS);
+  [...wave.children].forEach((bar, i) => { bar.style.height = `${4 + Math.round((levels[i] || 0) * 22)}px`; });
+}
+
+// Real levels from the microphone when Chrome allows it; otherwise a gentle synthetic
+// wave that jumps when speech is detected, so you still see that it's listening.
+async function startMeter(getText) {
+  let levels = new Array(BARS).fill(0);
+  let synthetic = null;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const ctx = new AudioContext();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 64;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    meter = { stream, ctx, analyser };
+    meter.read = () => {
+      analyser.getByteFrequencyData(data);
+      levels = Array.from({ length: BARS }, (_, i) => Math.min(1, data[Math.floor((i * data.length) / BARS)] / 200));
+    };
+  } catch {
+    synthetic = { loud: 0 };
+    meter = { synthetic };
+    meter.read = () => {
+      synthetic.loud = Math.max(0, synthetic.loud - 0.08);
+      const t = Date.now() / 160;
+      levels = Array.from({ length: BARS }, (_, i) => Math.max(0.08, (0.15 + synthetic.loud) * (0.55 + 0.45 * Math.sin(t + i * 0.7))));
+    };
+  }
+  meter.timer = setInterval(() => {
+    meter?.read();
+    drawWave(levels);
+    sendVoice({ state: 'listening', levels, text: getText() });
+  }, 70);
+  $('wave').hidden = false;
+}
+
+function speechBump() { if (meter?.synthetic) meter.synthetic.loud = 0.8; }
+
+function stopMeter() {
+  if (!meter) return;
+  clearInterval(meter.timer);
+  meter.stream?.getTracks().forEach(t => t.stop());
+  meter.ctx?.close().catch(() => {});
+  meter = null;
+  $('wave').hidden = true;
+}
+
+function startListening() {
   const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   const status = $('mic-status');
-  if (!Speech) { status.hidden = false; status.textContent = 'Speech recognition is not available in this browser. Type the goal instead.'; return; }
-  if (recognition) { recognition.stop(); return; }
+  status.hidden = false;
+  if (!Speech) { status.textContent = 'Speech recognition is not available in this browser. Type the goal instead.'; return; }
+  if (recognition) return;
   recognition = new Speech();
   recognition.lang = navigator.language || 'en-GB';
   recognition.interimResults = true;
   recognition.continuous = false;
   let heard = '';
+  let interim = '';
   let failed = false;
   $('mic').classList.add('listening');
-  status.hidden = false;
-  status.textContent = 'Listening…';
+  status.textContent = 'Listening… (press ⌥Space again or the mic to stop)';
+  startMeter(() => interim);
   recognition.onresult = event => {
-    const text = [...event.results].map(r => r[0].transcript).join(' ');
-    $('goal').value = text;
+    speechBump();
+    interim = [...event.results].map(r => r[0].transcript).join(' ');
+    $('goal').value = interim;
     if (event.results[event.results.length - 1].isFinal) {
-      heard = text.trim();
+      heard = interim.trim();
       note('voice');
       status.textContent = 'Got it. Press Run, or speak again.';
     }
   };
+  recognition.onspeechstart = speechBump;
   recognition.onerror = event => {
     failed = true;
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -531,11 +610,41 @@ function toggleMic() {
   recognition.onend = () => {
     $('mic').classList.remove('listening');
     recognition = null;
+    stopMeter();
+    sendVoice({ state: heard && !failed ? 'heard' : 'off', text: heard });
     chrome.storage.local.set({ goal: $('goal').value });
     // Only auto-run what was actually heard this time, never a leftover goal after an error.
     if (heard && !failed && $('autorun').checked) run(heard);
   };
   recognition.start();
+}
+
+function stopListening() { recognition?.stop(); }
+
+const toggleMic = () => (recognition ? stopListening() : startListening());
+
+// ⌥Space / clicking Mo: the background asks us to listen (or to stop, if we already are).
+chrome.runtime.onMessage.addListener(msg => {
+  if (msg.type === 'showme:listen') {
+    chrome.storage.session.remove('listenAt').catch(() => {});
+    toggleMic();
+  }
+  if (msg.type === 'showme:teach-request' && !$('teach-ask').hidden && !$('teach').hidden) startTeaching().catch(err => offerTeaching(err.message));
+});
+
+async function listenIfAsked() {
+  const { listenAt } = await chrome.storage.session.get('listenAt').catch(() => ({}));
+  if (listenAt && Date.now() - listenAt < 5000) {
+    chrome.storage.session.remove('listenAt').catch(() => {});
+    startListening();
+  }
+}
+
+// ---- Mo -------------------------------------------------------------------------
+
+async function mo(stateName, extra = {}, tabId = null) {
+  const id = tabId || state.runTabId || (await targetTab().catch(() => null))?.id;
+  if (id) chrome.tabs.sendMessage(id, { type: 'showme:mo', state: stateName, ...extra }).catch(() => {});
 }
 
 // ---- Mubit and Judges tabs ----------------------------------------------------------
@@ -607,6 +716,7 @@ async function init() {
   refreshTotals();
   mubit.connect();
   mubit.refresh();
+  listenIfAsked();
   setInterval(refreshHealth, 15000);
 }
 
