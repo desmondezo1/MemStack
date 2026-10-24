@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Show Me — microphone</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 460px; margin: 15vh auto; padding: 0 16px; color: #1d1d1f; background: #fff; }
+  h1 { font-size: 22px; }
+  #status { font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>Allow the microphone for Show Me</h1>
+  <p>Chrome only asks for microphone access in a normal tab, not in the side panel. Click <b>Allow</b> in the prompt, then close this tab and press the mic button again.</p>
+  <p id="status">Waiting for permission…</p>
+  <script src="mic-permission.js"></script>
+</body>
+</html>

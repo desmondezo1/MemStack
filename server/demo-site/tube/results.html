@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Search — Tubely</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header>
+  <a class="logo" href="index.html"><span>▶</span>Tubely</a>
+  <form action="results.html" method="get" role="search">
+    <input type="search" name="q" aria-label="Search videos" placeholder="Search" autocomplete="off">
+    <button type="submit" aria-label="Search">🔍</button>
+  </form>
+</header>
+<main>
+  <h1 id="heading">Results</h1>
+  <div class="grid" id="grid"></div>
+</main>
+<script src="videos.js"></script>
+<script>
+  const q = new URLSearchParams(location.search).get('q') || '';
+  document.querySelector('input[name=q]').value = q;
+  document.getElementById('heading').textContent = `Results for “${q}”`;
+  const nice = q.replace(/\b\w/g, c => c.toUpperCase());
+  render(document.getElementById('grid'), [
+    `${nice} — Official Music Video`, `${nice} live at Wembley`, `${nice} interview`, `Best of ${nice} (playlist)`, `${nice} reaction video`, `${nice} documentary`,
+  ]);
+</script>
+</body>
+</html>

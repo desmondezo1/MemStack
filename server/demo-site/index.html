@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trattoria Nove — Book a table</title>
+<style>
+  :root { --ink: #2b2118; --muted: #7a6a5c; --paper: #fbf6ee; --card: #fff; --accent: #a8432a; --line: #e7dccd; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 Georgia, 'Times New Roman', serif; color: var(--ink); background: var(--paper); }
+  header { padding: 28px 24px 8px; text-align: center; }
+  header h1 { margin: 0; font-size: 34px; letter-spacing: .02em; }
+  header p { margin: 4px 0 0; color: var(--muted); font-style: italic; }
+  main { max-width: 520px; margin: 16px auto 48px; padding: 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; box-shadow: 0 6px 24px rgba(60,40,20,.06); }
+  h2 { margin: 0 0 16px; font-size: 22px; }
+  label, legend { display: block; font: 600 14px/1.4 system-ui, sans-serif; margin: 0 0 6px; }
+  .field { margin-bottom: 18px; }
+  select, input[type=text] { width: 100%; padding: 10px 12px; font: 16px system-ui, sans-serif; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  fieldset { border: 0; padding: 0; margin: 0 0 18px; }
+  .sittings { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sittings label { display: flex; gap: 8px; align-items: center; font-weight: 500; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0; cursor: pointer; }
+  .sittings label:has(input:checked) { border-color: var(--accent); background: #fbefe9; }
+  .hint { font: 13px system-ui, sans-serif; color: var(--muted); margin: 6px 0 0; }
+  button { font: 600 16px system-ui, sans-serif; border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; }
+  .primary { background: var(--accent); color: #fff; width: 100%; }
+  .ghost { background: transparent; color: var(--muted); }
+  .error { color: #b00020; font: 14px system-ui, sans-serif; min-height: 20px; margin: 8px 0 0; }
+  #confirmation { display: none; text-align: center; }
+  #confirmation h2 { color: var(--accent); }
+  .overlay { position: fixed; inset: 0; background: rgba(43,33,24,.45); display: grid; place-items: center; padding: 16px; }
+  .overlay[hidden] { display: none; }
+  .modal { background: #fff; border-radius: 14px; padding: 24px; max-width: 360px; text-align: center; }
+  .modal h3 { margin: 0 0 8px; }
+  .modal .row { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .modal .subscribe { background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trattoria Nove</h1>
+  <p>Seasonal Roman cooking · Hackney</p>
+</header>
+
+<main>
+  <section class="card" id="booking">
+    <h2>Book a table</h2>
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="party">Party size</label>
+        <select id="party" name="party">
+          <option value="">Choose…</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="day">Day</label>
+        <select id="day" name="day">
+          <option>Tonight</option><option>Tomorrow</option><option>Saturday</option>
+        </select>
+      </div>
+      <fieldset>
+        <legend>Sitting</legend>
+        <!-- Times are only in the hover tooltip, as on many real booking pages:
+             the agent can't see them, a regular can. That is the lesson to teach. -->
+        <div class="sittings">
+          <label title="17:30"><input type="radio" name="sitting" value="A" data-time="17:30"> Sitting A</label>
+          <label title="18:45"><input type="radio" name="sitting" value="B" data-time="18:45"> Sitting B</label>
+          <label title="20:00"><input type="radio" name="sitting" value="C" data-time="20:00"> Sitting C</label>
+          <label title="21:15"><input type="radio" name="sitting" value="D" data-time="21:15"> Sitting D</label>
+        </div>
+        <p class="hint">Hover a sitting to see its time.</p>
+      </fieldset>
+      <div class="field">
+        <label for="name">Name for the booking</label>
+        <input type="text" id="name" name="name" autocomplete="off">
+      </div>
+      <button type="submit" class="primary">Reserve table</button>
+      <p class="error" id="error" role="alert"></p>
+    </form>
+  </section>
+
+  <section class="card" id="confirmation" aria-live="polite">
+    <h2>Booking confirmed</h2>
+    <p id="summary"></p>
+    <button type="button" class="ghost" id="again">Make another booking</button>
+  </section>
+</main>
+
+<div class="overlay" id="newsletter" role="dialog" aria-modal="true" aria-labelledby="nl-title">
+  <div class="modal">
+    <h3 id="nl-title">Join the Nove table</h3>
+    <p>Get first dibs on truffle season and our supper clubs.</p>
+    <div class="row">
+      <button type="button" class="subscribe" id="subscribe">Subscribe</button>
+      <button type="button" class="ghost" id="no-thanks">No thanks</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const closeModal = () => { $('newsletter').hidden = true; };
+  $('no-thanks').addEventListener('click', closeModal);
+  $('subscribe').addEventListener('click', closeModal);
+
+  $('form').addEventListener('submit', event => {
+    event.preventDefault();
+    const party = $('party').value;
+    const sitting = document.querySelector('input[name=sitting]:checked');
+    const name = $('name').value.trim();
+    const missing = [!party && 'party size', !sitting && 'a sitting', !name && 'a name'].filter(Boolean);
+    if (missing.length) { $('error').textContent = `Please choose ${missing.join(', ')}.`; return; }
+    $('error').textContent = '';
+    const guests = party === '1' ? '1 guest' : `${party} guests`;
+    $('summary').textContent =
+      `Table for ${guests}, ${$('day').value}, Sitting ${sitting.value} (${sitting.dataset.time}). See you soon, ${name}.`;
+    $('booking').style.display = 'none';
+    $('confirmation').style.display = 'block';
+  });
+
+  $('again').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>

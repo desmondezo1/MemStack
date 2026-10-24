@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Watch — Tubely</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header>
+  <a class="logo" href="index.html"><span>▶</span>Tubely</a>
+  <form action="results.html" method="get" role="search">
+    <input type="search" name="q" aria-label="Search videos" placeholder="Search" autocomplete="off">
+    <button type="submit" aria-label="Search">🔍</button>
+  </form>
+</header>
+<main>
+  <div class="player"><button id="play" type="button">▶ Play</button></div>
+  <h1 id="title"></h1>
+  <p id="status">Paused</p>
+</main>
+<script>
+  const title = new URLSearchParams(location.search).get('t') || 'Untitled video';
+  document.getElementById('title').textContent = title;
+  document.title = `${title} — Tubely`;
+  const play = document.getElementById('play');
+  play.addEventListener('click', () => {
+    const playing = play.dataset.playing !== '1';
+    play.dataset.playing = playing ? '1' : '0';
+    play.textContent = playing ? '❚❚ Pause' : '▶ Play';
+    document.getElementById('status').textContent = playing ? `Now playing: ${title}` : 'Paused';
+  });
+</script>
+</body>
+</html>

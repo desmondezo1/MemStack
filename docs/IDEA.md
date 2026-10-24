@@ -66,7 +66,7 @@ Things that bite if we get them wrong:
               │
               ▼
  ┌──────────────────────────── agent loop (one run = one session_id) ───────────────────────────┐
- │  Playwright reads page ─► trim to interactive elements ─► next-action call ─► do the action   │
+ │  extension reads page ─► trim to interactive elements ─► next-action call ─► do the action   │
  │                                                    │                                          │
  │                                              done-check call                                  │
  └──────────────────────────────────────────────┬──────────────────────────────────────────────────┘
@@ -85,7 +85,10 @@ Things that bite if we get them wrong:
                                                          shown in Try models + our ledger
 ```
 
-All LLM calls go through Mubit. Voice-to-text and Playwright are not LLM calls and stay outside it.
+All LLM calls go through Mubit, from our backend (Mubit refuses browser calls, and the key must stay off the client).
+Voice-to-text and the extension's page reading are not LLM calls and stay outside it.
+
+**Built as a Chrome extension** (side panel + content script) with a small Node backend. Run and test it: [TESTING.md](../TESTING.md).
 
 ### The three Mubit tasks
 
@@ -159,16 +162,16 @@ The critical path is **the first adapter**, not the UI. Two training windows bef
 **Friday night (tonight)**
 - [ ] Get Mubit keys; confirm the **Adapters** page and **Try models** are on for our workspace.
 - [ ] Ask the crew the [open questions](#open-questions-ask-the-mubit-crew) at the 18:00 walkthrough.
-- [ ] Lock the three system prompts and JSON schemas. **Don't change them after this.**
-- [ ] Pick 2–3 target flows on a site we control or a stable demo site (form, search, booking).
-- [ ] Playwright harness: open page → trimmed accessibility tree → next-action through Mubit → act.
-- [ ] Traffic script: run many episodes so next-action passes 25 kept examples before 00:00 UTC.
+- [x] Lock the three system prompts and JSON schemas (`server/prompts.js`; `npm test` fails if they change). **Don't change them after this.**
+- [ ] Pick 2–3 target flows on a site we control or a stable demo site (form, search, booking). Booking is built: `server/demo-site/`.
+- [x] Chrome extension: read page → trimmed element list → next-action through Mubit → act.
+- [ ] Traffic script: run many episodes so next-action passes 25 kept examples before 00:00 UTC. Built: `npm run seed` (needs the Mubit key).
 
 **Saturday**
-- [ ] Recorder: capture human clicks/typing against the tree, not pixels.
-- [ ] Demo re-send → Mubit; MemStack store + recall into the rerun.
-- [ ] Run timeline ("autopsy") UI and ledger (versions, match %, cost, latency).
-- [ ] Voice input (browser speech API or Whisper), with a typed fallback.
+- [x] Recorder: capture human clicks/typing against the tree, not pixels.
+- [x] Demo re-send → Mubit; MemStack store + recall into the rerun.
+- [x] Run timeline ("autopsy") UI and ledger (versions, match %, cost, latency).
+- [x] Voice input (Chrome speech API; Wispr Flow works by typing into the goal box), with a typed fallback.
 - [ ] Push corrected demonstrations to force **v2**; get a passing version in Try models.
 
 **Sunday 08:00–10:00**
@@ -179,12 +182,12 @@ The critical path is **the first adapter**, not the UI. Two training windows bef
 
 | Area | Owner |
 | --- | --- |
-| Playwright harness + recorder | _TBD_ |
+| Extension + recorder | _TBD_ |
 | Mubit loop (prompts, traffic script, re-send, ledger data) | _TBD_ |
 | UI (decision panel, timeline, ledger) + voice | _TBD_ |
 | Pitch + demo script | _TBD_ |
 
-**If nobody can own Playwright tonight, switch to Plan B** (below). Playwright is the part that sinks the
+**If nobody can own the extension tonight, switch to Plan B** (below). The browser part is what sinks the
 technical score.
 
 ---

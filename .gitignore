@@ -147,3 +147,11 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Show Me
+!.env.example
+data/
+test-results/
+
+# Sapling verifier log
+verifier.log

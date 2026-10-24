@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tubely</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header>
+  <a class="logo" href="index.html"><span>▶</span>Tubely</a>
+  <form action="results.html" method="get" role="search">
+    <input type="search" name="q" aria-label="Search videos" placeholder="Search" autocomplete="off">
+    <button type="submit" aria-label="Search">🔍</button>
+  </form>
+</header>
+<main>
+  <nav><a href="index.html">Home</a><a href="results.html?q=music">Music</a><a href="results.html?q=news">News</a><a href="results.html?q=football">Sport</a></nav>
+  <h1>Trending</h1>
+  <div class="grid" id="grid"></div>
+</main>
+<script src="videos.js"></script>
+<script>
+  render(document.getElementById('grid'), ['Lagos street food tour', 'Premier League highlights', 'How to make jollof rice', 'Lo-fi beats to study to']);
+</script>
+</body>
+</html>
