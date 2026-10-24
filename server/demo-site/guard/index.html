@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>#general · Nove team chat</title>
+<style>
+  :root { --bg: #f4f2ee; --panel: #ffffff; --ink: #1f1d1a; --muted: #77716a; --line: #e6e1d9; --accent: #3d6b5c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  aside { background: #2b2a27; color: #d9d4cc; padding: 18px 14px; }
+  aside h1 { font-size: 16px; margin: 0 0 16px; color: #fff; }
+  aside p { margin: 4px 0; padding: 4px 8px; border-radius: 6px; }
+  aside p.on { background: #46443f; color: #fff; }
+  main { display: flex; flex-direction: column; }
+  header { padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--panel); font-weight: 600; }
+  .note { margin: 14px 22px 0; padding: 8px 12px; border-radius: 8px; background: #fff7e0; color: #6b5310; font-size: 13px; }
+  .msgs { padding: 10px 22px 40px; }
+  .msg { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 10px 0; }
+  .av { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 700; }
+  .who { font-weight: 650; } .who span { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+  a { color: #1b62b8; }
+  @media (max-width: 700px) { body { grid-template-columns: 1fr; } aside { display: none; } }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Nove team</h1>
+  <p class="on"># general</p><p># bookings</p><p># suppliers</p><p>@ Ada</p><p>@ Kofi</p>
+</aside>
+<main>
+  <header># general</header>
+  <p class="note">Demo chat for Mo Guard. The "phishing" links here point to pages on your own computer (*.localhost) and are safe to click.</p>
+  <div class="msgs" id="msgs"></div>
+</main>
+<script>
+  // Phishing-style links go to *.localhost, which always means this computer.
+  const port = location.port ? `:${location.port}` : '';
+  const fake = (sub, brand) => `http://${sub}.localhost${port}/demo/guard/login.html?brand=${brand}`;
+  const messages = [
+    ['Kofi', '#7a5c3e', '09:12', 'Morning all! Supplier invoices are in the drive as usual.'],
+    ['Ada', '#3d6b5c', '09:20', 'Reminder: card payments now go through <a href="https://www.paypal.com/">paypal.com</a>, nothing else.'],
+    ['Unknown', '#9b2c2c', '09:41', `URGENT: your PayPal account is limited. Verify now: <a href="${fake('paypal-com-login', 'PayPal')}">paypal.com/verify-account</a>`],
+    ['Priya', '#4a5a9b', '10:02', 'Has anyone read <a href="https://en.wikipedia.org/wiki/Phishing">this on phishing</a>? Good refresher.'],
+    ['Unknown', '#9b2c2c', '10:15', `Your Netflix payment failed. <a href="${fake('netflix-billing-update', 'Netflix')}">Update your billing details</a> within 24 hours.`],
+    ['Kofi', '#7a5c3e', '10:31', 'Here\'s the booking sheet: <a href="https://docs.google.com/spreadsheets/">docs.google.com</a>'],
+    ['Unknown', '#9b2c2c', '11:05', 'Office 365 password expires today. Keep it here: <a href="http://192.168.77.14/owa/login.php">Microsoft 365 login</a>'],
+    ['Ada', '#3d6b5c', '11:20', 'Lunch menu is up on <a href="https://www.bbc.co.uk/food">BBC Food</a> for inspiration 🍝'],
+  ];
+  document.getElementById('msgs').innerHTML = messages.map(([who, colour, time, text]) =>
+    `<div class="msg"><div class="av" style="background:${colour}">${who[0]}</div><div><div class="who">${who}<span>${time}</span></div><div>${text}</div></div></div>`).join('');
+</script>
+</body>
+</html>

@@ -32,6 +32,7 @@ Show Me icon. Details in [TESTING.md](TESTING.md).
 | `extension/panel-mubit.js`, `panel-judges.js` | The Mubit tab (live calls, flow, tasks, lessons, savings) and the Judges tab (criteria that tick from live evidence). |
 | `extension/mascot.js` | Mo, the mascot on every page, and the voice waveform next to it. |
 | `extension/mubit-bridge.js` | Reads kept examples and adapter status from Mubit's console when it's open in a tab (read-only). |
+| `extension/guard.js`, `server/guard.js` | Mo Guard: flags phishing links and pages, with labels, Mo's reactions and a full-screen warning; rules first, then Claude through Mubit (the `link-check` task). |
 | `extension/background.js` | Toolbar icon and the ⌥Space talk shortcut. |
 | `server/index.js` | Backend the extension calls. Holds the Mubit key; Mubit refuses browser calls. |
 | `server/llm.js` | Sends every model call to Claude (or OpenAI) through Mubit's gateway; mock model when no key is set. |

@@ -46,7 +46,7 @@
   .wrap[data-state=listening] .ring { animation: ring 1.1s ease-out infinite; }
   .wrap[data-state=thinking] .dots { opacity: 1; }
   .wrap[data-state=acting] .body { animation: none; transform: rotate(8deg); }
-  .wrap[data-state=stuck] .body { animation: tilt 1.6s ease-in-out infinite; }
+  .wrap[data-state=stuck] .body, .wrap[data-state=suspicious] .body { animation: tilt 1.6s ease-in-out infinite; }
   .wrap[data-state=stuck] .mouth { d: path('M27 42 Q32 39 37 42'); }
   .wrap[data-state=success] .body { animation: jump 700ms ease-out 2; }
   .wrap[data-state=learning] .body { animation: bob 900ms ease-in-out infinite; }
@@ -83,6 +83,8 @@
     <button data-act="panel" role="menuitem">Open the Show Me panel</button>
     <button data-act="talk" role="menuitem">How to talk to me</button>
     <button data-act="hide" role="menuitem">Hide on this site</button>
+    <button data-act="report" role="menuitem">Report this page as phishing</button>
+    <button data-act="guard" role="menuitem">Mo Guard: on</button>
   </div>
   <button class="mo" aria-label="Show Me: hold to talk, drag to move, right-click for the menu">
     <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
@@ -153,6 +155,7 @@
 
   // Float next to the element the agent is about to use, then come back.
   let actingTarget = null;
+  let suspectPoint = null; // where Mo Guard's find is, for Mo to look at
   function actOn(targetId) {
     const el = targetId && document.querySelector(`[data-showme-id="${CSS.escape(targetId)}"]`);
     actingTarget = el || null;
@@ -359,12 +362,24 @@
       const r = await chrome.runtime.sendMessage({ type: 'showme:open-panel' }).catch(() => null);
       if (!r?.ok) say('Click the Show Me icon in the toolbar to open the panel.');
     }
+    if (act === 'report') chrome.runtime.sendMessage({ type: 'guard:report' }).catch(() => {});
+    if (act === 'guard') {
+      const { guardOn } = await chrome.storage.local.get('guardOn');
+      const next = guardOn === false;
+      await chrome.storage.local.set({ guardOn: next });
+      say(next ? 'Mo Guard is on: I\'ll keep an eye on links.' : 'Mo Guard is off.', { hold: 2500 });
+    }
     if (act === 'hide') {
       const { moHiddenHosts = [] } = await chrome.storage.local.get('moHiddenHosts');
       await chrome.storage.local.set({ moHiddenHosts: [...new Set([...moHiddenHosts, location.host])] });
       applyHidden(true);
     }
   });
+  const guardItem = menu.querySelector('[data-act=guard]');
+  const syncGuardItem = on => { guardItem.textContent = `Mo Guard: ${on ? 'on' : 'off'}`; };
+  chrome.storage.local.get('guardOn').then(({ guardOn }) => syncGuardItem(guardOn !== false)).catch(() => {});
+  chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local' && changes.guardOn) syncGuardItem(changes.guardOn.newValue !== false); });
+
   let bubbleAction = null; // what clicking an "ask" bubble does: 'teach' or 'mic'
   bubble.addEventListener('click', () => {
     const ask = bubble.classList.contains('ask');
@@ -399,6 +414,11 @@
       if (msg.state === 'show') { chrome.storage.local.get('moHiddenHosts').then(({ moHiddenHosts = [] }) => chrome.storage.local.set({ moHiddenHosts: moHiddenHosts.filter(h => h !== location.host) })); applyHidden(false); }
       else if (msg.state === 'acting') { setState('acting', { text: msg.text, hold: 0 }); actOn(msg.targetId); }
       else if (msg.state === 'learning') { setState('learning', { text: msg.text, hold: 3200 }); flyCards(msg.count); }
+      else if (msg.state === 'suspicious') {
+        // Mo Guard found something: squint at it and say so.
+        suspectPoint = msg.x != null ? [msg.x, msg.y] : null;
+        setState('suspicious', { text: msg.text, hold: 6000 });
+      }
       else if (msg.state === 'stuck') { bubbleAction = msg.action || 'teach'; setState('stuck', { text: msg.text || 'Can you show me?', ask: true, hold: 15000 }); }
       else if (msg.state === 'success') setState('success', { text: msg.text || 'Done!', hold: msg.hold || 2500 });
       else setState(msg.state || 'idle', { text: msg.text, hold: msg.hold || 0 });
@@ -451,6 +471,7 @@
     const box = moButton.getBoundingClientRect();
     if (st === 'thinking') return [box.right + 80, box.top - 120];
     if (st === 'listening') return [box.left + box.width / 2, box.top - 200];
+    if (st === 'suspicious' && suspectPoint) return suspectPoint;
     if (st === 'acting' && actingTarget) {
       const r = actingTarget.getBoundingClientRect();
       return [r.left + r.width / 2, r.top + r.height / 2];

@@ -58,6 +58,7 @@ export function createJudgesView({ session }) {
       { name: 'Usefulness', items: [
         { met: realDone.length > 0, text: 'Did a real task on a real website', ev: realDone.length ? `${esc(realDone[realDone.length - 1].goal)} (${new URL(realDone[realDone.length - 1].url).hostname})` : 'Try YouTube with the real model' },
         { met: !!fixed, text: 'One lesson fixed a failure', ev: fixed ? `“${esc(fixed[0].goal)}”: ✗ then ✓ with the lesson` : 'Fail → teach → rerun' },
+        { met: !!(o.guard?.flagged || o.guard?.eval), text: 'Mo Guard catches phishing links', ev: o.guard?.eval?.claude ? `Claude right on ${Math.round(100 * o.guard.eval.claude.accuracy)}% of ${o.guard.eval.claude.n} known links; ${o.guard.flagged || 0} flagged while browsing` : (o.guard?.flagged ? `${o.guard.flagged} links flagged while browsing` : 'Open the demo chat at /demo/guard/') },
         { met: !!monthly, text: 'Shows the saving at scale', ev: monthly ? `${fmtUsd(monthly.provider)} → ${fmtUsd(monthly.adapterEstimate)} a month at 50k decisions/day` : 'Needs real calls through Mubit' },
       ] },
       { name: 'Technical execution', items: [

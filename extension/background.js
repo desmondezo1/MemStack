@@ -22,7 +22,7 @@ chrome.runtime.onInstalled.addListener(() => {
 self.injectIntoOpenTabs = async function injectIntoOpenTabs() {
   const tabs = await chrome.tabs.query({});
   const results = await Promise.all(tabs.filter(t => /^(https?|file):/.test(t.url || '')).map(tab =>
-    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js', 'mascot.js'] }).then(() => true, () => false)));
+    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js', 'mascot.js', 'guard.js'] }).then(() => true, () => false)));
   return results.filter(Boolean).length;
 };
 
@@ -128,6 +128,22 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         chrome.runtime.sendMessage({ type: 'showme:teach-request' }).catch(() => {});
       }
       break;
+    // Mo Guard, from the page.
+    case 'guard:check':
+      api('/api/guard/check', { method: 'POST', body: { pageUrl: msg.pageUrl, links: msg.links, hasPassword: msg.hasPassword } })
+        .then(r => reply({ ok: true, results: r.results }), err => reply({ ok: false, error: err.message }));
+      return true;
+    case 'guard:feedback':
+      api('/api/guard/feedback', { method: 'POST', body: { url: msg.url, verdict: msg.verdict, text: msg.text, pageUrl: msg.pageUrl } })
+        .then(r => reply({ ok: true, ...r }), err => reply({ ok: false, error: err.message }));
+      return true;
+    case 'guard:mo': {
+      const { type, ...rest } = msg;
+      mo(tabId, rest.state, rest);
+      break;
+    }
+    case 'guard:report': chrome.tabs.sendMessage(tabId, { type: 'guard:report-page' }).catch(() => {}); break;
+
     case 'showme:open-panel':
       chrome.sidePanel.open({ windowId: sender.tab.windowId }).then(() => reply({ ok: true }), err => reply({ ok: false, error: err.message }));
       return true;

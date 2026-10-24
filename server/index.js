@@ -12,6 +12,7 @@ import { callTask, getConfig, LlmError } from './llm.js';
 import { formatStep } from './prompts.js';
 import { addDemo, clearDemos, listDemos, recallDemo, updateDemo } from './memory.js';
 import { verifyDone, verifySafe, verifierEnabled } from './verifier.js';
+import { signals as linkSignals, localVerdict, domainAgeDays, loadFeed, feedSize, memory as guardMemory, linkMessage, explain, brandFor, evalResults, MODEL_THRESHOLD } from './guard.js';
 import { clearCalls, ledgerStats, recentCalls, addRun, readRuns, getSettings, saveSettings, onEvent, emit } from './ledger.js';
 
 loadEnv();
@@ -199,13 +200,110 @@ const routes = {
       runs: readRuns().slice(-200),
       lessons: listDemos().map(d => ({ id: d.id, goal: d.goal, steps: d.steps.length, createdAt: d.createdAt, training: d.training || null, mistake: d.mistake || null })),
       settings: getSettings(),
+      guard: guardOverview(),
     };
   },
+
+  // Mo Guard: check the page itself and the links on it.
+  'POST /api/guard/check': async ({ pageUrl, links, hasPassword }) => {
+    requireFields({ pageUrl });
+    if (links !== undefined && !Array.isArray(links)) throw httpError(400, 'links must be an array');
+    const feed = await loadFeed();
+    const pageHost = hostOf(pageUrl);
+    const items = [{ url: String(pageUrl), text: '', kind: 'page' }, ...(links || []).slice(0, 100).map(l => ({ url: String(l?.url || ''), text: String(l?.text || '').slice(0, 120), kind: 'link' }))];
+    const seen = new Set();
+    const unique = items.filter(i => i.url && !seen.has(i.kind + i.url) && seen.add(i.kind + i.url));
+    const results = (await mapLimit(unique, 4, i => checkLink(i, { pageHost, hasPassword: i.kind === 'page' && !!hasPassword, feed }))).filter(Boolean);
+    guardStats.checked += results.length;
+    guardStats.flagged += results.filter(r => r.verdict !== 'safe').length;
+    return { results };
+  },
+
+  // "This is fine" / "This is phishing": remembered for the site, and sent through Mubit as
+  // a training example of the link-check task.
+  'POST /api/guard/feedback': async ({ url, verdict, text, pageUrl }) => {
+    requireFields({ url, verdict });
+    if (!['safe', 'phishing'].includes(verdict)) throw httpError(400, 'verdict must be safe or phishing');
+    const pageHost = hostOf(pageUrl);
+    const s = linkSignals({ url: String(url), text: String(text || ''), pageHost, feed: await loadFeed() });
+    if (!s.ok) throw httpError(400, 'not a web address');
+    guardMemory.set(s.host, verdict);
+    guardCache.clear();
+    let training;
+    try {
+      const r = await callTask({
+        task: TASKS.linkCheck, userMessage: linkMessage(s, { text, pageHost, reviewed: verdict }), sessionId: `guard-review-${s.domain}`,
+        kind: 'training', mockContext: { signals: s, reviewed: verdict }, summarize: () => `reviewed as ${verdict}: ${s.host}`,
+      });
+      training = { sent: true, agreed: r.json.verdict === verdict, viaMubit: getConfig().provider !== 'mock' };
+    } catch (err) {
+      training = { sent: false, error: err.message };
+    }
+    guardStats.corrections++;
+    emit('guard', { host: s.host, verdict });
+    return { ok: true, host: s.host, verdict, training };
+  },
+
+  'GET /api/guard/stats': async () => guardOverview(),
 
   'GET /api/ledger': async () => ledgerStats(getConfig()),
 
   'DELETE /api/ledger': async () => { clearCalls(); return { ok: true }; },
 };
+
+// ---- Mo Guard ------------------------------------------------------------------------
+
+const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
+const guardCache = new Map(); // "kind|url|password" → { at, result }, for an hour
+const guardStats = { checked: 0, flagged: 0, corrections: 0 };
+
+function guardOverview() {
+  return { ...guardStats, remembered: Object.keys(guardMemory.all()).length, feedHosts: feedSize(), eval: evalResults() };
+}
+
+// One link: rules first; Claude through Mubit only when the rules find it risky.
+async function checkLink(item, { pageHost, hasPassword, feed }) {
+  const key = `${item.kind}|${item.url}|${hasPassword}`;
+  const hit = guardCache.get(key);
+  if (hit && Date.now() - hit.at < 3600e3) return hit.result;
+  // A page is judged on its own address, not trusted for being on itself.
+  const base = { url: item.url, text: item.text, pageHost: item.kind === 'page' ? '' : pageHost, hasPassword, feed };
+  let s = linkSignals(base);
+  if (!s.ok) return null;
+  const remembered = guardMemory.get(s.host);
+  let verdict = localVerdict(s.score);
+  let pretendsTo = s.pretendsTo;
+  let source = 'rules';
+  let call = null;
+  if (remembered) {
+    verdict = remembered;
+    source = 'you';
+  } else {
+    // Domain age only matters for addresses that already look off.
+    if (s.signals.length && !s.trusted) s = linkSignals({ ...base, ageDays: await domainAgeDays(s.domain) });
+    verdict = localVerdict(s.score);
+    if (s.score >= MODEL_THRESHOLD) {
+      try {
+        const r = await callTask({
+          task: TASKS.linkCheck, userMessage: linkMessage(s, { text: item.text, pageHost }), sessionId: `guard-${s.domain}`,
+          mockContext: { signals: s }, summarize: j => `${j.verdict}${j.pretends_to_be ? ` (imitates ${j.pretends_to_be})` : ''}: ${s.host}`,
+        });
+        if (['safe', 'suspicious', 'phishing'].includes(r.json.verdict)) { verdict = r.json.verdict; source = 'claude'; }
+        if (r.json.pretends_to_be) pretendsTo = String(r.json.pretends_to_be).replace(/^https?:\/\//, '').replace(/[/?#].*$/, '').toLowerCase();
+        call = { ms: r.ms, usage: r.usage, requestId: r.requestId };
+      } catch { /* the rules decide when the model can't answer */ }
+    }
+    if (s.signals.includes('known_phishing')) verdict = 'phishing';
+  }
+  if (verdict === 'safe') pretendsTo = null;
+  const realSite = pretendsTo ? `https://${pretendsTo.split('.').length > 2 ? pretendsTo : `www.${pretendsTo}`}` : null;
+  const result = {
+    url: item.url, kind: item.kind, host: s.host, verdict, score: s.score, signals: s.signals,
+    reasons: explain(s.signals, pretendsTo), pretendsTo, brand: pretendsTo ? (brandFor(pretendsTo)?.name || pretendsTo) : null, realSite, source, ...call,
+  };
+  guardCache.set(key, { at: Date.now(), result });
+  return result;
+}
 
 const pageKeyOf = url => { try { const u = new URL(url); return u.origin + u.pathname; } catch { return url; } };
 

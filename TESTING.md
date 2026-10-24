@@ -86,6 +86,36 @@ can't find it, it asks you to show it: go to the page and **select the answer te
   are suggested for removal. You review them (*Check your lesson*), and only the ticked steps are
   taught. If nothing looks unneeded, it saves straight away.
 
+### Mo Guard (phishing links)
+
+Mo keeps an eye on the links on every page, and on the page itself.
+
+- **Try it:** open <http://localhost:8787/demo/guard/>, a team chat with a few phishing-style messages. After a moment Mo
+  goes *"Hmm…"*, and the risky links get labels such as **⛔ Fake PayPal?**, **🚩 Pretends to be Netflix?** or
+  **🚩 Suspicious link**. Real links stay untouched.
+- **Click a label** to see why, then choose **It's fine** or **Yes, it's phishing**. Either answer is remembered for that
+  site and sent to Mubit as a training example.
+- **Click a phishing link** and Mo stops you with a full-screen warning: **Take me to the real PayPal**, **Stay here**
+  or **Open it anyway**.
+- **Open a phishing page directly**, e.g. the practice page at `http://paypal-com-login.localhost:8787/demo/guard/login.html?brand=PayPal`,
+  and the warning covers it: **Take me to the real PayPal**, **Get me out of here** or **I trust this site**.
+  `*.localhost` addresses always mean your own computer, so the practice pages are safe.
+- **Mo's ⋯ menu** (or right-click Mo) has **Mo Guard: on/off** and **Report this page as phishing**.
+
+How it decides:
+- **Instant rules, no AI:** look-alike spellings (`paypa1.com`), a brand's name on someone else's domain, link text
+  that shows a different address, odd addresses, free website builders, risky domain endings, domain age (from public
+  registration records) and OpenPhish's public list of reported phishing links.
+- **Claude, through Mubit, only for links the rules find risky:** the Mubit task **link-check** answers with fixed
+  labels only (`{"verdict": "phishing", "pretends_to_be": "paypal.com"}`), so Mubit can train an adapter on it.
+- Only link addresses, their text and the page's address are sent, never page content or anything you type.
+
+Seed it, or re-score Claude, with `npm run seed:guard`. It sends live phishing links from OpenPhish and real links
+(addresses only; no page is ever opened) and saves Claude's score for the Mubit tab. Last run: 90% right, 98 of 120
+phishing links caught, no real site called phishing and 3 of 120 marked suspicious. Phishing pages whose address
+gives nothing away can only be caught by the public list or the page itself, so Mo says "looks suspicious", never
+"you're safe". Keep Chrome's own Safe Browsing on.
+
 ### Reading the side panel
 
 Three tabs: **Agent**, **Mubit**, **Judges**. The ⤢ button is Present mode (bigger text for a projector).

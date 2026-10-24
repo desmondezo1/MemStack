@@ -9,9 +9,18 @@ export const TASKS = {
   safetyGate: 'safety-gate',
   locate: 'locate',
   refineLesson: 'refine-lesson',
+  linkCheck: 'link-check',
 };
 
 export const SYSTEM_PROMPTS = {
+  // Mo Guard. Fixed labels only, no free text: the adapter is graded on matching Claude.
+  [TASKS.linkCheck]: [
+    'You check links for phishing. You get a link, the text shown for it, the site it was found on, how old its domain is, and warning signals found by simple rules.',
+    'Reply with JSON only, no prose: {"verdict":"safe"|"suspicious"|"phishing","pretends_to_be":"<the real domain it imitates, or empty>"}',
+    'Say phishing when the link imitates a known brand or service (a look-alike spelling, the brand\'s name on any other domain including free website builders, or link text showing a different site) to collect logins, payments or personal details.',
+    'Say suspicious when a page on free hosting or a throwaway domain uses words like login, verify, account or wallet, or shows another sign of deception without a clear imitation. Link shorteners, email tracking links, personal or project pages, home router addresses and ordinary sites are safe unless something else is wrong. A well-known site\'s own domain is safe. Signals are hints, not proof.',
+  ].join('\n'),
+
   [TASKS.locate]: [
     'You find information on a web page for a user. You get the user\'s question or request and the page\'s text blocks, each with an id.',
     'If the page answers it, pick the block that holds the answer and write a one-sentence answer.',

@@ -172,6 +172,12 @@ export function mockAnswer(task, context) {
   if (task === TASKS.doneCheck) return doneCheck(context);
   if (task === TASKS.safetyGate) return safetyGate(context);
   if (task === TASKS.locate) return locate(context);
+  // Link check: what a reviewer said wins; otherwise the rule-based score decides.
+  if (task === TASKS.linkCheck) {
+    const s = context.signals;
+    const verdict = context.reviewed || (s.score >= 70 ? 'phishing' : s.score >= 35 ? 'suspicious' : 'safe');
+    return { verdict, pretends_to_be: verdict === 'safe' ? '' : (s.pretendsTo || '') };
+  }
   // The mock agrees with the rule-based detour finder.
   if (task === TASKS.refineLesson) return { drop: [...context.detours.drop].map(i => i + 1), why: Object.fromEntries(Object.entries(context.detours.why).map(([i, w]) => [Number(i) + 1, w])) };
   throw new Error(`mock: unknown task ${task}`);
