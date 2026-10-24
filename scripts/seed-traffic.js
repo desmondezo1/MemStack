@@ -156,15 +156,62 @@ function maybeDemo(sample) {
   return sample.lesson;
 }
 
-const doneTexts = [
-  goal => `Booking confirmed. Table for 2 guests, Tonight, Sitting C (20:00). See you soon, Ada.`,
-  goal => `Booking confirmed. Table for 4 guests, Tomorrow, Sitting A (17:30). See you soon, Kofi.`,
-  goal => `Please choose a sitting, a name.`,
-  goal => `Thanks! You're on the waitlist. We sent a confirmation to priya@example.com.`,
-  goal => `Search results for "running shoes size 10" — 48 results, sorted by Price: low to high.`,
-  goal => `Message sent. We'll reply about order #48213 within 24 hours.`,
-];
-const checkGoals = ['Book a table for two at eight', 'Book a table for four at half past five tomorrow', 'Sign me up for the beta waitlist as priya@example.com', 'Find running shoes size 10 sorted by price', 'Ask support where order #48213 is'];
+// Done-check practice: coherent goal + result pages, roughly half real successes and
+// half near-misses (one detail wrong) or no confirmation at all. Near-misses teach the
+// adapter to catch "booked, but at the wrong time", the mistake it made in testing.
+const SITTINGS = [['17:30', 'half past five'], ['18:45', 'quarter to seven'], ['19:30', 'half past seven'], ['20:00', 'eight'], ['21:15', 'quarter past nine']];
+const DAYS = ['Tonight', 'Tomorrow', 'Saturday'];
+const PEOPLE = ['Ada', 'Kofi', 'Priya', 'Sam', 'Lena', 'Tunde', 'Mia'];
+const ARTISTS = ['Burna Boy', 'Wizkid', 'Tems', 'Asake', 'Adele', 'Rema'];
+const ITEMS = ['running shoes size 10', 'a USB-C hub', 'noise cancelling headphones', 'a standing desk'];
+const other = (list, not) => pick(list.filter(x => x !== not));
+
+function doneCheckSample() {
+  const roll = Math.random(); // < .5 success, < .9 near-miss, else nothing confirmed
+  const kind = pick(['restaurant', 'restaurant', 'video', 'waitlist', 'search', 'support']);
+  if (kind === 'restaurant') {
+    const n = Math.floor(Math.random() * 5) + 2;
+    const [time, spoken] = pick(SITTINGS);
+    const day = pick(DAYS);
+    const name = pick(PEOPLE);
+    const goal = `Book a table for ${NUMBERS[n - 1]} at ${spoken}${day === 'Tonight' ? '' : ' ' + day.toLowerCase()}`;
+    const booked = (guests, t, d) => `Booking confirmed. Table for ${guests} guests, ${d}, Sitting ${'ABCDE'[SITTINGS.findIndex(x => x[0] === t)]} (${t}). See you soon, ${name}.`;
+    if (roll < 0.5) return { goal, text: booked(n, time, day) };
+    if (roll < 0.9) {
+      const miss = pick(['time', 'time', 'party', 'day']);
+      if (miss === 'time') return { goal, text: booked(n, other(SITTINGS.map(x => x[0]), time), day) };
+      if (miss === 'party') return { goal, text: booked(n === 2 ? 3 : n - 1, time, day) };
+      return { goal, text: booked(n, time, other(DAYS, day)) };
+    }
+    return { goal, text: pick(['Please choose a sitting, a name.', 'Sorry, that sitting is full. Please choose another time.', 'Book a table. Party size Day Sitting Name for the booking Reserve table']) };
+  }
+  if (kind === 'video') {
+    const artist = pick(ARTISTS);
+    const goal = pick([`Play a video by ${artist}`, `Open YouTube and play ${artist}`]);
+    if (roll < 0.5) return { goal, text: `Now playing: ${artist} — Official Music Video. Tubely · 1.2M views` };
+    if (roll < 0.9) return { goal, text: `Now playing: ${other(ARTISTS, artist)} — Official Music Video. Tubely · 1.2M views` };
+    return { goal, text: `Results for “${artist}”. ${artist} — Official Music Video. ${artist} live at Wembley. Paused` };
+  }
+  if (kind === 'waitlist') {
+    const who = pick(PEOPLE).toLowerCase();
+    const goal = `Sign me up for the beta waitlist as ${who}@example.com`;
+    if (roll < 0.5) return { goal, text: `Thanks! You're on the waitlist. We sent a confirmation to ${who}@example.com.` };
+    if (roll < 0.9) return { goal, text: `Thanks! You're on the waitlist. We sent a confirmation to ${other(PEOPLE.map(p => p.toLowerCase()), who)}@example.com.` };
+    return { goal, text: 'Please enter a valid email address.' };
+  }
+  if (kind === 'search') {
+    const item = pick(ITEMS);
+    const goal = `Find ${item} sorted by price`;
+    if (roll < 0.5) return { goal, text: `Search results for "${item}" — 48 results, sorted by Price: low to high.` };
+    if (roll < 0.9) return { goal, text: `Search results for "${item}" — 48 results, sorted by Relevance.` };
+    return { goal, text: `No results for "${item}". Try a different search.` };
+  }
+  const order = `#${Math.floor(10000 + Math.random() * 90000)}`;
+  const goal = `Ask support where order ${order} is`;
+  if (roll < 0.5) return { goal, text: `Message sent. We'll reply about order ${order} within 24 hours.` };
+  if (roll < 0.9) return { goal, text: `Message sent. We'll reply about order #${Math.floor(10000 + Math.random() * 90000)} within 24 hours.` };
+  return { goal, text: 'Please fill in the message field.' };
+}
 
 async function runPool(jobs) {
   let ok = 0, failed = 0, next = 0;
@@ -190,6 +237,8 @@ const config = getConfig();
 if (dryRun) {
   const s = pick(generators)();
   console.log(buildNextActionMessage({ goal: s.goal, page: s.page, history: s.history, demo: maybeDemo(s) }));
+  console.log('\nDone-check samples:');
+  for (let i = 0; i < 6; i++) { const d = doneCheckSample(); console.log(`- ${d.goal}  →  ${d.text}`); }
   process.exit(0);
 }
 if (config.provider === 'mock') {
@@ -207,8 +256,8 @@ for (let i = 0; i < COUNT; i++) {
 }
 for (let i = 0; i < CHECKS; i++) {
   jobs.push(async () => {
-    const goal = pick(checkGoals);
-    const page = { url: 'https://example.app/result', text: pick(doneTexts)(goal) };
+    const { goal, text } = doneCheckSample();
+    const page = { url: 'https://example.app/result', text };
     await callTask({ task: TASKS.doneCheck, userMessage: buildDoneCheckMessage({ goal, page }), sessionId: `seed-dc-${Date.now()}-${i}`, kind: 'live' });
   });
 }

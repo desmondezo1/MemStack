@@ -20,8 +20,8 @@ const { parseJson } = await import('../server/llm.js');
 test('system prompts are unchanged (Mubit task fingerprints)', () => {
   const hashes = Object.fromEntries(Object.entries(SYSTEM_PROMPTS).map(([k, v]) => [k, crypto.createHash('sha256').update(v).digest('hex').slice(0, 16)]));
   assert.deepEqual(hashes, {
-    'next-action': '2cb30b8a806c41bf',
-    'done-check': '0d1ab2abb424237b',
+    'next-action': '6fa8022309b83e73',
+    'done-check': '447bb397c645565a',
     'safety-gate': 'd66fb5cd082cdb56',
     'locate': '7ddb0f5bb58d1e0a',
     'refine-lesson': '49827a408028c5f6',
@@ -223,4 +223,13 @@ test('ledger prices calls by model', async () => {
   assert.equal(costOf(1_000_000, 0, 'claude-haiku-5-5').costUsd.toFixed(2), '0.10');
   assert.equal(costOf(0, 1_000_000, 'claude-haiku-5-5').costUsd.toFixed(2), '0.50');
   assert.equal(costOf(1_000_000, 1_000_000, 'claude-haiku-4-5').costUsd.toFixed(2), '6.00');
+});
+
+test('answers carry no free-text reason; done-check problems read as plain sentences', async () => {
+  assert.doesNotMatch(SYSTEM_PROMPTS['next-action'], /"reason"/);
+  assert.doesNotMatch(SYSTEM_PROMPTS['done-check'], /"reason"/);
+  const { problemText } = await import('../server/index.js');
+  assert.match(problemText('wrong_time'), /different time/);
+  assert.match(problemText('no_confirmation'), /no confirmation/);
+  assert.match(problemText('something-new'), /does not show the goal as done/);
 });
