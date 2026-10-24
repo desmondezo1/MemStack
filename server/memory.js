@@ -31,17 +31,25 @@ function saveDemos(demos) {
   fs.writeFileSync(demosFile(), JSON.stringify(demos, null, 2));
 }
 
-export function addDemo({ goal, url, steps, mistake, answers = [] }) {
+const clip = (s, n) => String(s ?? '').trim().slice(0, n);
+
+export function addDemo({ goal, url, steps, mistake, answers = [], skill, sheet }) {
   // Steps are stored by element label, not id: ids change between page loads.
   // Each step keeps the page it happened on, so a lesson spanning several pages
   // is recalled on every one of them.
   const stored = steps.map(s => ({
     action: s.action, label: s.label, role: s.role, value: s.value ?? '', submit: s.submit === true,
     page: pageKey(s.page?.url || url),
+    ...(s.note ? { note: clip(s.note, 300) } : {}),
   }));
   const demo = {
     id: crypto.randomUUID().slice(0, 8),
     goal,
+    // The skill this lesson teaches: what you ask Mo to do again. A correction adds a lesson
+    // to the same skill; the newest lesson is the one Mo follows.
+    skill: clip(skill || goal, 80),
+    startUrl: url,
+    ...(sheet ? { sheet } : {}),
     page: pageKey(url),
     pages: [...new Set([pageKey(url), ...stored.map(s => s.page), ...answers.map(a => pageKey(a.page?.url || url))])],
     steps: stored,
@@ -76,7 +84,12 @@ const tokens = s => new Set(String(s).toLowerCase().split(/[^a-z0-9]+/).filter(w
 // shares at least one goal word (an unrelated lesson would mislead the model and
 // become a bad training example). Newer lessons win ties, so re-teaching replaces
 // an old one.
-export function recallDemo({ url, goal }) {
+export function recallDemo({ url, goal, skill }) {
+  // A skill you picked by name: its newest lesson, on any page of the run.
+  if (skill) {
+    const lessons = listDemos().filter(d => (d.skill || d.goal) === skill);
+    if (lessons.length) return lessons[lessons.length - 1];
+  }
   const key = pageKey(url);
   const goalTokens = tokens(goal);
   let best = null;
@@ -88,4 +101,35 @@ export function recallDemo({ url, goal }) {
     if (score > 0 && score >= bestScore) { best = demo; bestScore = score; }
   }
   return best;
+}
+
+// Skills: lessons grouped by the skill they teach, newest lesson last.
+export function listSkills() {
+  const bySkill = new Map();
+  for (const d of listDemos()) {
+    const name = d.skill || d.goal;
+    if (!bySkill.has(name)) bySkill.set(name, []);
+    bySkill.get(name).push(d);
+  }
+  return [...bySkill].map(([name, lessons]) => {
+    const latest = lessons[lessons.length - 1];
+    return {
+      name,
+      goal: latest.goal,
+      startUrl: latest.startUrl || latest.page,
+      sheet: [...lessons].reverse().find(l => l.sheet)?.sheet || null,
+      lessons: lessons.map(l => ({ id: l.id, goal: l.goal, createdAt: l.createdAt, steps: l.steps.length, mistake: l.mistake, notes: l.steps.filter(s => s.note).length })),
+      updatedAt: latest.createdAt,
+    };
+  }).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+}
+
+export function deleteSkill(name) {
+  saveDemos(listDemos().filter(d => (d.skill || d.goal) !== name));
+}
+
+export function renameSkill(name, to) {
+  const next = clip(to, 80);
+  if (!next) return;
+  saveDemos(listDemos().map(d => ((d.skill || d.goal) === name ? { ...d, skill: next } : d)));
 }

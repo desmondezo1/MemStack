@@ -163,7 +163,9 @@ async function answerHere({ goal, tabId, api, signal, r, call }) {
 // One run of the agent on a tab. `ui` callbacks let the caller show progress
 // (the panel draws a timeline; the background lets Mo narrate):
 //   step(next) → handle, failedStep(handle), navigated(handle, url), check(check), error(message), usage(usage, ms)
-export async function runAgent({ goal, tabId, api, signal, isStopped = () => false, ui = {} }) {
+// skill: run that taught skill (its newest lesson guides every step). approved: labels of
+// risky buttons the user already approved for this run (one approval for a whole batch).
+export async function runAgent({ goal, tabId, api, signal, isStopped = () => false, ui = {}, skill = null, approved = null, row = null }) {
   const r = {
     goal, tabId, sessionId: `run-${Date.now()}`, history: [], runSteps: [],
     failure: null, infra: false, finished: false, asked: false, usedLesson: false, decisions: 0, invalid: 0,
@@ -185,7 +187,7 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
       }
       const page = await snapshot(tabId);
       mo(tabId, 'thinking');
-      const next = privacyFloor(await api('/api/next-action', { method: 'POST', body: { goal, page, history: r.history, sessionId: r.sessionId }, signal }), page);
+      const next = privacyFloor(await api('/api/next-action', { method: 'POST', body: { goal, page, history: r.history, sessionId: r.sessionId, skill }, signal }), page);
       call('usage', next.usage, next.ms);
       r.decisions++;
       if (!next.valid) r.invalid++;
@@ -200,7 +202,7 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
       const limit = next.action === 'scroll' || next.action === 'wait' ? 4 : 2;
       if (r.history.filter(same).length >= limit) { r.failure = `I kept repeating “${describeAction(next)}”.`; break; }
 
-      if ((next.role === 'button' || next.role === 'link') && RISKY.test(next.label || '')) {
+      if ((next.role === 'button' || next.role === 'link') && RISKY.test(next.label || '') && !approved?.has(next.label)) {
         const gate = await api('/api/safety-gate', { method: 'POST', body: { goal, action: next, element: { label: next.label, role: next.role }, evidence: page.text, sessionId: r.sessionId }, signal });
         call('usage', gate.usage, gate.ms);
         if (!gate.allow) { r.failure = `Safety gate blocked “${next.label}”: ${gate.reason}`; break; }
@@ -250,6 +252,7 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
   api('/api/runs', { method: 'POST', body: {
     goal, outcome: r.outcome, usedLesson: r.usedLesson, steps: r.history.length, decisions: r.decisions, invalid: r.invalid,
     tools: [...new Set(r.history.map(h => h.action).concat(r.finished ? ['done'] : [], r.answer ? ['highlight'] : []))], url: r.finalUrl,
+    skill, row,
   } }).catch(() => {});
   return r;
 }

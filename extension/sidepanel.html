@@ -74,7 +74,9 @@
       </div>
       <div id="teach-recording" hidden>
         <p class="teach-title"><span class="rec-dot" aria-hidden="true"></span>Watching your steps</p>
-        <p class="teach-help">Do the task in the page, then press Done. New tabs are followed. To show an answer, select its text.</p>
+        <p class="teach-help">Do the task in the page, then press Done. New tabs are followed. To show an answer, select its text. Press ✎ on a step to add a note Mo should know.</p>
+        <label class="field-label" for="skill-name">Skill name</label>
+        <input id="skill-name" class="skill-name" type="text" placeholder="What is this task called?">
         <ol id="recorded" class="recorded"></ol>
         <div class="actions">
           <button id="done-teaching" class="btn primary" disabled>Done</button>
@@ -96,10 +98,59 @@
       </div>
     </div>
 
-    <footer class="memory">
-      <span id="memory-count">Loading lessons…</span>
-      <button id="forget" class="text-btn">Forget lessons</button>
-    </footer>
+    <div id="sheet" class="sheet" hidden>
+      <div id="sheet-source">
+        <p class="teach-title">From a sheet</p>
+        <p class="teach-help">Do one row yourself and Mo does the rest.</p>
+        <label class="field-label" for="sheet-skill">What's this task called?</label>
+        <input id="sheet-skill" type="text" placeholder="Add a new starter">
+        <label class="field-label" for="sheet-tab">Where are the rows?</label>
+        <div class="inline"><select id="sheet-tab"></select><button id="sheet-read" class="btn quiet">Read</button></div>
+        <details class="disclosure"><summary>Or paste rows (CSV)</summary>
+          <textarea id="sheet-csv" rows="4" placeholder="Full name,Email&#10;Kofi Mensah,kofi@acme.example"></textarea>
+          <button id="sheet-paste" class="btn quiet">Use these rows</button>
+        </details>
+        <p id="sheet-info" class="note" aria-live="polite"></p>
+        <div id="sheet-next" hidden>
+          <p class="teach-help">Now open your form in a tab and do <b>row 1</b> there, then press Done. Press ✎ on any step Mo can't work out from the sheet, like a date that isn't in it.</p>
+          <button id="sheet-teach" class="btn primary">Start: I'll do row 1</button>
+        </div>
+        <button id="sheet-cancel" class="text-btn">Close</button>
+      </div>
+      <div id="sheet-review" hidden>
+        <p class="teach-title">How each field gets filled</p>
+        <p class="teach-help">Worked out from the row you did. Change any that are wrong.</p>
+        <p id="sheet-learned" class="mubit-where" hidden></p>
+        <ol id="sheet-rules" class="sheet-rules"></ol>
+        <p id="sheet-rows" class="note"></p>
+        <label class="toggle"><input type="checkbox" id="sheet-approve" checked><span id="sheet-approve-text">Press Submit for every row</span></label>
+        <div class="actions"><button id="sheet-run" class="btn primary">Run</button><button id="sheet-close" class="btn quiet">Close</button></div>
+      </div>
+      <div id="sheet-batch" hidden>
+        <p class="teach-title" id="batch-title">Running…</p>
+        <div class="progress" aria-hidden="true"><div id="batch-bar"></div></div>
+        <ol id="batch-rows" class="batch-rows"></ol>
+        <div id="batch-ask" class="batch-ask" hidden>
+          <label id="batch-ask-label" for="batch-ask-input"></label>
+          <div class="inline"><input id="batch-ask-input" type="text"><button id="batch-ask-go" class="btn quiet">Continue</button></div>
+        </div>
+        <div class="actions">
+          <button id="batch-pause" class="btn quiet">Pause</button>
+          <button id="batch-stop" class="btn quiet">Stop</button>
+          <button id="batch-retry" class="btn primary" hidden>Retry failed rows</button>
+          <button id="batch-close" class="btn quiet" hidden>Close</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="skills" id="skills">
+      <div class="skills-head"><h3>My skills</h3><button id="from-sheet" class="text-btn">+ From a sheet</button></div>
+      <ol id="skill-list" class="skill-list"><li class="empty">Nothing taught yet. When Mo gets something wrong, show it once.</li></ol>
+      <footer class="memory">
+        <span id="memory-count">Loading lessons…</span>
+        <button id="forget" class="text-btn">Forget lessons</button>
+      </footer>
+    </section>
   </section>
 
   <section id="view-mubit" class="view" hidden>

@@ -10,7 +10,7 @@ import { TASKS, buildNextActionMessage, buildDoneCheckMessage, buildSafetyMessag
 import { findDetours, forTraining } from './refine.js';
 import { callTask, getConfig, LlmError } from './llm.js';
 import { formatStep } from './prompts.js';
-import { addDemo, clearDemos, listDemos, recallDemo, updateDemo } from './memory.js';
+import { addDemo, clearDemos, deleteSkill, listDemos, listSkills, recallDemo, renameSkill, updateDemo } from './memory.js';
 import { verifyDone, verifySafe, verifierEnabled } from './verifier.js';
 import { signals as linkSignals, localVerdict, domainAgeDays, loadFeed, feedSize, memory as guardMemory, linkMessage, explain, brandFor, evalResults, MODEL_THRESHOLD } from './guard.js';
 import { clearCalls, ledgerStats, recentCalls, addRun, readRuns, getSettings, saveSettings, onEvent, emit } from './ledger.js';
@@ -18,6 +18,22 @@ import { clearCalls, ledgerStats, recentCalls, addRun, readRuns, getSettings, sa
 loadEnv();
 
 const PORT = Number(process.env.PORT || 8787);
+
+// A sheet skill keeps its columns and the rule for each form field, never the rows themselves.
+function cleanSheet(sheet) {
+  if (!sheet || !Array.isArray(sheet.rules)) return undefined;
+  const str = (v, n) => String(v ?? '').slice(0, n);
+  return {
+    columns: Array.isArray(sheet.columns) ? sheet.columns.slice(0, 40).map(c => str(c, 80)) : [],
+    startUrl: str(sheet.startUrl, 500),
+    submit: str(sheet.submit, 120),
+    rules: sheet.rules.slice(0, 40).map(r => ({
+      label: str(r.label, 120), role: str(r.role, 20), action: str(r.action, 10), type: str(r.type, 12),
+      column: str(r.column, 80), value: str(r.value, 200), note: str(r.note, 300), kind: str(r.kind, 30),
+      days: Number(r.days) || 0, format: str(r.format, 12), options: Array.isArray(r.options) ? r.options.slice(0, 60).map(o => str(o, 80)) : [],
+    })),
+  };
+}
 const DEMO_SITE = path.resolve(import.meta.dirname, 'demo-site');
 
 const routes = {
@@ -26,19 +42,19 @@ const routes = {
     return { ok: true, provider, model, viaMubit: provider !== 'mock', baseUrl: provider === 'mock' ? null : baseUrl };
   },
 
-  'POST /api/next-action': async ({ goal, page, history, sessionId }) => {
+  'POST /api/next-action': async ({ goal, page, history, sessionId, skill }) => {
     requireFields({ goal, page, sessionId });
     if (!Array.isArray(page.elements)) throw httpError(400, 'page.elements must be an array');
     if (history !== undefined && !Array.isArray(history)) throw httpError(400, 'history must be an array');
     history = history || [];
-    const demo = recallDemo({ url: page.url, goal });
+    const demo = recallDemo({ url: page.url, goal, skill });
     const userMessage = buildNextActionMessage({ goal, page, history, demo });
     const { json, ms, requestId, usage } = await callTask({
       task: TASKS.nextAction, userMessage, sessionId, mockContext: { goal, page, history, demo },
       summarize: j => describeChoice(j, page),
     });
     const action = normaliseAction(json, page);
-    return { ...action, ms, requestId, usage, demoUsed: demo ? { id: demo.id, goal: demo.goal } : null };
+    return { ...action, ms, requestId, usage, demoUsed: demo ? { id: demo.id, goal: demo.goal, skill: demo.skill || demo.goal } : null };
   },
 
   // Claude's check (through Mubit) and Sapling's independent check run side by side;
@@ -119,7 +135,17 @@ const routes = {
   // A finished "show me": store it in memory, then re-send every step through Mubit
   // as a next-action call with the demonstration recalled, so each step becomes a
   // recorded example of the next-action task.
-  'POST /api/demonstrations': async ({ goal, url, steps, mistake }) => {
+  'GET /api/skills': async () => {
+    const runs = readRuns();
+    return { skills: listSkills().map(s => {
+      const mine = runs.filter(r => r.skill === s.name);
+      return { ...s, runs: mine.length, lastRun: mine[mine.length - 1]?.ts || null, lastOutcome: mine[mine.length - 1]?.outcome || null };
+    }) };
+  },
+  'POST /api/skills/delete': async ({ name }) => { requireFields({ name }); deleteSkill(String(name)); return { ok: true }; },
+  'POST /api/skills/rename': async ({ name, to }) => { requireFields({ name, to }); renameSkill(String(name), String(to)); return { ok: true }; },
+
+  'POST /api/demonstrations': async ({ goal, url, steps, mistake, skill, sheet }) => {
     requireFields({ goal, url, steps });
     if (!Array.isArray(steps) || !steps.length) throw httpError(400, 'steps must be a non-empty array');
     if (steps.some(s => !s || !s.page || !Array.isArray(s.page.elements) || !s.action)) {
@@ -128,7 +154,7 @@ const routes = {
     // Pointing at the answer trains "locate"; tab steps become plain page opens.
     const answers = steps.filter(s => s.action === 'highlight');
     steps = forTraining(steps.filter(s => s.action !== 'highlight'));
-    const demo = addDemo({ goal, url, steps, mistake, answers });
+    const demo = addDemo({ goal, url, steps, mistake, answers, skill, sheet: cleanSheet(sheet) });
     const sessionId = `demo-${demo.id}`;
     const locateResults = await mapLimit(answers, 2, async a => {
       try {
@@ -173,7 +199,7 @@ const routes = {
   'GET /api/calls': async () => ({ calls: recentCalls(60) }),
 
   // The panel reports how each run ended, for "failures → improvements".
-  'POST /api/runs': async ({ goal, outcome, usedLesson, steps, tools, url, mistake, decisions, invalid }) => {
+  'POST /api/runs': async ({ goal, outcome, usedLesson, steps, tools, url, mistake, decisions, invalid, skill, row }) => {
     requireFields({ goal, outcome });
     if (!['done', 'failed', 'asked', 'error', 'stopped'].includes(outcome)) throw httpError(400, 'unknown outcome');
     return addRun({
@@ -181,6 +207,7 @@ const routes = {
       tools: Array.isArray(tools) ? tools.slice(0, 20).map(String) : [], url: url ? String(url).slice(0, 300) : null,
       mistake: mistake ? String(mistake).slice(0, 300) : null,
       decisions: Number(decisions) || 0, invalid: Number(invalid) || 0,
+      ...(skill ? { skill: String(skill).slice(0, 80) } : {}), ...(row ? { row: Number(row) || null } : {}),
     });
   },
 

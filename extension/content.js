@@ -447,12 +447,33 @@
     }
   }
 
+  // The data on this page as rows, for "sheet to form". A Google Sheet draws its grid on a
+  // canvas, so ask Google for the sheet as CSV from this page: same site, so your own login is
+  // used and nothing else is needed. Anything else: the biggest table on the page.
+  async function readTable() {
+    const gs = location.hostname === 'docs.google.com' && location.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
+    if (gs) {
+      const gid = (location.hash.match(/gid=(\d+)/) || location.search.match(/gid=(\d+)/) || [])[1] || '0';
+      for (const path of [`/spreadsheets/d/${gs[1]}/gviz/tq?tqx=out:csv&gid=${gid}`, `/spreadsheets/d/${gs[1]}/export?format=csv&gid=${gid}`]) {
+        const res = await fetch(path, { credentials: 'include' }).catch(() => null);
+        if (res?.ok) return { source: 'google-sheet', csv: await res.text() };
+      }
+      throw new Error('Could not read this Google Sheet. Check you can open it, or paste it as CSV.');
+    }
+    const tables = [...document.querySelectorAll('table')].filter(isVisible);
+    const best = tables.sort((a, b) => b.rows.length - a.rows.length)[0];
+    if (!best || best.rows.length < 2) throw new Error('No table on this page. Open your sheet, or paste it as CSV.');
+    const grid = [...best.rows].map(tr => [...tr.cells].map(td => clean(td.innerText, 500)));
+    return { source: 'table', grid };
+  }
+
   function onMessage(msg, _sender, reply) {
     try {
       if (msg.type === 'showme:ping') reply({ ok: true });
       else if (msg.type === 'showme:snapshot') reply({ ok: true, page: snapshot() });
       else if (msg.type === 'showme:act') reply(act(msg.action));
       else if (msg.type === 'showme:record') { setRecording(!!msg.on); reply({ ok: true }); }
+      else if (msg.type === 'showme:table') { readTable().then(t => reply({ ok: true, ...t }), err => reply({ ok: false, error: err.message })); return true; }
       else return false;
     } catch (err) {
       reply({ ok: false, error: err.message });

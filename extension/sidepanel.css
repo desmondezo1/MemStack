@@ -295,3 +295,45 @@ input:focus-visible { border-color: var(--ember); }
 .copy { border: 1px solid var(--rule); background: var(--paper); color: var(--iris); border-radius: 6px; padding: 0 6px; font: 600 var(--fs-xs) ui-monospace, monospace; cursor: copy; }
 .mubit-name { font-weight: 400; font-size: var(--fs-xs); color: var(--iris); }
 .section-link { float: right; font-size: var(--fs-xs); font-weight: 500; }
+
+/* Notes on recorded steps */
+.recorded li { grid-template-columns: 20px 1fr auto auto; }
+.recorded .note-btn { border: 0; background: none; color: var(--slate); font-size: 13px; line-height: 1; padding: 0 2px; cursor: pointer; }
+.recorded .note-btn:hover, .recorded .note-btn.has { color: var(--ember); }
+.recorded .step-note { grid-column: 2 / -1; margin: 2px 0 0; color: var(--ember); font-size: var(--fs-xs); }
+.recorded .note-input { grid-column: 2 / -1; margin: 4px 0 0; font-size: var(--fs-xs); }
+.skill-name { font-weight: 600; }
+
+/* My skills */
+.skills { margin-top: 22px; }
+.skills-head { display: flex; justify-content: space-between; align-items: baseline; }
+.skills-head h3 { margin: 0; font-size: var(--fs-s); color: var(--slate); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.skill-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.skill-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+.skill-list li.empty { display: block; color: var(--slate); font-size: var(--fs-s); }
+.skill-list .skill-name-text { font-weight: 600; font-size: var(--fs-s); overflow-wrap: anywhere; }
+.skill-list .skill-meta { display: block; color: var(--slate); font-size: var(--fs-xs); font-weight: 400; }
+.skill-list .skill-run { padding: 4px 12px; }
+.skill-list .skill-del { border: 0; background: none; color: var(--slate); font-size: 16px; cursor: pointer; }
+.skill-list .skill-del:hover { color: var(--brick); }
+.skills .memory { margin-top: 10px; }
+
+/* Sheet to form */
+.sheet { margin-top: 14px; padding: 14px; border: 1px solid var(--rule); border-radius: var(--r-m, 12px); background: var(--ember-tint); }
+.sheet select, .sheet textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--rule); border-radius: var(--r-s); background: var(--paper); }
+.sheet textarea { margin: 6px 0; font-family: ui-monospace, monospace; font-size: var(--fs-xs); }
+.sheet .inline { display: flex; gap: 8px; align-items: center; }
+.sheet .inline select, .sheet .inline input { flex: 1; margin: 0; }
+.sheet-rules { list-style: none; padding: 0; margin: 8px 0; }
+.sheet-rules li { display: grid; gap: 4px; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, var(--ember) 18%, var(--rule)); font-size: var(--fs-s); }
+.sheet-rules .field { font-weight: 600; }
+.sheet-rules .why { color: var(--slate); font-size: var(--fs-xs); }
+.progress { height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; margin: 8px 0; }
+.progress div { height: 100%; width: 0; background: var(--ember); transition: width 300ms var(--ease); }
+.batch-rows { list-style: none; padding: 0; margin: 6px 0; max-height: 260px; overflow: auto; font-size: var(--fs-s); }
+.batch-rows li { display: grid; grid-template-columns: 22px 1fr; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.batch-rows .mark { font-weight: 700; color: var(--slate); }
+.batch-rows li.ok .mark { color: var(--moss); }
+.batch-rows li.bad .mark { color: var(--brick); }
+.batch-rows .why { display: block; color: var(--slate); font-size: var(--fs-xs); }
+.batch-ask { margin: 8px 0; }

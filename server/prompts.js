@@ -128,7 +128,11 @@ export function formatDemonstration(demo, history = []) {
   // The human's choices are how this user wants it done, also for a similar goal on another sender,
   // item or page of the same kind (taught on one newsletter, used on the next).
   const lines = [`Demonstration recorded by a human on this page for the goal "${demo.goal}". It shows how this user wants this done: make the same choices for a similar goal, adapting names and values.`];
-  demo.steps.forEach((s, i) => lines.push(`${i + 1}. ${formatStep(s)}`));
+  demo.steps.forEach((s, i) => {
+    lines.push(`${i + 1}. ${formatStep(s)}`);
+    // What the human added in words: where a value comes from, or how to choose it.
+    if (s.note) lines.push(`   Note from the human: ${String(s.note).replace(/\s+/g, ' ').slice(0, 300)}`);
+  });
   // "Steps already taken" shows only the last 8, so on a long lesson the model can't see it has
   // already been through it all, and starts again. Say so once the lesson's last step is done.
   const last = demo.steps[demo.steps.length - 1];

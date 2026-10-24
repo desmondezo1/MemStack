@@ -329,3 +329,84 @@ test('teaching keeps recording when a link opens a new tab, until you press Done
   assert.equal(await panel.isVisible('#done-teaching'), true);
   await tab2.close(); await panel.close(); await site.close();
 });
+
+// Sheet to form: read the sheet, do row 1 on the form with two notes, check the rules, and
+// Mo adds the other nine starters. A blank Dept follows Ada's note; "Eng" becomes Engineering.
+test('sheet to form: do row 1, Mo does the other rows', { timeout: live ? 1_200_000 : 240_000 }, async () => {
+  await fetch(`${base}/api/demonstrations`, { method: 'DELETE' });
+  const sheet = await context.newPage();
+  await sheet.goto(`${base}/demo/sheet/`);
+  const form = await context.newPage();
+  await form.goto(`${base}/demo/hr/`);
+  await form.evaluate(() => localStorage.removeItem('peopledesk-starters'));
+  await form.reload();
+  const formTab = await tabIdFor(`${base}/demo/hr/`);
+  const sheetTab = await tabIdFor(`${base}/demo/sheet/`);
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${formTab}`);
+  await panel.waitForSelector('#mode.mock, #mode.live', { timeout: 10_000 });
+  await worker.evaluate(() => chrome.storage.local.remove('sheetDone:Add a new starter'));
+
+  await panel.click('#from-sheet');
+  await panel.fill('#sheet-skill', 'Add a new starter');
+  await panel.selectOption('#sheet-tab', String(sheetTab));
+  await panel.click('#sheet-read');
+  await panel.waitForFunction(() => /10 rows/.test(document.querySelector('#sheet-info').textContent));
+  assert.match(await panel.textContent('#sheet-info'), /Full name, Email, Dept, Manager/);
+
+  // Row 1, by hand, with two notes Mo can't get from the sheet.
+  await panel.click('#sheet-teach');
+  await form.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  const d = new Date(); d.setDate(d.getDate() + 3); while ([0, 6].includes(d.getDay())) d.setDate(d.getDate() + 1);
+  const start = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  await form.fill('#name', 'Kofi Mensah');
+  await form.fill('#email', 'kofi.mensah@acme.example');
+  await form.selectOption('#team', 'Engineering');
+  await form.fill('#manager', 'Priya Shah');
+  await form.fill('#start', start);
+  await form.selectOption('#laptop', 'MacBook Air');
+  await form.click('button[type=submit]');
+  await form.waitForSelector('#done', { state: 'visible' });
+  await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 7);
+  const addNote = async (text, note) => {
+    await panel.locator('#recorded li', { hasText: text }).locator('.note-btn').click();
+    await panel.keyboard.type(note);
+    await panel.keyboard.press('Enter');
+  };
+  await addNote('Start date', 'Pick a random weekday in the next two weeks. It is not in the sheet.');
+  await addNote('Team', 'If Dept is blank, use Operations');
+  console.log('sheet recorded:', await panel.$$eval('#recorded li', lis => lis.map(li => li.textContent.replace(/[✎×]/g, '').trim())));
+  await panel.click('#done-teaching');
+  await panel.waitForFunction(() => !document.querySelector('#teach-review').hidden || !document.querySelector('#sheet-review').hidden, null, { timeout: 120_000 });
+  if (await panel.isVisible('#teach-review')) {
+    for (const box of await panel.$$('#review input:not(:checked)')) await box.check();
+    await panel.click('#save-lesson');
+  }
+  await panel.waitForSelector('#sheet-review:not([hidden])', { timeout: 300_000 });
+  const rules = await panel.$$eval('#sheet-rules li', lis => lis.map(li => `${li.querySelector('.field').textContent}: ${li.querySelector('select').selectedOptions[0].textContent}`));
+  console.log('sheet rules:', rules);
+  for (const want of [/^Full name: from column “Full name”/, /^Work email: from column “Email”/, /^Team: from column “Dept”/, /^Manager: from column “Manager”/,
+    /^Start date.*: a random weekday in the next 14 days/, /^Laptop: always “MacBook Air”/]) assert.ok(rules.some(r => want.test(r)), String(want));
+  assert.equal(rules.length, 6);
+  assert.match(await panel.textContent('#sheet-rows'), /9 of 10 rows to do/);
+
+  // The other nine rows.
+  await panel.click('#sheet-run');
+  await panel.waitForFunction(() => /^Done:|^Stopped/.test(document.querySelector('#batch-title').textContent), null, { timeout: live ? 1_100_000 : 200_000 });
+  console.log('sheet batch:', await panel.textContent('#batch-title'), '|', (await panel.textContent('#batch-rows')).replace(/\s+/g, ' '));
+  const added = await form.evaluate(() => JSON.parse(localStorage.getItem('peopledesk-starters') || '[]'));
+  console.log('sheet added:', added.map(s => `${s.name}/${s.team}/${s.start}/${s.laptop}`));
+  assert.equal(added.length, 10);
+  assert.equal(added.find(s => s.name === 'Tunde Bello').team, 'Engineering');
+  assert.equal(added.find(s => s.name === 'Sam Okafor').team, 'Operations');
+  assert.ok(added.every(s => s.laptop === 'MacBook Air'));
+  for (const s of added.slice(1)) {
+    const [dd, mm, yy] = s.start.split('/').map(Number);
+    const day = new Date(yy, mm - 1, dd);
+    assert.ok(![0, 6].includes(day.getDay()) && day - new Date() <= 15 * 86400000, `${s.name} starts on a weekday in the next 2 weeks (${s.start})`);
+  }
+  // It's now one of Ada's skills.
+  await panel.waitForFunction(() => /Add a new starter/.test(document.querySelector('#skill-list').textContent));
+  assert.match(await panel.textContent('#skill-list'), /from a sheet \(6 fields\)/);
+  await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-sheet.png'), fullPage: true });
+});

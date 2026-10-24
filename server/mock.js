@@ -5,6 +5,15 @@
 
 import { TASKS } from './prompts.js';
 
+// "Fill in: Label = value; …" from a sheet row's goal.
+function fillIns(goal) {
+  const m = String(goal).match(/Fill in: (.*)$/s);
+  if (!m) return null;
+  return Object.fromEntries(m[1].split('; ').map(p => p.split(' = ')).filter(p => p.length === 2).map(([k, v]) => [k.trim().toLowerCase(), v.trim()]));
+}
+// A blank cell comes with the human's note; a naive reading of "use X".
+const fromNote = v => (v.startsWith('(') ? (v.match(/\buse ([A-Z][\w&]*(?: [A-Z][\w&]*)*)/)?.[1] ?? null) : v);
+
 const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
 
 export function partySize(goal) {
@@ -81,8 +90,11 @@ function nextAction({ goal, page, history = [], demo }) {
       const el = swapped || els.find(e => sameLabel(e.label, step.label));
       if (!el) continue;
       let value = step.value;
+      const row = fillIns(goal);
+      const given = row?.[String(step.label).toLowerCase()];
+      if (given != null && (step.action === 'type' || step.action === 'select')) value = fromNote(given) ?? step.value;
       if (step.action === 'select' && /party|guest|people|size/i.test(step.label) && size) value = String(size);
-      if (step.action === 'type' && /name/i.test(step.label)) value = guestName(goal) || step.value;
+      if (step.action === 'type' && /name/i.test(step.label) && given == null) value = guestName(goal) || step.value;
       return { ...act(el, step.action, value, 'Following the human demonstration'), submit: !!step.submit };
     }
     return { action: 'done', element_id: '', value: '', reason: 'Demonstration completed' };
@@ -155,6 +167,12 @@ export function videoQuery(goal) {
 
 function doneCheck({ goal, page }) {
   const text = page.text || '';
+  const row = fillIns(goal);
+  if (row) {
+    if (!/added ✓|saved|submitted|created/i.test(text)) return { done: false, problem: 'no_confirmation', reason: 'No confirmation on the page' };
+    const missing = Object.values(row).map(fromNote).filter(v => v && !text.toLowerCase().includes(v.toLowerCase()));
+    return missing.length ? { done: false, problem: 'wrong_item', reason: `The confirmation doesn't show ${missing[0]}` } : { done: true, problem: 'none', reason: 'Every value from the row is on the confirmation' };
+  }
   if (/\bunsubscribe\b/i.test(goal)) {
     if (/paused/i.test(text)) return { done: false, problem: 'no_confirmation', reason: 'Emails are only paused' };
     if (/no more marketing|won't get any more emails/i.test(text)) return { done: true, problem: 'none', reason: 'Unsubscribed from marketing' };
