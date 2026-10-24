@@ -26,10 +26,10 @@ test('lets read-only steps and cookie banners through', () => {
   assert.equal(unsafeStep({ action: 'scroll', value: 'down' }), null);
 });
 
-test('about 50 goals, no more than 8 per site, none phrased as a question', () => {
-  assert.ok(GOALS.length >= 50);
+test('about 90 goals, no more than 16 per site, none phrased as a question', () => {
+  assert.ok(GOALS.length >= 85);
   assert.equal(new Set(GOALS.map(g => g.id)).size, GOALS.length);
   const perSite = GOALS.reduce((m, g) => ({ ...m, [new URL(g.url).host]: (m[new URL(g.url).host] || 0) + 1 }), {});
-  for (const [site, n] of Object.entries(perSite)) assert.ok(n <= 8, site);
+  for (const [site, n] of Object.entries(perSite)) assert.ok(n <= 16, site);
   for (const g of GOALS) assert.doesNotMatch(g.goal, /\?$|^(what|when|where|who|which|how|is|are|does|do|can)\b/i, g.id);
 });

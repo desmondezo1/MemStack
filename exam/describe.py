@@ -1,4 +1,4 @@
-"""Describe a Mind2Web page the way Show Me's content script does (extension/content.js).
+"""Describe a Mind2Web page the way Mo's content script does (extension/content.js).
 
 Each candidate element becomes {bid, tag, role, label, ...}: role and label follow roleOf() and
 labelOf() in content.js, using the node in cleaned_html for its text and the candidate's own

@@ -1,4 +1,4 @@
-// Held-out next-action questions on Show Me's demo sites. The seed script never uses
+// Held-out next-action questions on Mo's demo sites. The seed script never uses
 // these goals, names or artists, nor the two held-out page variants:
 //   - Trattoria Nove after a failed submit (the "Please choose a sitting." error shown);
 //   - Tubely results for a nav category ("music") when the goal names an artist.

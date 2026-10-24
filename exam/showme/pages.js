@@ -1,4 +1,4 @@
-// Page snapshots of Show Me's two demo sites, shaped like extension/content.js output:
+// Page snapshots of Mo's two demo sites, shaped like extension/content.js output:
 // same roles, labels, element ids, headings and visible text. The seed script and the
 // held-out exam both build their next-action messages from these, so the adapter
 // trains on the pages the live demo sends.

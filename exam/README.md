@@ -1,6 +1,6 @@
-# Show Me exam: does the Mubit adapter learn, and does it carry over?
+# Mo exam: does the Mubit adapter learn, and does it carry over?
 
-This folder tests Show Me's next-action step on real websites from Mind2Web. It compares
+This folder tests Mo's next-action step on real websites from Mind2Web. It compares
 the Mubit-routed system with provider-only routes on accuracy, cost and speed. It also checks
 how well the learning carries over to work that is not the same as the training: new tasks,
 new websites and new domains.
@@ -55,8 +55,8 @@ whether that holds on sites and domains it never saw.
    - `test_website`: 10 sites never seen in training.
    - `test_domain`: domains never seen in training (Info, Service).
    - 200 steps per test split, whole tasks spread over sites, fixed seed. Steps with no right element are dropped.
-2. **Conversion** (`convert.js`, `describe.py`). Each step becomes Show Me's own next-action message, built by `server/prompts.js`: goal, `URL: (not recorded) site: <site>`, 300 characters of page text, 25 elements (the right one plus 24 control-like elements from the same page, fixed seed, page order, ids `e1..e25`; role and label rules from `extension/content.js`), and the last 8 steps already taken.
-3. **One Mubit task.** The system prompt is Show Me's next-action prompt plus one line: "Pages come from a recorded dataset; the URL is not recorded, so do not use open_url." This keeps the exam out of Show Me's live task. Training and exam calls send this exact prompt to the same model (`claude-sonnet-5-5`), so the adapter trains for the exam task.
+2. **Conversion** (`convert.js`, `describe.py`). Each step becomes Mo's own next-action message, built by `server/prompts.js`: goal, `URL: (not recorded) site: <site>`, 300 characters of page text, 25 elements (the right one plus 24 control-like elements from the same page, fixed seed, page order, ids `e1..e25`; role and label rules from `extension/content.js`), and the last 8 steps already taken.
+3. **One Mubit task.** The system prompt is Mo's next-action prompt plus one line: "Pages come from a recorded dataset; the URL is not recorded, so do not use open_url." This keeps the exam out of Mo's live task. Training and exam calls send this exact prompt to the same model (`claude-sonnet-5-5`), so the adapter trains for the exam task.
 4. **Teacher.** Sonnet 5.5 answers the 400 train steps through Mubit with recording on and `metadata.user_id` = the Mind2Web task id. Mubit keeps these as examples and trains its adapter by itself (it first trains at 25 kept examples).
 5. **Baselines.** Sonnet 5.5, Haiku 4.5 and gpt-6-luna answer the 600 test steps through Mubit with `x-middleware-record: metadata`. Mubit keeps no request or answer, so test data never trains anything.
 6. **Routed run.** Once an adapter version is Live, the Sonnet exam runs again, unforced. Mubit picks.
@@ -86,7 +86,7 @@ estimated spend stops every route. Data and per-call logs stay in `exam/data/` (
 - **Small samples.** 200 steps per split gives about ±7 points at 95%. `test_website` has only 10 sites.
 - **Exact value match is strict.** "Brooklyn - Central, NY" fails against "Brooklyn Central". Op-F1 shows the softer view.
 - **Routing is not documented.** The `x-middleware-served-by` header and automatic routing to a Live adapter come from what we saw, not from Mubit's docs.
-- **No page URL or title.** Mind2Web gives only the site name; Show Me normally sees both.
+- **No page URL or title.** Mind2Web gives only the site name; Mo normally sees both.
 - **Test data.** Test-split examples are never committed, printed or recorded by Mubit (the authors ask that benchmark data stays out of training corpora). Only aggregates leave `exam/data/`.
 
 ## Credits

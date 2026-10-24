@@ -1,6 +1,6 @@
-# Show Me held-out exam: the demo sites
+# Mo held-out exam: the demo sites
 
-A backup to the Mind2Web exam (`exam/`). It trains Mubit's adapter on Show Me's own live
+A backup to the Mind2Web exam (`exam/`). It trains Mubit's adapter on Mo's own live
 task, on its own demo sites (Trattoria Nove and Tubely), and tests it on goals and page
 variants the training never saw. This is an easier task than Mind2Web, so an adapter should
 pass sooner.

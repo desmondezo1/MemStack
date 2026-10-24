@@ -1,4 +1,4 @@
-// Show Me held-out exam: next-action questions on the demo sites (Trattoria Nove, Tubely),
+// Mo held-out exam: next-action questions on the demo sites (Trattoria Nove, Tubely),
 // sent through Mubit exactly as the live agent sends them (same system prompt, message
 // builder, model and request body), so they land in the live "next-action" task.
 //

@@ -2,6 +2,7 @@
 // server/ledger.js (not exported); gpt-6-luna from third-party pages quoting OpenAI.
 export const PRICES = {
   'claude-sonnet-5-5': [2, 10],
+  'claude-haiku-5-5': [0.10, 0.50],
   'claude-haiku-4-5': [1, 5],
   'gpt-6-luna': [0.10, 0.50],
 };
