@@ -92,19 +92,24 @@ if (process.argv.includes('--check')) process.exit(0);
 // whole mix is levelled for online video (-16 LUFS).
 const silent = path.join(out, 'video-silent.mp4');
 const sfx = path.join(out, 'sfx.wav');
+const music = path.join(out, 'music.wav'); // from music.js; mixed in when it's there
 if (!fs.existsSync(silent) || !fs.existsSync(sfx)) throw new Error('Run node render.js first.');
-const inputs = ['-i', silent, '-i', sfx, ...takes.flatMap(tk => ['-i', tk.file])];
-const placed = takes.map((tk, i) => `[${i + 2}:a]${tk.tempo > 1 ? `atempo=${tk.tempo.toFixed(3)},` : ''}adelay=${Math.round(tk.at * 1000)}:all=1[v${i}]`);
+const withMusic = fs.existsSync(music);
+const first = withMusic ? 3 : 2;
+const inputs = ['-i', silent, '-i', sfx, ...(withMusic ? ['-i', music] : []), ...takes.flatMap(tk => ['-i', tk.file])];
+const placed = takes.map((tk, i) => `[${i + first}:a]${tk.tempo > 1 ? `atempo=${tk.tempo.toFixed(3)},` : ''}adelay=${Math.round(tk.at * 1000)}:all=1[v${i}]`);
 const filter = [
   ...placed,
-  `${takes.map((_, i) => `[v${i}]`).join('')}amix=inputs=${takes.length}:normalize=0,apad=whole_dur=${END},volume=1.0[vo]`,
-  '[vo]asplit=2[vo1][vo2]',
-  '[1:a]volume=0.8[fx]',
+  `${takes.map((_, i) => `[v${i}]`).join('')}amix=inputs=${takes.length}:normalize=0,apad=whole_dur=${END},aformat=channel_layouts=stereo[vo]`,
+  `[vo]asplit=${withMusic ? 3 : 2}[vo1][vo2]${withMusic ? '[vo3]' : ''}`,
+  '[1:a]volume=0.8,aformat=channel_layouts=stereo[fx]',
   '[fx][vo1]sidechaincompress=threshold=0.03:ratio=5:attack=15:release=350[duck]',
-  '[duck][vo2]amix=inputs=2:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11[mix]',
+  // The music sits well under everything and dips further while the narrator speaks.
+  ...(withMusic ? ['[2:a]volume=0.13[mus]', '[mus][vo3]sidechaincompress=threshold=0.02:ratio=6:attack=60:release=700[mduck]'] : []),
+  `[duck]${withMusic ? '[mduck]' : ''}[vo2]amix=inputs=${withMusic ? 3 : 2}:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.79:level=false[mix]`,
 ].join(';');
 const final = path.join(out, 'mo-intro.mp4');
 const r = spawnSync(ffmpeg, ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filter, '-map', '0:v', '-map', '[mix]',
   '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-t', String(END), final], { stdio: 'inherit' });
 if (r.status) process.exit(r.status);
-console.log(`${final}: voiceover mixed (${takes.length} lines, voice ${VOICE})`);
+console.log(`${final}: voiceover mixed (${takes.length} lines, voice ${VOICE})${withMusic ? ' with the music bed' : ''}`);

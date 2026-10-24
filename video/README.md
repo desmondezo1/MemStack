@@ -11,7 +11,8 @@ npm install
 node render.js --stills          # a still for each key moment, in out/stills/
 node render.js --from 13 --to 27 # just one part, as out/part.mp4
 node render.js                   # the whole film: out/mo-intro.mp4 (1920×1080, 30 fps, about 5 minutes)
-node voice.js                    # then add the voiceover (Fish Audio; needs FISH_API_KEY in .env)
+node music.js                    # compose the music bed: out/music.wav
+node voice.js                    # then mix voiceover, music and effects (Fish Audio; needs FISH_API_KEY in .env)
 ```
 
 ## Voiceover
@@ -33,4 +34,12 @@ under the voice. The mix is levelled to -16 LUFS. `node voice.js --check` report
 | 50 to 60 s | **End**: four skills, a fake "unsubscribe" email flagged, Mo | Your weekly work, taught once. And it watches your back. Mo. Show it once. |
 
 Motion rules: one spring curve for everything (a small overshoot, then settle); one moving thing at a time;
-cuts happen on Mo's blink; orange is the only colour that moves. Music isn't included: add a track in the edit.
+cuts happen on Mo's blink; orange is the only colour that moves. 
+
+## Music
+
+`music.js` composes the bed to the film's timing, in D major at 100 BPM: silent while the clicks build; a warm chord
+when Mo lands (7.4 s); a soft pulse and arpeggio while Ada teaches; a lift with hats while Mo does the rows; a drop for
+the correction (40 s); a build as lessons flow into Mubit; a beat of silence (55.6 s); and a final Dmaj9 chord with a
+bell under "Mo. Show it once." Pads, bass, mallets and drums are synthesized and given a small reverb. `voice.js`
+mixes it well under the effects and the voice, and ducks it further whenever the narrator speaks.
