@@ -1,7 +1,7 @@
 // Show Me side panel: runs the agent loop against the current tab, asks for a
 // demonstration when the run fails, and shows the Mubit ledger.
 
-import { createMubitView, esc, fmtUsd } from './panel-mubit.js';
+import { createMubitView, esc, fmtUsd, prettyModel } from './panel-mubit.js';
 import { createJudgesView } from './panel-judges.js';
 
 const $ = id => document.getElementById(id);
@@ -65,7 +65,7 @@ async function refreshHealth() {
   const pill = $('mode');
   try {
     const h = await api('/api/health');
-    pill.textContent = h.viaMubit ? `${h.model} via Mubit` : 'Mock model (no Mubit key)';
+    pill.textContent = h.viaMubit ? `${prettyModel(h.model)} via Mubit` : 'Practice mode (no Mubit key)';
     pill.className = `pill ${h.viaMubit ? 'live' : 'mock'}`;
     pill.title = h.viaMubit ? `Provider: ${h.provider}. Every call is recorded by Mubit.` : 'Set MUBIT_API_KEY in .env and restart the server to use Claude via Mubit.';
   } catch {
@@ -78,9 +78,10 @@ async function refreshHealth() {
 async function refreshMemory() {
   try {
     const { demos } = await api('/api/demonstrations');
-    $('memory-count').textContent = `Memory: ${demos.length} lesson${demos.length === 1 ? '' : 's'}`;
+    $('memory-count').textContent = demos.length ? `${demos.length} lesson${demos.length === 1 ? '' : 's'} in memory` : 'No lessons yet';
+    $('forget').hidden = !demos.length;
   } catch {
-    $('memory-count').textContent = 'Memory: backend offline';
+    $('memory-count').textContent = 'Lessons unavailable: the backend is offline';
   }
 }
 
@@ -182,18 +183,17 @@ async function refreshTotals() {
   renderSavings();
 }
 
+// Shown once a run has made real calls: this run on Claude next to the same calls on an
+// adapter. All-time totals live in the Mubit tab.
 function renderSavings() {
   const box = $('savings');
   const r = state.run;
-  if (!r?.calls && !totals?.callsViaMubit) { box.hidden = true; return; }
+  if (!r?.calls) { box.hidden = true; return; }
   box.hidden = false;
-  const runLine = r?.calls
-    ? `<div><b>This run</b> · ${r.calls} calls via Mubit · ${fmtUsd(r.providerUsd)} on the model vs ~${fmtUsd(r.adapterUsd)} on an adapter · ${Math.round(r.ms / r.calls)} ms vs ~${r.adapterMs} ms per decision</div>`
-    : '';
-  const totalLine = totals?.callsViaMubit
-    ? `<div class="muted">All time · ${totals.callsViaMubit} calls · spent ${fmtUsd(totals.providerUsd)} · adapter would save ~${fmtUsd(totals.savedUsdEstimate)} (${Math.round(100 * totals.savedUsdEstimate / (totals.providerUsd || 1))}%)</div>`
-    : '';
-  box.innerHTML = runLine + totalLine;
+  box.innerHTML = `
+    <span class="h">This run, ${r.calls} call${r.calls === 1 ? '' : 's'} through Mubit</span><span class="h">Cost</span><span class="h">Per decision</span>
+    <span class="label">On Claude</span><span>${fmtUsd(r.providerUsd)}</span><span>${Math.round(r.ms / r.calls)} ms</span>
+    <span class="label">On an adapter${totals?.adapterMeasured ? '' : ' (estimate)'}</span><span class="adapter">${fmtUsd(r.adapterUsd)}</span><span class="adapter">~${r.adapterMs} ms</span>`;
 }
 
 function speak(text) {
@@ -202,13 +202,21 @@ function speak(text) {
   speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
-function addStep(html, { error = false } = {}) {
+function addStep(html, { error = false, kind = '' } = {}) {
   const li = document.createElement('li');
   li.innerHTML = html;
   if (error) li.classList.add('error');
+  if (kind) li.classList.add(kind);
   $('timeline').appendChild(li);
+  $('examples').hidden = true;
   li.scrollIntoView({ block: 'nearest' });
   return li;
+}
+
+// One step: what it did, then why, with time and cost on the right.
+function stepHtml(text, { badge = '', why = '', nums = '' } = {}) {
+  return `<div class="step-main"><span class="step-text">${text}${badge}</span><span class="step-nums">${nums}</span></div>` +
+    (why ? `<div class="step-why">${why}</div>` : '');
 }
 
 
@@ -223,6 +231,7 @@ function resetRunUi() {
   $('timeline').innerHTML = '';
   $('verdict').hidden = true;
   $('teach').hidden = true;
+  $('savings').hidden = true;
 }
 
 // ---- Agent loop -------------------------------------------------------------
@@ -266,8 +275,9 @@ async function run(goal) {
       if (!next.valid) invalid++;
       if (next.demoUsed) usedLesson = true;
       const lesson = next.demoUsed ? '<span class="badge lesson">from lesson</span>' : '';
-      const cost = next.usage?.viaMubit ? ` · ${fmtUsd(next.usage.costUsd)}` : '';
-      const li = addStep(`<b>${step}.</b> ${esc(describeAction(next))}${lesson}<div class="meta">${esc(next.reason)} · ${next.ms} ms${cost}</div>`, { error: !next.valid });
+      const cost = next.usage?.viaMubit ? `, ${fmtUsd(next.usage.costUsd)}` : '';
+      const time = next.ms >= 100 ? `${(next.ms / 1000).toFixed(1)} s` : '';
+      const li = addStep(stepHtml(esc(describeAction(next)), { badge: lesson, why: `<span class="why-text">${esc(next.reason)}</span>`, nums: `${time}${time && cost ? cost : cost.replace(/^, /, '')}` }), { error: !next.valid });
 
       if (next.action === 'done') { finished = true; break; }
       if (!next.valid) { failure = next.action === 'open_url' ? 'I tried to open an address that is not a web URL.' : 'I picked an element that is not on the page.'; break; }
@@ -292,7 +302,10 @@ async function run(goal) {
       state.runSteps.push({ ...entry, li });
       await sleep(next.action === 'wait' ? 1500 : 600);
       const after = await waitForLoad(tab.id).catch(() => null);
-      if (after && after.url !== before) li.querySelector('.meta').insertAdjacentHTML('beforeend', ` · now on ${esc(shortUrl(after.url))}`);
+      if (after && after.url !== before) {
+        const why = li.querySelector('.step-why') || li.appendChild(Object.assign(document.createElement('div'), { className: 'step-why' }));
+        why.insertAdjacentHTML('beforeend', `<span class="went">${why.textContent ? '. ' : ''}Now on ${esc(shortUrl(after.url))}</span>`);
+      }
     }
 
     if (state.stopRequested) failure = 'Stopped.';
@@ -302,7 +315,7 @@ async function run(goal) {
       await sleep(400);
       const check = await api('/api/done-check', { method: 'POST', body: { goal, page: await snapshot(tab.id), sessionId }, signal });
       addUsage(check.usage, check.ms);
-      addStep(`<b>Check:</b> ${check.done ? 'goal met' : 'goal not met'}<div class="meta">${esc(check.reason)} · ${check.ms} ms</div>`, { error: !check.done });
+      addStep(stepHtml(check.done ? 'Checked: goal met' : 'Checked: goal not met', { why: esc(check.reason), nums: check.ms >= 100 ? `${(check.ms / 1000).toFixed(1)} s` : '' }), { error: !check.done, kind: 'check' });
       if (!check.done) failure = check.reason || 'The page does not show the goal as done.';
     }
   } catch (err) {
@@ -311,7 +324,7 @@ async function run(goal) {
     } else {
       failure = err.message;
       infra = err instanceof InfraError;
-      addStep(esc(err.message), { error: true });
+      addStep(stepHtml(esc(err.message)), { error: true, kind: 'note' });
     }
   } finally {
     state.running = false;
@@ -430,7 +443,7 @@ async function finishTeaching() {
     mo('learning', { count: training.sent, text: training.viaMubit ? `+${training.sent} training examples → Mubit` : `Saved ${steps.length} steps (mock: not sent)` }, state.recordTabId);
     const where = training.viaMubit ? 'through Mubit' : 'to the mock model (no Mubit key, so nothing was recorded)';
     $('saved-summary').innerHTML =
-      (mistake ? `<span class="mistake-note">✗ ${esc(mistake)}</span><br>` : '') +
+      (mistake ? `<span class="mistake-inline">${esc(mistake)}</span>` : '') +
       `<b>Learned.</b> Saved ${steps.length} steps to memory and sent ${training.sent} training examples ${where}` +
       ` (the model matched your demonstration on ${training.agreed}/${steps.length}).` +
       (training.errors ? ` <span class="muted">${training.errors} failed to send.</span>` : '');
@@ -461,7 +474,7 @@ function markMistake(agentSteps, demoSteps) {
     : `I stopped too early: next, you did ${describeAction(d[i])}.`;
   if (row) {
     row.classList.add('mistake');
-    row.insertAdjacentHTML('beforeend', `<div class="mistake-note">✗ ${esc(text)}</div>`);
+    row.insertAdjacentHTML('beforeend', `<div class="mistake-note">${esc(text)}</div>`);
     row.scrollIntoView({ block: 'nearest' });
   }
   return text;
@@ -469,7 +482,7 @@ function markMistake(agentSteps, demoSteps) {
 
 async function rerun() {
   resetRunUi();
-  addStep('Reloading the page…');
+  addStep(stepHtml('Reloading the page'), { kind: 'note' });
   const tab = await tabById(state.runTabId);
   await goTo(tab.id, state.lastStartUrl);
   await sleep(300);
@@ -585,6 +598,7 @@ function startListening() {
   let interim = '';
   let failed = false;
   $('mic').classList.add('listening');
+  $('composer').classList.add('listening');
   status.textContent = 'Listening… (press ⌥Space again or the mic to stop)';
   startMeter(() => interim);
   recognition.onresult = event => {
@@ -609,6 +623,7 @@ function startListening() {
   };
   recognition.onend = () => {
     $('mic').classList.remove('listening');
+    $('composer').classList.remove('listening');
     recognition = null;
     stopMeter();
     sendVoice({ state: heard && !failed ? 'heard' : 'off', text: heard });
@@ -661,9 +676,18 @@ async function reportRun(run) {
 
 // ---- Wiring -------------------------------------------------------------------
 
+// The tab the agent will work on, as a small chip: its icon and site.
 async function updateTargetLabel() {
   const tab = await targetTab().catch(() => null);
-  $('target').textContent = tab ? `on: ${tab.title?.slice(0, 40) || tab.url}` : '';
+  const chip = $('target-chip');
+  if (!tab) { chip.hidden = true; return; }
+  let site = tab.title || 'this tab';
+  try { if (/^https?:/.test(tab.url)) site = new URL(tab.url).hostname.replace(/^www\./, ''); else if (!isWebPage(tab.url)) site = 'New tab'; } catch { /* keep the title */ }
+  $('target').textContent = site;
+  chip.title = `Works on: ${tab.title || tab.url}`;
+  const icon = $('target-icon');
+  if (tab.favIconUrl && /^https?:|^data:/.test(tab.favIconUrl)) icon.src = tab.favIconUrl; else icon.removeAttribute('src');
+  chip.hidden = false;
 }
 
 function switchView(view) {
@@ -679,7 +703,7 @@ function switchView(view) {
 
 async function init() {
   const saved = await chrome.storage.local.get(['server', 'goal', 'speak', 'present']);
-  if (saved.present) document.body.classList.add('present');
+  if (saved.present) { document.body.classList.add('present'); $('present').checked = true; }
   if (saved.server) state.server = saved.server;
   if (saved.goal) $('goal').value = saved.goal;
   if (saved.speak === false) $('speak').checked = false;
@@ -701,7 +725,18 @@ async function init() {
   $('reset-ledger').addEventListener('click', async () => { await api('/api/ledger', { method: 'DELETE' }).catch(() => {}); mubit.refresh(); });
   $('save-real').addEventListener('click', () => mubit.saveRealNumbers().catch(err => alertInline(err.message)));
   $('clear-real').addEventListener('click', () => mubit.saveRealNumbers(true).catch(err => alertInline(err.message)));
-  $('present').addEventListener('click', () => { document.body.classList.toggle('present'); chrome.storage.local.set({ present: document.body.classList.contains('present') }); });
+  $('present').addEventListener('change', () => { document.body.classList.toggle('present', $('present').checked); chrome.storage.local.set({ present: $('present').checked }); });
+  // Settings menu
+  const closeMenu = () => { $('more-menu').hidden = true; $('more').setAttribute('aria-expanded', 'false'); };
+  $('more').addEventListener('click', e => { e.stopPropagation(); const open = $('more-menu').hidden; $('more-menu').hidden = !open; $('more').setAttribute('aria-expanded', String(open)); });
+  document.addEventListener('click', e => { if (!e.target.closest('.menu-wrap')) closeMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  // Example goals fill the composer
+  document.querySelectorAll('.example').forEach(b => b.addEventListener('click', () => {
+    $('goal').value = b.dataset.goal.replace('http://localhost:8787', state.server);
+    chrome.storage.local.set({ goal: $('goal').value });
+    $('goal').focus();
+  }));
   $('server').addEventListener('change', async () => {
     state.server = $('server').value.replace(/\/$/, '');
     await chrome.storage.local.set({ server: state.server });

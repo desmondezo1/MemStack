@@ -12,7 +12,7 @@ const SCENES = [
   ['ledger', 'Mubit tab'],
 ];
 const DEMO_SECONDS = 180;
-const TESTS = 63;
+const TESTS = 64;
 
 const isLocal = url => { try { return ['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname); } catch { return true; } };
 
@@ -50,7 +50,7 @@ export function createJudgesView({ session }) {
 
     return [
       { name: 'Use of Mubit', items: [
-        { met: calls > 0, text: 'Every agent decision goes through Mubit', ev: calls ? `${calls} calls recorded${lastId ? ` · latest ${lastId}` : ''}` : 'Add the Mubit key and run the agent' },
+        { met: calls > 0, text: 'Every agent decision goes through Mubit', ev: calls ? `${calls} calls recorded${lastId ? `, latest ${lastId}` : ''}` : 'Add the Mubit key and run the agent' },
         { met: examples > 0, text: 'A correction became training data', ev: examples ? `${taughtLessons.length} lesson${taughtLessons.length > 1 ? 's' : ''} → ${examples} examples sent through Mubit` : 'Fail, then “Show me how”' },
         { met: !!keptFull, text: 'A task reached 25 kept examples', ev: keptFull ? `${keptFull.task}: ${keptFull.kept} kept (Mubit console)` : 'Open Mubit → Tasks in a tab to confirm' },
         { met: !!passed, text: 'An adapter version passed its tests', ev: passed ? `${passed.task}: ${passed.status}` : 'Shows once Mubit trains a passing version' },

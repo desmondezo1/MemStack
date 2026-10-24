@@ -88,7 +88,7 @@ test('open_url from a blank tab, search with Enter, play the video', { timeout: 
   assert.equal(r.verdict, 'Done ✓');
   assert.match(r.timeline, /open localhost:\d+\/demo\/tube/);
   assert.match(r.timeline, /type “Burna Boy” into “Search videos” \+ Enter/);
-  assert.match(r.timeline, /now on localhost:\d+\/demo\/tube\/results\.html\?q=Burna\+Boy/);
+  assert.match(r.timeline, /Now on localhost:\d+\/demo\/tube\/results\.html\?q=Burna\+Boy/);
   assert.match(await site.textContent('#status'), /Now playing: Burna Boy/);
   await panel.close(); await site.close();
 });
@@ -176,8 +176,9 @@ test('ask_human with a live provider: savings strip, cost per step, help verdict
     assert.match(r.timeline, /\$0\.0012/); // 1000 in × $1/M + 40 out × $5/M
     const savings = (await panel.textContent('#savings')).replace(/\s+/g, ' ');
     console.log('savings:', savings);
-    assert.match(savings, /This run · 1 calls via Mubit · \$0\.0012 on the model vs ~\$0\.0001 on an adapter/);
-    assert.match(savings, /All time · \d+ calls/);
+    assert.match(savings, /This run, 1 call through Mubit/);
+    assert.match(savings, /On Claude\s*\$0\.0012/);
+    assert.match(savings, /On an adapter \(estimate\)\s*\$0\.0001/);
     await panel.screenshot({ path: path.join(root, 'test-results', 'tools-savings.png'), fullPage: true });
 
     // Mubit tab: the call appears live with its request id; the run shows under failures → improvements.
@@ -351,5 +352,23 @@ test('tabs open before the extension loaded get Mo and the page reader, without 
   assert.equal(await site.locator('showme-mo').count(), 1);
   const snap = await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:snapshot' }), tabId);
   assert.ok(snap.page.elements.some(e => e.label === 'Search videos'));
+  await site.close();
+});
+
+test('Mo\'s eyes follow the pointer and it blinks on its own', { timeout: 40_000 }, async () => {
+  const { site } = await tabAt(`${base}/demo/tube/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  const look = async () => (await site.evaluate(() => document.querySelector('showme-mo').dataset.look || '0,0')).split(',').map(Number);
+  const vp = site.viewportSize();
+  await site.mouse.move(20, 20);            // far top-left of Mo (which sits bottom-right)
+  await site.waitForTimeout(250);
+  const [x1, y1] = await look();
+  assert.ok(x1 < -1 && y1 < -1, `looks up-left, got ${x1},${y1}`);
+  await site.mouse.move(vp.width - 40, vp.height - 200); // straight above Mo
+  await site.waitForTimeout(250);
+  const [x2, y2] = await look();
+  assert.ok(Math.abs(x2) < 1 && y2 < -1, `looks up, got ${x2},${y2}`);
+  // Blinks come every 2–6 s.
+  await site.waitForFunction(() => +(document.querySelector('showme-mo').dataset.blinks || 0) >= 1, null, { timeout: 8000 });
   await site.close();
 });

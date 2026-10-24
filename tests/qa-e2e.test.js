@@ -216,7 +216,7 @@ test('qa: repeated runs, second lesson for same goal, forget lessons', { timeout
 
   // Forget lessons -> memory 0 -> fails again.
   await panel.click('#forget');
-  await panel.waitForFunction(() => /0 lessons/.test(document.querySelector('#memory-count').textContent));
+  await panel.waitForFunction(() => /No lessons yet/.test(document.querySelector('#memory-count').textContent));
   await site.goto(`${base}/demo/`);
   r = await runGoal(panel, GOAL);
   assert.equal(r.verdict, 'Failed');

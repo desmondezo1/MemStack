@@ -7,12 +7,24 @@
 <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-  <header>
-    <div class="brand">Show Me <span class="tag">fail once · teach once</span></div>
-    <div class="header-right">
-      <span id="live-dot" class="live-dot" title="Lights up on every Mubit call"></span>
-      <span id="mode" class="pill">connecting…</span>
-      <button id="present" class="icon-sm" title="Present mode (bigger, for the projector)" aria-label="Present mode">⤢</button>
+  <header class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9"/><circle class="eye" cx="7.2" cy="9.4" r="1.5"/><circle class="eye" cx="12.8" cy="9.4" r="1.5"/></svg>
+      <span>Show Me</span>
+    </div>
+    <div class="status">
+      <span id="live-dot" class="live-dot" title="Flashes on every call that goes through Mubit"></span>
+      <span id="mode" class="pill">Connecting…</span>
+    </div>
+    <div class="menu-wrap">
+      <button id="more" class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" title="Settings">
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="4.5" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="15.5" cy="10" r="1.6"/></svg>
+      </button>
+      <div id="more-menu" class="popover" hidden>
+        <label class="toggle"><input type="checkbox" id="autorun" checked><span>Run when I stop speaking</span></label>
+        <label class="toggle"><input type="checkbox" id="speak" checked><span>Talk back</span></label>
+        <label class="toggle"><input type="checkbox" id="present"><span>Present mode (larger text)</span></label>
+      </div>
     </div>
   </header>
 
@@ -23,108 +35,113 @@
   </nav>
 
   <section id="view-agent" class="view">
-    <label for="goal" class="label">What should I do?</label>
-    <div class="goal-row">
-      <textarea id="goal" rows="2" placeholder="Open YouTube and play a Burna Boy video"></textarea>
-      <button id="mic" class="icon" title="Speak your goal (⌥Space from any page)" aria-label="Speak your goal">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
-      </button>
+    <div class="composer" id="composer">
+      <label for="goal" class="sr-only">What should Show Me do?</label>
+      <textarea id="goal" rows="3" placeholder="Tell Show Me what to do in your browser"></textarea>
+      <div id="wave" class="wave" hidden aria-hidden="true"></div>
+      <div class="composer-bar">
+        <button id="mic" class="icon-btn mic" title="Speak instead (⌥Space works from any page)" aria-label="Speak your goal">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+        </button>
+        <span class="target" id="target-chip" hidden><img id="target-icon" alt="" width="14" height="14"><span id="target"></span></span>
+        <span class="spacer"></span>
+        <button id="stop" class="btn quiet" hidden>Stop</button>
+        <button id="run" class="btn run">Run</button>
+      </div>
     </div>
-    <div class="row">
-      <button id="run" class="primary">Run</button>
-      <button id="stop" class="ghost" hidden>Stop</button>
-      <span id="target" class="muted"></span>
+    <p id="mic-status" class="status-line" hidden></p>
+
+    <div id="examples" class="examples">
+      <p class="examples-title">Try one of these</p>
+      <button class="example" data-goal="Open YouTube and play a Burna Boy video">Open YouTube and play a Burna Boy video</button>
+      <button class="example" data-goal="open http://localhost:8787/demo/ and book a table for two at eight">Book a table for two at eight <span>demo restaurant</span></button>
+      <button class="example" data-goal="open http://localhost:8787/demo/tube/ and play a Wizkid video">Play a Wizkid video <span>offline video site</span></button>
+      <p class="examples-hint">Press <kbd>⌥</kbd> <kbd>Space</kbd> on any page to talk to Show Me.</p>
     </div>
-    <div class="row options">
-      <label class="small muted"><input type="checkbox" id="autorun" checked> Run when I stop speaking</label>
-      <label class="small muted"><input type="checkbox" id="speak" checked> Talk back</label>
-    </div>
-    <div id="wave" class="wave" hidden aria-hidden="true"></div>
-    <p id="mic-status" class="muted small" hidden></p>
 
     <div id="savings" class="savings" hidden aria-live="polite"></div>
-    <ol id="timeline" class="timeline"></ol>
+    <ol id="timeline" class="steps"></ol>
     <div id="verdict" class="verdict" hidden></div>
 
-    <div id="teach" class="card" hidden>
+    <div id="teach" class="teach" hidden>
       <div id="teach-ask">
-        <p><b>I couldn't finish this.</b> <span id="teach-reason"></span></p>
-        <p class="muted small">Do the task once by hand. Every step you take is saved to memory and sent through Mubit as a training example.</p>
-        <button id="show-me" class="primary">Show me how</button>
+        <p class="teach-title">I couldn't finish this</p>
+        <p id="teach-reason" class="teach-reason"></p>
+        <p class="teach-help">Do it once yourself. I'll remember each step, and each one goes to Mubit as a training example.</p>
+        <button id="show-me" class="btn primary">Show me how</button>
       </div>
       <div id="teach-recording" hidden>
-        <p><span class="dot"></span> <b>Watching.</b> Do the task in the page, then press Done.</p>
+        <p class="teach-title"><span class="rec-dot" aria-hidden="true"></span>Watching your steps</p>
+        <p class="teach-help">Do the task in the page, then press Done.</p>
         <ol id="recorded" class="recorded"></ol>
-        <div class="row">
-          <button id="done-teaching" class="primary" disabled>Done teaching</button>
-          <button id="cancel-teaching" class="ghost">Cancel</button>
+        <div class="actions">
+          <button id="done-teaching" class="btn primary" disabled>Done</button>
+          <button id="cancel-teaching" class="btn quiet">Cancel</button>
         </div>
       </div>
       <div id="teach-saved" hidden>
-        <p id="saved-summary"></p>
-        <button id="rerun" class="primary">Run it again</button>
+        <p id="saved-summary" class="saved-summary"></p>
+        <button id="rerun" class="btn primary">Run it again</button>
       </div>
     </div>
 
-    <div class="memory">
-      <span id="memory-count" class="muted small">Memory: …</span>
-      <button id="forget" class="link small">Forget lessons</button>
-    </div>
+    <footer class="memory">
+      <span id="memory-count">Loading lessons…</span>
+      <button id="forget" class="text-btn">Forget lessons</button>
+    </footer>
   </section>
 
   <section id="view-mubit" class="view" hidden>
+    <p class="summary" id="stats">
+      <b id="stat-calls">0</b> decisions went through Mubit, <b id="stat-taught">0</b> of them taught by you
+      in <b id="stat-lessons">0</b> <span id="stat-lessons-word">lessons</span>. Spent so far: <b id="stat-spent">$0</b>.
+    </p>
+
     <svg id="flow" class="flow" viewBox="0 0 340 120" role="img" aria-label="Every model call goes from the browser through Show Me and the Mubit gateway to Claude; taught steps also become training examples">
       <path id="flow-main" class="flow-line" d="M30 40 H310" />
       <path id="flow-train" class="flow-line train" d="M230 40 C230 80 230 92 262 96" />
       <g class="flow-node"><circle cx="30" cy="40" r="15" /><text x="30" y="72">Browser</text></g>
       <g class="flow-node"><circle cx="120" cy="40" r="15" /><text x="120" y="72">Show Me</text></g>
-      <g class="flow-node mubit"><circle cx="230" cy="40" r="18" /><text x="230" y="44" class="inner">μ</text><text x="200" y="72">Mubit</text></g>
+      <g class="flow-node mubit"><circle cx="230" cy="40" r="18" /><text x="230" y="45" class="inner">μ</text><text x="196" y="72">Mubit</text></g>
       <g class="flow-node"><circle cx="310" cy="40" r="15" /><text x="310" y="72">Claude</text></g>
       <g class="flow-node bucket"><rect x="262" y="84" width="72" height="24" rx="6" /><text x="298" y="100" class="inner" id="flow-bucket">0 examples</text></g>
       <g id="packets"></g>
     </svg>
 
-    <div class="stats" id="stats">
-      <div><span class="num" id="stat-calls">0</span><span class="cap">calls via Mubit</span></div>
-      <div><span class="num" id="stat-taught">0</span><span class="cap">taught examples</span></div>
-      <div><span class="num" id="stat-lessons">0</span><span class="cap">lessons</span></div>
-      <div><span class="num" id="stat-spent">$0</span><span class="cap">spent</span></div>
-    </div>
+    <h2 class="section">Live calls</h2>
+    <ol id="calls" class="calls"><li class="empty">Calls show up here the moment the agent makes them.</li></ol>
 
-    <h3 class="section">Live calls</h3>
-    <ol id="calls" class="calls"><li class="muted small">Waiting for the first call…</li></ol>
-
-    <h3 class="section">Tasks → adapters</h3>
+    <h2 class="section">Tasks and adapters</h2>
     <div id="ledger"></div>
-    <p id="bridge-status" class="muted small"></p>
+    <p id="bridge-status" class="note"></p>
 
-    <h3 class="section">Corrections → model updates</h3>
-    <ol id="lessons" class="lessons"><li class="muted small">No lessons yet. When the agent fails, press “Show me how”.</li></ol>
+    <h2 class="section">Your corrections</h2>
+    <ol id="lessons" class="lessons"><li class="empty">No lessons yet. When the agent fails, press Show me how.</li></ol>
 
-    <h3 class="section">Failures → improvements</h3>
-    <div id="improvements" class="improvements"><p class="muted small">Runs appear here.</p></div>
+    <h2 class="section">Failures that became fixes</h2>
+    <div id="improvements" class="improvements"><p class="empty">Each goal's history appears here after a run.</p></div>
 
-    <h3 class="section">Cost &amp; speed</h3>
+    <h2 class="section">Cost and speed</h2>
     <div id="costs"></div>
-    <details class="settings" id="real-numbers">
+    <details class="disclosure" id="real-numbers">
       <summary>Enter real adapter numbers from Try models</summary>
-      <p class="muted small">Compare a passing version with Claude in Mubit → Try models, then enter what you saw.</p>
-      <div class="row">
-        <label class="small">Adapter cost, % of Claude <input id="set-ratio" type="number" min="0" max="100" step="0.1" placeholder="5"></label>
-        <label class="small">Adapter latency, ms <input id="set-latency" type="number" min="0" step="1" placeholder="200"></label>
+      <p class="note">Compare a passing version with Claude in Mubit's Try models, then enter what you saw.</p>
+      <div class="fields">
+        <label>Adapter cost, % of Claude <input id="set-ratio" type="number" min="0" max="100" step="0.1" placeholder="5"></label>
+        <label>Adapter latency, ms <input id="set-latency" type="number" min="0" step="1" placeholder="200"></label>
       </div>
-      <div class="row"><button id="save-real" class="ghost">Save</button><button id="clear-real" class="link small">Back to estimates</button></div>
+      <div class="actions"><button id="save-real" class="btn quiet">Save numbers</button><button id="clear-real" class="text-btn">Use estimates</button></div>
     </details>
 
-    <div class="row">
-      <button id="refresh-ledger" class="ghost">Refresh</button>
-      <a class="link small" href="https://app.mubit.ai/console/" target="_blank" rel="noreferrer">Open Mubit console ↗</a>
+    <div class="actions footer-actions">
+      <button id="refresh-ledger" class="btn quiet">Refresh</button>
+      <a class="text-btn" href="https://app.mubit.ai/console/" target="_blank" rel="noreferrer">Open Mubit console</a>
     </div>
-    <details class="settings">
-      <summary>Settings</summary>
-      <label for="server" class="label small">Backend URL</label>
+    <details class="disclosure">
+      <summary>Connection</summary>
+      <label class="field-label" for="server">Backend address</label>
       <input id="server" type="text" value="http://localhost:8787">
-      <button id="reset-ledger" class="link small">Reset local ledger</button>
+      <button id="reset-ledger" class="text-btn danger">Clear the local call log</button>
     </details>
   </section>
 

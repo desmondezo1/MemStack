@@ -6,6 +6,10 @@ const $ = id => document.getElementById(id);
 export const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const fmtUsd = n => (n == null ? '—' : n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(3)}` : `$${n.toFixed(4)}`);
 const timeOf = ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+export function prettyModel(id) {
+  const m = String(id).match(/^claude-([a-z]+)-(\d+)-(\d+)/);
+  return m ? `Claude ${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : String(id);
+}
 export const goalKey = g => String(g || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 export function createMubitView({ api, getServer, onOverview = () => {} }) {
@@ -81,7 +85,7 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
     const train = call.kind === 'training';
     if (train) li.classList.add('train');
     if (!call.ok) li.classList.add('fail');
-    const nums = call.provider === 'mock' ? 'mock' : `${call.ms} ms · ${fmtUsd(call.costUsd ?? 0)}`;
+    const nums = call.provider === 'mock' ? 'practice' : `${call.ms} ms, ${fmtUsd(call.costUsd ?? 0)}`;
     li.innerHTML =
       `<span class="task">${esc(call.task)}${train ? ' <span class="badge train">training</span>' : ''}</span>` +
       `<span class="what" title="${esc(call.summary || call.error || '')}">${esc(call.ok ? (call.summary || '') : (call.error || 'failed'))}</span>` +
@@ -93,7 +97,7 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
 
   function addCall(call, isNew) {
     const list = $('calls');
-    if (list.firstElementChild?.classList.contains('muted')) list.innerHTML = '';
+    if (list.firstElementChild?.classList.contains('empty')) list.innerHTML = '';
     const li = callRow(call);
     if (isNew) li.classList.add('new');
     list.prepend(li);
@@ -124,11 +128,12 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
     $('stat-calls').textContent = t.callsViaMubit ?? 0;
     $('stat-taught').textContent = taught;
     $('stat-lessons').textContent = lessons.length;
+    $('stat-lessons-word').textContent = lessons.length === 1 ? 'lesson' : 'lessons';
     $('stat-spent').textContent = fmtUsd(t.providerUsd || 0);
     $('flow-bucket').textContent = `${taught} example${taught === 1 ? '' : 's'}`;
 
     const list = $('calls');
-    if (!list.querySelector('li:not(.muted)') && calls.length) {
+    if (!list.querySelector('li:not(.empty)') && calls.length) {
       list.innerHTML = '';
       for (const call of calls) list.appendChild(callRow(call));
     }
@@ -141,7 +146,7 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
 
   function renderTasks(ledger) {
     const box = $('ledger');
-    if (!ledger.tasks.length) { box.innerHTML = '<p class="muted small">No calls yet. Run the agent first.</p>'; return; }
+    if (!ledger.tasks.length) { box.innerHTML = '<p class="empty">No calls yet. Run the agent first.</p>'; return; }
     const fromConsole = name => bridge?.tasks?.find(b => b.task === name);
     const rows = ledger.tasks.map(t => {
       const b = fromConsole(t.task);
@@ -164,22 +169,22 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
       </table>`;
     $('bridge-status').textContent = bridge?.at
       ? `Kept and status read from your Mubit console at ${timeOf(bridge.at)}.`
-      : '“Sent” is what we sent; Mubit keeps only some calls as examples. Open Mubit → Tasks in a tab to fill in Kept and status.';
+      : 'Sent counts what we sent. Mubit keeps only some calls as examples: open its Tasks page in another tab to fill in Kept and status.';
   }
 
   function renderLessons(lessons) {
     const box = $('lessons');
-    if (!lessons.length) { box.innerHTML = '<li class="muted small">No lessons yet. When the agent fails, press “Show me how”.</li>'; return; }
+    if (!lessons.length) { box.innerHTML = '<li class="empty">No lessons yet. When the agent fails, press Show me how.</li>'; return; }
     box.innerHTML = [...lessons].reverse().map(l => {
       const tr = l.training;
-      const sent = tr ? (tr.viaMubit ? `→ <b>${tr.sent} training examples via Mubit</b> (Claude matched ${tr.agreed}/${l.steps})` : `→ ${tr.sent} examples (mock, not sent)`) : '';
-      return `<li><b>${timeOf(l.createdAt)}</b> “${esc(l.goal)}” · taught ${l.steps} steps ${sent}</li>`;
+      const sent = tr ? (tr.viaMubit ? ` <span class="sent">${tr.sent} training examples sent to Mubit</span> (Claude agreed on ${tr.agreed} of ${l.steps})` : ` ${tr.sent} examples, practice mode, not sent`) : '';
+      return `<li><time>${timeOf(l.createdAt)}</time>“${esc(l.goal)}”: you showed ${l.steps} steps.${sent}</li>`;
     }).join('');
   }
 
   function renderImprovements(runs, lessons) {
     const box = $('improvements');
-    if (!runs.length) { box.innerHTML = '<p class="muted small">Runs appear here.</p>'; return; }
+    if (!runs.length) { box.innerHTML = '<p class="empty">Each goal\'s history appears here after a run.</p>'; return; }
     const byGoal = new Map();
     for (const r of runs) {
       const key = goalKey(r.goal);
@@ -204,15 +209,15 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
     const next = ledger.tasks.find(x => x.task === 'next-action') || ledger.tasks[0];
     const box = $('costs');
     if (!next || next.providerCostPer1k == null) {
-      box.innerHTML = '<p class="muted small">Costs appear once calls go through Mubit (mock calls are free and not counted).</p>';
+      box.innerHTML = '<p class="empty">Costs appear once calls go through Mubit. Practice-mode calls are free and not counted.</p>';
       return;
     }
-    const label = t.adapterMeasured ? 'Adapter · measured in Try models' : 'Adapter · estimate';
+    const label = t.adapterMeasured ? 'Adapter, measured in Try models' : 'Adapter (estimate)';
     const m = next.monthlyAt50kPerDay;
     box.innerHTML = `
       <div class="compare">
-        <div><div class="muted small">${esc(next.model || ledger.model)} via Mubit · per 1k decisions</div><div class="num">${fmtUsd(next.providerCostPer1k)}</div><div class="muted small">p50 ${next.p50Ms ?? '—'} ms</div></div>
-        <div class="adapter"><div class="muted small">${label} · per 1k</div><div class="num">${fmtUsd(next.adapterCostPer1kEstimate)}</div><div class="muted small">p50 ~${next.adapterP50MsEstimate} ms</div></div>
+        <div><div class="muted">${esc(prettyModel(next.model || ledger.model))} via Mubit</div><div class="num">${fmtUsd(next.providerCostPer1k)}</div><div class="muted">per 1,000 decisions, p50 ${next.p50Ms ?? '—'} ms</div></div>
+        <div class="adapter"><div class="muted">${label}</div><div class="num">${fmtUsd(next.adapterCostPer1kEstimate)}</div><div class="muted">per 1,000 decisions, p50 ~${next.adapterP50MsEstimate} ms</div></div>
       </div>
       <p class="small">At 50k decisions a day: <b>${fmtUsd(m.provider)}</b>/month on Claude vs <b>${fmtUsd(m.adapterEstimate)}</b> on the adapter${t.adapterMeasured ? '' : ' (estimate)'}.</p>`;
   }

@@ -29,29 +29,28 @@
   .mo:focus-visible { outline: 3px solid #6d5efc; outline-offset: 2px; border-radius: 50%; }
   svg { overflow: visible; display: block; }
   .body { animation: bob 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
-  .eye, .pupil { transform-box: fill-box; transform-origin: center; animation: blink 4.2s infinite; }
+  .eye, .pupil { transform-box: fill-box; transform-origin: center; transition: transform 70ms ease-in; }
+  .wrap.blink .eye, .wrap.blink .pupil { transform: scaleY(.08); }
+  .pupil { transition: transform 70ms ease-in, cx 90ms ease-out, cy 90ms ease-out, r 200ms; }
   .shadow { fill: rgba(0,0,0,.18); animation: shadow 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   .ring { fill: none; stroke: #6d5efc; stroke-width: 3; opacity: 0; transform-box: fill-box; transform-origin: center; }
   .dots { opacity: 0; } .dots circle { fill: #6d5efc; animation: dot 900ms ease-in-out infinite; }
   .dots circle:nth-child(2) { animation-delay: 150ms; } .dots circle:nth-child(3) { animation-delay: 300ms; }
   @keyframes bob { 50% { transform: translateY(-4px); } }
   @keyframes shadow { 50% { transform: scaleX(.8); opacity: .7; } }
-  @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
   @keyframes dot { 50% { transform: translateY(-4px); } }
   @keyframes ring { from { opacity: .8; transform: scale(.85); } to { opacity: 0; transform: scale(1.35); } }
   @keyframes jump { 30% { transform: translateY(-18px) scale(1.05, .95); } 60% { transform: translateY(0) scale(1.08, .9); } }
   @keyframes tilt { 50% { transform: rotate(-14deg); } }
 
   .wrap[data-state=listening] .ring { animation: ring 1.1s ease-out infinite; }
-  .wrap[data-state=listening] .pupil { transform: translateY(-2px); animation: none; }
   .wrap[data-state=thinking] .dots { opacity: 1; }
-  .wrap[data-state=thinking] .pupil { animation: none; transform: translate(2px, -2px); }
   .wrap[data-state=acting] .body { animation: none; transform: rotate(8deg); }
   .wrap[data-state=stuck] .body { animation: tilt 1.6s ease-in-out infinite; }
   .wrap[data-state=stuck] .mouth { d: path('M27 42 Q32 39 37 42'); }
   .wrap[data-state=success] .body { animation: jump 700ms ease-out 2; }
   .wrap[data-state=learning] .body { animation: bob 900ms ease-in-out infinite; }
-  @media (prefers-reduced-motion: reduce) { .body, .shadow, .eye, .pupil, .ring, .dots circle { animation: none !important; } .wrap { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .body, .shadow, .ring, .dots circle { animation: none !important; } .wrap { transition: none; } }
 
   .bubble, .pill { position: absolute; bottom: 72px; background: #fff; color: #1d1d1f; border-radius: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.18);
     padding: 8px 12px; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
@@ -130,6 +129,7 @@
     clearTimeout(stateTimer);
     wrap.dataset.state = state;
     host.dataset.state = state;
+    queueGaze();
     if (text) say(text, { ask, hold: hold || 4000 });
     if (state !== 'idle' && state !== 'listening' && state !== 'acting' && hold) {
       stateTimer = setTimeout(() => setState('idle'), hold);
@@ -151,8 +151,10 @@
   }
 
   // Float next to the element the agent is about to use, then come back.
+  let actingTarget = null;
   function actOn(targetId) {
     const el = targetId && document.querySelector(`[data-showme-id="${CSS.escape(targetId)}"]`);
+    actingTarget = el || null;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const home = wrap.getBoundingClientRect();
@@ -309,11 +311,95 @@
     return false;
   }
 
+  // ---- eyes: follow the pointer, blink like something alive --------------------
+
+  const pupils = [...root.querySelectorAll('.pupil')];
+  const PUPIL_HOME = [[24, 31], [40, 31]]; // eye centres in the SVG
+  const REACH_X = 1.9, REACH_Y = 2.4;      // how far a pupil can travel inside its eye
+  let pointer = null;
+  let gazeFrame = null;
+  let lastMove = 0;
+  let blinkTimer = null;
+
+  function lookAt(x, y) {
+    const box = moButton.getBoundingClientRect();
+    if (!box.width) return;
+    const scale = box.width / 64;
+    pupils.forEach((pupil, i) => {
+      const [hx, hy] = PUPIL_HOME[i];
+      const dx = x - (box.left + hx * scale);
+      const dy = y - (box.top + hy * scale);
+      const dist = Math.hypot(dx, dy) || 1;
+      // Ease off for nearby points so the eyes don't snap to their edges.
+      const pull = Math.min(1, dist / 160);
+      pupil.setAttribute('cx', (hx + (dx / dist) * REACH_X * pull).toFixed(2));
+      pupil.setAttribute('cy', (hy + 1 + (dy / dist) * REACH_Y * pull).toFixed(2));
+    });
+    const [lx, ly] = PUPIL_HOME[0];
+    host.dataset.look = `${(+pupils[0].getAttribute('cx') - lx).toFixed(1)},${(+pupils[0].getAttribute('cy') - ly - 1).toFixed(1)}`; // for tests
+    // Pupils widen a little when the pointer comes close: Mo notices you.
+    const near = Math.hypot(x - (box.left + box.width / 2), y - (box.top + box.height / 2)) < 110;
+    pupils.forEach(p => p.setAttribute('r', near ? '2.9' : '2.5'));
+  }
+
+  function lookHome() {
+    host.dataset.look = '0.0,0.0';
+    pupils.forEach((pupil, i) => { pupil.setAttribute('cx', PUPIL_HOME[i][0] + 1); pupil.setAttribute('cy', PUPIL_HOME[i][1] + 1); pupil.setAttribute('r', '2.5'); });
+  }
+
+  // While thinking Mo looks up and away; while acting it watches its target; otherwise it follows you.
+  function gazeTarget() {
+    const st = wrap.dataset.state;
+    const box = moButton.getBoundingClientRect();
+    if (st === 'thinking') return [box.right + 80, box.top - 120];
+    if (st === 'listening') return [box.left + box.width / 2, box.top - 200];
+    if (st === 'acting' && actingTarget) {
+      const r = actingTarget.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    }
+    return pointer;
+  }
+
+  function updateGaze() {
+    gazeFrame = null;
+    const target = gazeTarget();
+    if (!target || (wrap.dataset.state === 'idle' && Date.now() - lastMove > 5000)) return lookHome();
+    lookAt(target[0], target[1]);
+  }
+  function queueGaze() { if (!gazeFrame) gazeFrame = requestAnimationFrame(updateGaze); }
+
+  function onPointerMove(e) {
+    pointer = [e.clientX, e.clientY];
+    lastMove = Date.now();
+    queueGaze();
+  }
+  document.addEventListener('pointermove', onPointerMove, { passive: true, capture: true });
+  const drift = setInterval(queueGaze, 1000); // drift home after the pointer goes quiet
+
+  // Blinks at irregular intervals (2–6 s), sometimes twice in a row, never in lockstep.
+  function blink(times = 1) {
+    host.dataset.blinks = String((+host.dataset.blinks || 0) + 1); // for tests
+    wrap.classList.add('blink');
+    setTimeout(() => {
+      wrap.classList.remove('blink');
+      if (times > 1) setTimeout(() => blink(times - 1), 140);
+    }, 110);
+  }
+  function scheduleBlink() {
+    blinkTimer = setTimeout(() => {
+      if (!document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) blink(Math.random() < 0.18 ? 2 : 1);
+      scheduleBlink();
+    }, 2000 + Math.random() * 4000);
+  }
+  scheduleBlink();
+
   const onMessage = (msg, _sender, reply) => handleMessage(msg, reply);
   chrome.runtime.onMessage.addListener(onMessage);
 
   function dispose() {
     clearTimeout(wanderTimer); clearTimeout(stateTimer); clearTimeout(bubbleTimer); clearInterval(heartbeat);
+    clearTimeout(blinkTimer); clearInterval(drift); if (gazeFrame) cancelAnimationFrame(gazeFrame);
+    document.removeEventListener('pointermove', onPointerMove, { capture: true });
     try { chrome.runtime.onMessage.removeListener(onMessage); } catch { /* already dead */ }
     host.remove();
   }
