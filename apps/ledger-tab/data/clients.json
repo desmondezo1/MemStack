@@ -1,0 +1,12 @@
+[
+  {
+    "id": "c1",
+    "name": "Oven Lane Bakery",
+    "profile": "High-street bakery, VAT registered. Sells bread and cakes, mostly zero rated. Buys ingredients and packaging. Runs one delivery van. Small energy user, so energy bills carry 5% VAT. The owner pays some personal bills from this account."
+  },
+  {
+    "id": "c2",
+    "name": "Pixel Yard Design",
+    "profile": "Two-person design studio, VAT registered. Works from a coworking desk. Sells design work to business clients. Buys software, computers and freelance illustration. No company car. Buys snacks and lunches for the team."
+  }
+]
