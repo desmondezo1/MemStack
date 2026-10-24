@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add a new starter · PeopleDesk</title>
+<style>
+  :root { --ink: #1c2230; --muted: #687087; --line: #e1e5ee; --bg: #f5f7fb; --brand: #4f46e5; --ok: #1d7a46; --bad: #c0392b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  .demo { padding: 6px 16px; text-align: center; font-size: 12px; background: #fff7d6; color: #6b5310; }
+  header { display: flex; align-items: center; gap: 18px; padding: 12px 24px; background: #fff; border-bottom: 1px solid var(--line); }
+  header b { color: var(--brand); font-size: 17px; } header nav span { color: var(--muted); margin-right: 14px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap: 22px; max-width: 1080px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 15px; margin: 0 0 10px; } .muted { color: var(--muted); }
+  label { display: block; font-weight: 600; margin: 14px 0 5px; }
+  input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; background: #fff; }
+  .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .error { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 4px; }
+  button { margin-top: 18px; padding: 11px 20px; border: 0; border-radius: 10px; background: var(--brand); color: #fff; font: 600 15px system-ui; cursor: pointer; }
+  .ok { color: var(--ok); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; } td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  .link { background: none; color: var(--muted); padding: 0; margin: 8px 0 0; font: 12px system-ui; text-decoration: underline; }
+  [hidden] { display: none !important; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="demo">Demo HR system for testing Mo. Nothing here is real.</div>
+<header><b>PeopleDesk</b><nav><span>People</span><span>Time off</span><span>Reports</span></nav></header>
+<div class="layout">
+  <section class="card" id="form-card">
+    <h1>Add a new starter</h1>
+    <p class="muted">They'll get an account, a laptop and a welcome email.</p>
+    <form id="form" novalidate>
+      <label for="name">Full name</label><input id="name" autocomplete="off">
+      <label for="email">Work email</label><input id="email" autocomplete="off">
+      <label for="team">Team</label>
+      <select id="team"><option value="">Choose a team…</option><option>Engineering</option><option>Sales</option><option>Operations</option><option>Finance</option><option>People</option></select>
+      <label for="manager">Manager</label><input id="manager" autocomplete="off">
+      <label for="start">Start date <span class="hint">DD/MM/YYYY, a weekday</span></label><input id="start" placeholder="DD/MM/YYYY" autocomplete="off">
+      <label for="laptop">Laptop</label>
+      <select id="laptop"><option value="">Choose a laptop…</option><option>MacBook Air</option><option>MacBook Pro</option><option>ThinkPad X1</option></select>
+      <p class="error" id="error" role="alert"></p>
+      <button type="submit">Submit</button>
+    </form>
+  </section>
+  <section class="card" id="done" hidden>
+    <h1 class="ok" id="done-title"></h1>
+    <p id="done-text"></p>
+    <button type="button" id="another">Add another starter</button>
+  </section>
+  <section class="card">
+    <h2>Added so far (<span id="count">0</span>)</h2>
+    <table><thead><tr><th>Name</th><th>Team</th><th>Start</th><th>Laptop</th></tr></thead><tbody id="added"></tbody></table>
+    <button type="button" class="link" id="clear">Clear this list</button>
+  </section>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const KEY = 'peopledesk-starters';
+  const list = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function render() {
+    const all = list();
+    $('count').textContent = all.length;
+    $('added').innerHTML = all.map(s => `<tr><td>${esc(s.name)}</td><td>${esc(s.team)}</td><td>${esc(s.start)}</td><td>${esc(s.laptop)}</td></tr>`).join('');
+  }
+  function parseDate(s) {
+    const m = String(s).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return null;
+    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return d.getDate() === Number(m[1]) ? d : null;
+  }
+  $('form').addEventListener('submit', e => {
+    e.preventDefault();
+    const s = { name: $('name').value.trim(), email: $('email').value.trim(), team: $('team').value, manager: $('manager').value.trim(), start: $('start').value.trim(), laptop: $('laptop').value };
+    const date = parseDate(s.start);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const error = !s.name ? 'Enter their full name.'
+      : !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email) ? 'Enter a valid work email.'
+      : !s.team ? 'Choose a team.'
+      : !s.manager ? 'Enter their manager.'
+      : !date ? 'Enter the start date as DD/MM/YYYY.'
+      : date < today ? 'The start date can\'t be in the past.'
+      : date.getDay() === 0 || date.getDay() === 6 ? 'The start date must be a weekday.'
+      : !s.laptop ? 'Choose a laptop.' : '';
+    $('error').textContent = error;
+    if (error) return;
+    localStorage.setItem(KEY, JSON.stringify([...list(), s]));
+    $('form-card').hidden = true;
+    $('done').hidden = false;
+    $('done-title').textContent = `${s.name} added ✓`;
+    $('done-text').textContent = `Starts ${s.start} in ${s.team}, managed by ${s.manager}. Laptop: ${s.laptop}. A welcome email is on its way to ${s.email}.`;
+    render();
+  });
+  $('another').addEventListener('click', () => location.reload());
+  $('clear').addEventListener('click', () => { localStorage.removeItem(KEY); render(); });
+  render();
+</script>
+</body>
+</html>

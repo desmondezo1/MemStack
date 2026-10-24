@@ -1,36 +1,39 @@
 # Mo: the 3-minute demo
 
-**One person, one recurring chore: Ada's subscriptions.** Her inbox fills up with marketing every week, and
-she pays for things she stopped using. Every site is built to keep her. Mo does the chore, gets it wrong in a
-way only Ada could know, she shows it once, and from then on Mo does it her way, even on a sender it has never
-seen. Three levels of the same chore: **unsubscribe** (easy), **cancel a subscription** (medium), **the monthly
-audit** (hard).
+**One person, her recurring work: Ada, office manager.** Every week the same chores come round. Mo is a work
+assistant she teaches by showing it: she does a task once, adds a note where the page doesn't say enough, and the
+task becomes one of her **skills**. Then Mo does it for her, again and again, and every correction makes it better
+and trains Mubit's adapter.
 
 ## Before you record
 
 - `npm start`, then reload Mo in `chrome://extensions` so the panel shows the newest version.
-- Tabs: <http://localhost:8787/demo/inbox/> and Mubit's console (Requests, Tasks, Try models).
-- In Mo's panel press **Forget lessons**. Then, off camera, teach the **audit** once (see "Hard" below) so the
-  "next month" rerun is ready. Leave the unsubscribe lesson untaught: you teach that one on camera.
+- Tabs: <http://localhost:8787/demo/sheet/>, <http://localhost:8787/demo/hr/>, <http://localhost:8787/demo/inbox/>
+  and Mubit's console (Requests, Tasks, Try models).
+- In PeopleDesk press **Clear this list**. In Mo's panel press **Forget lessons**.
 
 ## Script
 
 | Time | On screen | Say |
 | --- | --- | --- |
-| 0:00 to 0:15 | Ada's inbox: 100 emails | "This is Ada. Every week her inbox fills with marketing, and she pays for apps she stopped using. Every one of these sites is built to keep her." |
-| 0:15 to 0:45 | **Easy.** Hold ⌥ Space: "Unsubscribe me from DealDash". Mo opens the email, follows Unsubscribe, clicks "Unsubscribe from all emails" → "Yes". | "Mo is Claude Haiku 5.5, every call through Mubit. It did unsubscribe… from everything, including her order and delivery updates. Mo couldn't know she wants those." |
-| 0:45 to 1:10 | **Not what you wanted?** Ada: opens DealDash, Unsubscribe, unticks *Weekly deals* and *Partner offers*, **Save preferences**. | "So she shows it once. Mo marks its mistake and sends each step to Mubit as a training example." |
-| 1:10 to 1:30 | "Unsubscribe me from StyleHub" | "A different sender it has never seen. Her way: marketing off, order updates kept." |
-| 1:30 to 1:50 | **Medium.** Open the Iron Gym renewal email: "Cancel my Iron Gym membership" (optional if time is short) | "Same tricks on a bigger scale: a 'pause' button that still charges, the exit hidden under Manage, a paid add-on left ticked. One lesson and it's done her way." |
-| 1:50 to 2:20 | **Hard.** "Check my inbox for subscriptions I pay for but don't use, and cancel them" | "The monthly audit. Last month she showed it once. Now Mo cancels Calmly, 0 minutes used, then the gym she hasn't visited in 42 days, on two different sites." |
-| 2:20 to 2:45 | Mubit: Requests filtered by the `demo-…` session → Tasks → **Try models** (below) | "Here are those calls in Mubit, training the adapter that replaces Claude for Mo. Same StyleHub page: without Ada's DealDash lesson the answer is 'Unsubscribe from all'; with it, 'untick Weekly deals'." |
-| 2:45 to 3:00 | The fake "Unsubscribe from PayPal promotional emails" in her inbox: dashed outline and label | "And when an 'unsubscribe' email is really phishing, the same Mo flags it before she clicks." |
+| 0:00 to 0:15 | The "New starters" sheet: 10 rows | "This is Ada. She runs the office. Every Monday she types this week's new starters into the HR system, one by one." |
+| 0:15 to 0:35 | Mo's panel: **+ From a sheet** → "Add a new starter" → **Read**: "10 rows" | "Mo is a work assistant she teaches by showing it. It reads her sheet with her own login: no API, no integration." |
+| 0:35 to 1:05 | **Start: I'll do row 1.** Ada fills Kofi Mensah on PeopleDesk, presses Submit. ✎ on the start date: "a random weekday in the next two weeks, not in the sheet". ✎ on Team: "if Dept is blank, use Operations". **Done.** | "She does one row. Where the sheet doesn't say, she adds a note. Every step goes to Mubit as a training example." |
+| 1:05 to 1:15 | The card: from column "Email"…, "a random weekday in the next 14 days", always "MacBook Air" | "Mo works out where every field comes from, and shows her before it does anything." |
+| 1:15 to 1:45 | **Run 9 rows** (speed this part up in the edit) | "Then it does the rest. 'Eng' becomes Engineering. Sam's team is blank, so it follows her note. Every row is checked." |
+| 1:45 to 2:00 | PeopleDesk: "Added so far (10)"; My skills: "Add a new starter · ran 9×" | "Ten starters, one row of effort. And it's now one of her skills: next Monday, she presses Run." |
+| 2:00 to 2:25 | Inbox: "Unsubscribe me from DealDash" → Mo unsubscribes from everything → **Not what you wanted?** → she unticks only the marketing → "Unsubscribe me from StyleHub": done her way | "When Mo gets it wrong, she corrects it once. A sender it has never seen: done her way." |
+| 2:25 to 2:50 | Mubit: Requests filtered by the `demo-…` session → **Try models** (below) | "In Mubit, those lessons are training the small model that replaces Claude for Mo. Same page: without her lesson, 'unsubscribe from all'; with it, 'untick the marketing'." |
+| 2:50 to 3:00 | The fake PayPal "unsubscribe" email: flagged | "And the same Mo flags the phishing email before she clicks." |
+
+Cut the inbox part first if you're over time. The other skills (cancel a subscription, the monthly software
+audit) are in the README and below, ready for questions.
 
 **Say plainly what's real.** Adapters can't be called from an app yet, so Mo runs on Claude through
 Mubit. If an adapter has passed its tests by recording time, show it in Try models. If not, say: "This is
 Claude with Ada's lesson; Mubit is training the adapter on these examples."
 
-## Hard: teaching the audit (off camera, before recording)
+## The monthly software audit: teaching it
 
 1. In the inbox, ask: "Check my inbox for subscriptions I pay for but don't use, and cancel them". Mo reads
    receipts but can't keep track across emails, so it gets stuck. Press **Show me how** (or **Not what you wanted?**).
@@ -190,7 +193,7 @@ Answer with one JSON object only.
 
 | Claim | Source |
 | --- | --- |
-| 97 automated tests, plus 1 live-only | `npm run test:all` (unit, API and the extension in a real Chrome); the audit test runs only with `SHOWME_E2E_LIVE=1` |
+| 103 automated tests, plus 1 live-only | `npm run test:all` (unit, API and the extension in a real Chrome); the audit test runs only with `SHOWME_E2E_LIVE=1` |
 | Phishing: 98 of 120 caught, no real site called phishing | `npm run seed:guard`, Claude Haiku 5.5, 24 Oct (TESTING.md) |
 | Second check by Banyan Sapling | On by default with a Mubit key (`SAPLING=off` turns it off) |
 | Adapter cost and speed | **Estimates** in the panel until you enter real numbers from Try models |

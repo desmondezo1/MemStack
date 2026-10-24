@@ -290,3 +290,44 @@ export function calmly(view = 'account') {
   return { ...base, headings: ['Subscription cancelled ✓'], text: `${top} Subscription cancelled ✓ You won't be charged on 3 November. You can use Calmly Premium until then. Back to your inbox`,
     elements: [{ id: 'e1', role: 'link', label: 'Back to your inbox' }] };
 }
+
+// PeopleDesk's "Add a new starter" form, filled from the New starters sheet.
+export const HR_URL = `${DEMO_ORIGIN}/demo/hr/`;
+export const HR_TEAMS = ['Engineering', 'Sales', 'Operations', 'Finance', 'People'];
+export const HR_LAPTOPS = ['MacBook Air', 'MacBook Pro', 'ThinkPad X1'];
+const HR_START = 'Start date DD/MM/YYYY, a weekday';
+// filled: { name, email, team, manager, start, laptop }; done: the confirmation after Submit.
+export function hrForm(filled = {}, { done = false, error = '' } = {}) {
+  const base = { url: HR_URL, title: 'Add a new starter · PeopleDesk' };
+  const top = 'Demo HR system for testing Mo. Nothing here is real. PeopleDesk People Time off Reports';
+  if (done) return { ...base, headings: [`${filled.name} added ✓`, 'Added so far'],
+    text: `${top} ${filled.name} added ✓ Starts ${filled.start} in ${filled.team}, managed by ${filled.manager}. Laptop: ${filled.laptop}. A welcome email is on its way to ${filled.email}. Add another starter`,
+    elements: [{ id: 'e1', role: 'button', label: 'Add another starter' }, { id: 'e2', role: 'button', label: 'Clear this list' }] };
+  return { ...base, headings: ['Add a new starter', 'Added so far'],
+    text: `${top} Add a new starter They'll get an account, a laptop and a welcome email. Full name Work email Team Manager Start date DD/MM/YYYY, a weekday Laptop ${error} Submit`,
+    elements: [
+      { id: 'e1', role: 'textbox', label: 'Full name', value: filled.name || '' },
+      { id: 'e2', role: 'textbox', label: 'Work email', value: filled.email || '' },
+      { id: 'e3', role: 'select', label: 'Team', value: filled.team || '', options: HR_TEAMS },
+      { id: 'e4', role: 'textbox', label: 'Manager', value: filled.manager || '' },
+      { id: 'e5', role: 'textbox', label: HR_START, value: filled.start || '' },
+      { id: 'e6', role: 'select', label: 'Laptop', value: filled.laptop || '', options: HR_LAPTOPS },
+      { id: 'e7', role: 'button', label: 'Submit' }, { id: 'e8', role: 'button', label: 'Clear this list' },
+    ] };
+}
+// Ada's row 1, with her two notes.
+export function hrLesson(row = { name: 'Kofi Mensah', email: 'kofi.mensah@acme.example', team: 'Engineering', manager: 'Priya Shah', start: '28/10/2026', laptop: 'MacBook Air' }) {
+  return {
+    goal: `Add a new starter (row 1 of 10). Fill in: Full name = ${row.name}; Work email = ${row.email}; Team = ${row.team}; Manager = ${row.manager}; ${HR_START} = ${row.start}; Laptop = ${row.laptop}`,
+    steps: [
+      { action: 'type', label: 'Full name', role: 'textbox', value: row.name },
+      { action: 'type', label: 'Work email', role: 'textbox', value: row.email },
+      { action: 'select', label: 'Team', role: 'select', value: row.team, note: 'If Dept is blank, use Operations' },
+      { action: 'type', label: 'Manager', role: 'textbox', value: row.manager },
+      { action: 'type', label: HR_START, role: 'textbox', value: row.start, note: 'Pick a random weekday in the next two weeks. It is not in the sheet.' },
+      { action: 'select', label: 'Laptop', role: 'select', value: row.laptop },
+      { action: 'click', label: 'Submit', role: 'button', value: '' },
+    ],
+  };
+}
+export const HR_START_LABEL = HR_START;

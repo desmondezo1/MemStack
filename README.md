@@ -1,11 +1,14 @@
 # Mo
 
-**Mo is a browser assistant that does things for you, learns when you show it how, and keeps you safe while you browse.**
+**Mo is a work assistant you teach by showing it. Do a task once, and Mo learns it as a skill it can do for you again
+and again.**
 
-Mo lives in your browser as a small orange character in the corner of every page. Hold <kbd>⌥</kbd> <kbd>Space</kbd>
-and tell it what you want: it works through the page step by step. When it gets stuck, it asks you to show it once,
-and next time it gets it right. While you browse, it keeps an eye on the links around you and warns you before a
-phishing link can trick you.
+Mo lives in your browser as a small orange character in the corner of every page, and works in the web apps you're
+already signed in to: no API, no integration, no IT project. Show it a task once, add a note where it needs to know
+something the page doesn't say, and the task becomes one of **your skills**. Ask for it by name (hold <kbd>⌥</kbd>
+<kbd>Space</kbd> and say it, or press **Run**), hand it a sheet of rows, and it does the rest. When it gets something
+wrong, press **Not what you wanted?** and show it again: the skill gets better. While it works, it keeps an eye on the
+links around you and warns you before a phishing link can trick you.
 
 Every decision Mo makes runs on Claude through [Mubit](https://docs.mubit.ai), which records it and trains a small
 model of its own for each kind of decision. Mo gets cheaper and faster the more it's used, and every correction you
@@ -15,9 +18,21 @@ make teaches it.
 > into an assistant that helps and keeps you safe, so we named it after the character at its centre. Some internal
 > names (`showme:` messages, `SHOWME_*` settings) keep the old name.
 
-## One user, one chore: Ada's subscriptions
+## One user, her recurring work: Ada, office manager
 
-Ada's inbox fills up with marketing every week, and she pays for things she stopped using months ago. Every one
+Ada runs the office for a small company. Every week the same chores come round: add the new starters to the HR
+system, clear marketing out of the shared inbox, cancel software the team stopped using. She teaches Mo each one once.
+
+| Ada's skill | She shows it once | Then Mo |
+| --- | --- | --- |
+| **Add a new starter** (from a sheet) | Does row 1 of the "New starters" sheet on the HR form, with a note on the start date: *"a random weekday in the next two weeks, not in the sheet"* and one on the team: *"if Dept is blank, use Operations"* | Works out where every field comes from, shows her, and adds the other 9 starters: "Eng" becomes Engineering, a blank Dept follows her note, each start date is a fresh weekday |
+| **Unsubscribe from marketing** | Unticks the marketing, keeps order updates | Does it her way on senders it has never seen |
+| **Cancel a subscription** | Ends it today and drops the paid add-on | Gets past the "pause" trap and the retention offer, her way |
+| **The monthly software audit** | Cancels the apps nobody uses, on two sites | Repeats the audit next month |
+
+### The subscriptions skills in detail
+
+Her inbox fills up with marketing every week, and the company pays for things it stopped using months ago. Every one
 of these sites is built to keep her: a big "Pause (recommended)" button that doesn't stop anything, the real way
 out hidden under "Manage", boxes already ticked, a "50% off" offer, an "Are you sure? 😢". Mo does the chore for
 her, and learns *her* way of doing it from one demonstration.
@@ -60,7 +75,8 @@ npm start                 # backend on http://localhost:8787
 
 1. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension/` folder.
 2. Try the demos:
-   - **Ada's inbox (main demo):** <http://localhost:8787/demo/inbox/>. "Unsubscribe me from DealDash", then "Cancel my Iron Gym membership", then the monthly audit.
+   - **New starters (sheet to form):** open <http://localhost:8787/demo/sheet/> and <http://localhost:8787/demo/hr/>, then in Mo's panel press **+ From a sheet**, read the sheet, and do row 1 on the form.
+   - **Ada's inbox:** <http://localhost:8787/demo/inbox/>. "Unsubscribe me from DealDash", then "Cancel my Iron Gym membership", then the monthly audit.
    - **The gym:** <http://localhost:8787/demo/gym/>. "Cancel my Iron Gym membership" on its own.
    - **The restaurant:** <http://localhost:8787/demo/>. Ask Mo to "book a table for two at eight", and teach it when it gets stuck.
    - **The video site:** <http://localhost:8787/demo/tube/>. "Play a Wizkid video".
@@ -100,6 +116,7 @@ The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). 
 | `extension/mascot.js` | Mo on every page: moods, eyes that follow your pointer, push-to-talk and the waveform, menu. |
 | `extension/sidepanel.*` | Mo's panel: goal box, step-by-step timeline, "Show me how" teaching, mistake view, live savings. |
 | `extension/panel-mubit.js`, `panel-judges.js` | The Mubit tab (live calls, tasks, lessons, fixes, cost) and the Judges tab (criteria that tick from live evidence). |
+| `extension/sheet-core.js` | Sheet to form: reads rows (CSV, a Google Sheet through its CSV download, any HTML table), works out each form field's rule from the row you did, and the values for every other row. |
 | `extension/agent-core.js`, `voice-core.js` | The agent loop and push-to-talk, shared by the panel and background runs. |
 | `extension/content.js` | Reads the page as text, performs actions, records your demonstrations. |
 | `extension/guard.js`, `server/guard.js`, `server/guard-data.js` | Mo Guard: phishing labels, Mo's reactions and the full-screen warning; rules first, then Claude through Mubit. |
@@ -108,10 +125,10 @@ The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). 
 | `extension/mubit-bridge.js` | Reads kept examples and adapter status from Mubit's console when it's open in a tab (read-only). |
 | `server/index.js` | The backend the extension calls. It holds the Mubit key, since Mubit refuses browser calls. |
 | `server/llm.js`, `server/prompts.js` | Every model call goes through Mubit; the fixed instructions per task live here (a test guards them). |
-| `server/memory.js`, `server/refine.js` | Lessons, recalled into later runs; detours removed from demonstrations before they train anything. |
+| `server/memory.js`, `server/refine.js` | Skills and their lessons (with your notes), recalled into later runs; detours removed from demonstrations before they train anything. |
 | `server/ledger.js` | Local log of every call: counts, speed, cost. |
 | `server/verifier.js` | A second, independent check from Banyan Sapling on "did it work?" and before risky clicks. On whenever a Mubit key is set; `SAPLING=off` turns it off; always off in practice mode. |
-| `server/demo-site/` | Ada's inbox (100 made-up emails and an email preferences page), Calmly and Iron Gym (subscriptions to cancel), Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
+| `server/demo-site/` | The New starters sheet and PeopleDesk (an HR form), Ada's inbox (100 made-up emails and an email preferences page), Calmly and Iron Gym (subscriptions to cancel), Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
 | `scripts/seed-traffic.js`, `scripts/seed-guard.js` | Send practice calls through Mubit so each task has enough examples to train; `seed-guard` also scores Claude on known phishing and real links. |
 | `exam/` | Does the adapter learn? Mubit-routed vs provider-only on Mind2Web and the demo sites. |
 

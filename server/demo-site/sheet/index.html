@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New starters, November · Sheets</title>
+<style>
+  :root { --ink: #1f2328; --muted: #6a6f76; --line: #dadce0; --head: #f1f3f4; --sel: #e8f0fe; --green: #188038; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: var(--ink); background: #fff; }
+  .demo { padding: 6px 16px; text-align: center; font-size: 12px; background: #fff7d6; color: #6b5310; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .logo { width: 26px; height: 32px; border-radius: 3px; background: var(--green); }
+  h1 { margin: 0; font-size: 17px; font-weight: 500; } .muted { color: var(--muted); font-size: 12px; }
+  .bar { padding: 6px 16px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; min-width: 720px; }
+  th, td { border: 1px solid var(--line); padding: 4px 8px; height: 26px; white-space: nowrap; text-align: left; }
+  thead th { background: var(--head); font-weight: 600; }
+  td.n, th.n { background: var(--head); color: var(--muted); text-align: center; width: 42px; font-weight: 400; }
+  tbody tr:hover td:not(.n) { background: var(--sel); }
+  td:empty::after { content: ''; }
+</style>
+</head>
+<body>
+<div class="demo">Demo spreadsheet for testing Mo. Every name and address here is made up.</div>
+<header><div class="logo" aria-hidden="true"></div><div><h1>New starters, November</h1><div class="muted">People team · shared with Ada</div></div></header>
+<div class="bar">Starters to add to PeopleDesk this week</div>
+<div class="wrap">
+<table id="sheet">
+  <thead><tr><th class="n"></th><th>Full name</th><th>Email</th><th>Dept</th><th>Manager</th></tr></thead>
+  <tbody>
+    <tr><td class="n">1</td><td>Kofi Mensah</td><td>kofi.mensah@acme.example</td><td>Engineering</td><td>Priya Shah</td></tr>
+    <tr><td class="n">2</td><td>Lena Fischer</td><td>lena.fischer@acme.example</td><td>Sales</td><td>Tom Reyes</td></tr>
+    <tr><td class="n">3</td><td>Tunde Bello</td><td>tunde.bello@acme.example</td><td>Eng</td><td>Priya Shah</td></tr>
+    <tr><td class="n">4</td><td>Mia Chen</td><td>mia.chen@acme.example</td><td>Finance</td><td>Grace Okoro</td></tr>
+    <tr><td class="n">5</td><td>Sam Okafor</td><td>sam.okafor@acme.example</td><td></td><td>Grace Okoro</td></tr>
+    <tr><td class="n">6</td><td>Aisha Bello</td><td>aisha.bello@acme.example</td><td>People</td><td>Ada Obi</td></tr>
+    <tr><td class="n">7</td><td>Jonas Berg</td><td>jonas.berg@acme.example</td><td>Operations</td><td>Ada Obi</td></tr>
+    <tr><td class="n">8</td><td>Chidi Eze</td><td>chidi.eze@acme.example</td><td>Sales</td><td>Tom Reyes</td></tr>
+    <tr><td class="n">9</td><td>Hana Sato</td><td>hana.sato@acme.example</td><td>Engineering</td><td>Priya Shah</td></tr>
+    <tr><td class="n">10</td><td>Femi Adeyemi</td><td>femi.adeyemi@acme.example</td><td>Finance</td><td>Grace Okoro</td></tr>
+  </tbody>
+</table>
+</div>
+</body>
+</html>

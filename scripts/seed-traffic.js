@@ -9,7 +9,7 @@
 
 import { loadEnv } from '../server/env.js';
 import { TASKS, buildNextActionMessage, buildDoneCheckMessage } from '../server/prompts.js';
-import { GYM_REASONS, MARKETING, NEW_TAB, calmly, firstMailFrom, inboxList, inboxMail, inboxRowLabel, unsubscribeLesson, unsubscribePage, TUBE_URL, gymAfter, gymDoneText, gymLesson, resultTitles, trattoria, trattoriaLesson, tubelyHome, tubelyResults, tubelyWatch } from '../exam/showme/pages.js';
+import { GYM_REASONS, HR_START_LABEL, HR_TEAMS, MARKETING, NEW_TAB, hrForm, hrLesson, calmly, firstMailFrom, inboxList, inboxMail, inboxRowLabel, unsubscribeLesson, unsubscribePage, TUBE_URL, gymAfter, gymDoneText, gymLesson, resultTitles, trattoria, trattoriaLesson, tubelyHome, tubelyResults, tubelyWatch } from '../exam/showme/pages.js';
 
 loadEnv();
 const { callTask, getConfig } = await import('../server/llm.js');
@@ -234,6 +234,29 @@ const generators = [
     return { goal, page: calmly(['account', 'manage', 'offer'][stage]), history: steps.slice(0, stage) };
   },
 
+  // Sheet to form: one row of new starters into PeopleDesk, at every step. The goal lists the
+  // row's values ("Fill in: …"), and the lesson is Ada's row 1 with her notes, as Mo sends it.
+  function hrStarter() {
+    const first = pick(['Ngozi', 'Ravi', 'Ella', 'Marco', 'Yusuf', 'Ines', 'Daniel', 'Zara', 'Kwame', 'Lucy']);
+    const last = pick(['Okeke', 'Patel', 'Novak', 'Rossi', 'Haddad', 'Silva', 'Kim', 'Ali', 'Asante', 'Brown']);
+    const name = `${first} ${last}`;
+    const blankDept = Math.random() < 0.15;
+    const dept = blankDept ? '' : pick([...HR_TEAMS, 'Eng', 'Ops', 'Fin']);
+    const team = blankDept ? '' : HR_TEAMS.find(t => t.toLowerCase().startsWith(dept.toLowerCase().slice(0, 3)));
+    const d = new Date(); d.setDate(d.getDate() + 1 + Math.floor(Math.random() * 13)); while ([0, 6].includes(d.getDay())) d.setDate(d.getDate() + 1);
+    const start = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const row = { name, email: `${first}.${last}@acme.example`.toLowerCase(), team: team || '(blank in the sheet. The human\'s note: If Dept is blank, use Operations)', manager: pick(['Priya Shah', 'Tom Reyes', 'Grace Okoro', 'Ada Obi']), start, laptop: 'MacBook Air' };
+    const n = 2 + Math.floor(Math.random() * 9);
+    const goal = `Add a new starter (row ${n} of 10). Fill in: Full name = ${row.name}; Work email = ${row.email}; Team = ${row.team}; Manager = ${row.manager}; ${HR_START_LABEL} = ${row.start}; Laptop = ${row.laptop}`;
+    const lesson = hrLesson();
+    const filledTeam = team || 'Operations';
+    const steps = lesson.steps.map(st => ({ ...st, value: { 'Full name': row.name, 'Work email': row.email, Team: filledTeam, Manager: row.manager, [HR_START_LABEL]: row.start, Laptop: row.laptop }[st.label] ?? st.value, note: undefined }));
+    const stage = Math.floor(Math.random() * steps.length);
+    const keys = ['name', 'email', 'team', 'manager', 'start', 'laptop'];
+    const filled = Object.fromEntries(keys.slice(0, stage).map(k => [k, k === 'team' ? filledTeam : row[k]]));
+    return { goal, page: hrForm(filled), history: steps.slice(0, stage).map(({ note, ...st }) => st), lesson, alwaysLesson: true };
+  },
+
   function support() {
     idCounter = Math.floor(Math.random() * 25) + 1;
     const order = `#${Math.floor(10000 + Math.random() * 90000)}`;
@@ -248,7 +271,7 @@ const generators = [
 ];
 
 // Half the calls are on the demo sites, the pages the live demo sends.
-const DEMO_SITES = ['trattoriaNove', 'tubely', 'ironGym', 'ironGym', 'inboxUnsubscribe', 'inboxUnsubscribe', 'inboxUnsubscribe', 'calmlyCancel'];
+const DEMO_SITES = ['trattoriaNove', 'tubely', 'ironGym', 'ironGym', 'inboxUnsubscribe', 'inboxUnsubscribe', 'inboxUnsubscribe', 'calmlyCancel', 'hrStarter', 'hrStarter', 'hrStarter'];
 const sample = () => (Math.random() < 0.5
   ? pick(generators.filter(g => DEMO_SITES.includes(g.name)))
   : pick(generators.filter(g => !DEMO_SITES.includes(g.name))))();
@@ -274,7 +297,16 @@ const other = (list, not) => pick(list.filter(x => x !== not));
 
 function doneCheckSample() {
   const roll = Math.random(); // < .5 success, < .9 near-miss, else nothing confirmed
-  const kind = pick(['restaurant', 'restaurant', 'gym', 'gym', 'unsubscribe', 'unsubscribe', 'calmly', 'video', 'waitlist', 'search', 'support']);
+  const kind = pick(['restaurant', 'restaurant', 'gym', 'gym', 'unsubscribe', 'unsubscribe', 'calmly', 'starter', 'starter', 'video', 'waitlist', 'search', 'support']);
+  if (kind === 'starter') {
+    const row = { name: pick(['Ngozi Okeke', 'Ravi Patel', 'Ella Novak', 'Marco Rossi']), team: pick(HR_TEAMS), manager: pick(['Priya Shah', 'Tom Reyes']), start: '03/11/2026', laptop: 'MacBook Air' };
+    row.email = `${row.name.toLowerCase().replace(' ', '.')}@acme.example`;
+    const goal = `Add a new starter (row 4 of 10). Fill in: Full name = ${row.name}; Work email = ${row.email}; Team = ${row.team}; Manager = ${row.manager}; ${HR_START_LABEL} = ${row.start}; Laptop = ${row.laptop}`;
+    const done = r => hrForm(r, { done: true }).text;
+    if (roll < 0.5) return { goal, text: done(row) };
+    if (roll < 0.9) return { goal, text: pick([done({ ...row, team: pick(HR_TEAMS.filter(t => t !== row.team)) }), done({ ...row, start: '04/11/2026' }), done({ ...row, laptop: 'ThinkPad X1' }), done({ ...row, name: 'Ravi Patil' })]) };
+    return { goal, text: hrForm(row, { error: pick(['Enter the start date as DD/MM/YYYY.', 'Choose a team.', 'Enter a valid work email.']) }).text };
+  }
   if (kind === 'unsubscribe') {
     const name = pick(['DealDash', 'StyleHub', 'Freshbox', 'GadgetGrove', 'TravelNest', 'Runwell']);
     const goal = pick([`Unsubscribe me from ${name} marketing but keep order updates`, `Stop ${name}'s offers, keep delivery emails`]);

@@ -88,6 +88,33 @@ can't find it, it asks you to show it: go to the page and **select the answer te
   are suggested for removal. You review them (*Check your lesson*), and only the ticked steps are
   taught. If nothing looks unneeded, it saves straight away.
 
+### Skills, notes and sheet to form
+
+Everything you teach Mo becomes a **skill** under **My skills** in the panel, with a **Run** button. A correction adds a
+lesson to the same skill (the newest is the one Mo follows). While you teach, press **✎** on any step to add a note,
+for example where a value comes from or how to choose it. Notes go to Claude with the lesson, and into Mubit's
+training examples.
+
+**Sheet to form** (Ada adds the new starters):
+
+1. Open <http://localhost:8787/demo/sheet/> (10 made-up new starters) and <http://localhost:8787/demo/hr/> (PeopleDesk's
+   "Add a new starter" form) in two tabs. With your own Google Sheet, open it instead: Mo reads it through its CSV
+   download with your login. You can also paste rows as CSV.
+2. In Mo's panel press **+ From a sheet**, name the task (`Add a new starter`), pick the sheet's tab and press **Read**:
+   "10 rows · columns: Full name, Email, Dept, Manager".
+3. Switch to the form tab and press **Start: I'll do row 1**. Fill in row 1 (Kofi Mensah), pick any weekday in the next
+   two weeks as the start date, pick **MacBook Air**, press **Submit**. In the panel, press ✎ on the start date step:
+   `Pick a random weekday in the next two weeks. It is not in the sheet.` and on the team step:
+   `If Dept is blank, use Operations`. Press **Done**.
+4. Mo shows how each field gets filled: Full name, Work email, Team and Manager **from a column**; Start date **a random
+   weekday in the next 14 days** (worked out by code, not the model); Laptop **always "MacBook Air"**. Change any that
+   are wrong, then press **Run 9 rows**. One tick approves pressing Submit on every row.
+5. Mo adds rows 2 to 10, one short run per row, with progress, pause and stop. "Eng" becomes Engineering (closest
+   option), Sam Okafor's blank Dept becomes Operations (your note). Failed rows can be retried; finished rows aren't
+   submitted twice. PeopleDesk's "Added so far" list shows all 10.
+
+Mo can't write back to the sheet (that needs the Google Sheets API); it remembers which rows it finished instead.
+
 ### Ada's inbox: the main demo
 
 Open <http://localhost:8787/demo/inbox/>: Ada's inbox, 100 made-up emails. Three levels of the same chore:
