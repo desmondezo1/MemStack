@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New tab</title>
+<style>
+  /* Chrome's own New Tab page can't host extension scripts, so Show Me brings its own:
+     the same quiet tokens as the side panel, one search box, and Mo in the corner. */
+  :root {
+    --paper: #ffffff; --mist: #f5f6f8; --rule: #e4e6eb; --ink: #16181d; --slate: #5d636f; --ember: #f05a1e;
+    --ember-tint: color-mix(in srgb, var(--ember) 9%, var(--paper));
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #17181c; --mist: #202227; --rule: #2e3037; --ink: #eef0f4; --slate: #a2a7b2;
+      --ember-tint: color-mix(in srgb, var(--ember) 16%, var(--paper)); }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; place-items: center; padding: 16px; background: var(--paper); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  main { width: min(560px, 100%); margin-top: -12vh; }
+  form { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 18px; border: 1.5px solid var(--rule); border-radius: 16px;
+    background: var(--paper); transition: border-color 120ms, box-shadow 120ms; }
+  form:focus-within { border-color: var(--ember); box-shadow: 0 0 0 4px var(--ember-tint); }
+  input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; font-size: 18px; padding: 10px 0; }
+  input::placeholder { color: var(--slate); }
+  button { border: 0; border-radius: 11px; padding: 10px 16px; background: var(--ember); color: #fff; font: 600 15px system-ui; cursor: pointer; }
+  button:focus-visible { outline: 3px solid color-mix(in srgb, var(--ember) 40%, transparent); outline-offset: 2px; }
+  p { margin: 14px 4px 0; color: var(--slate); font-size: 14px; }
+  kbd { font: 600 12px system-ui; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--rule); border-bottom-width: 2px; background: var(--mist); color: var(--ink); }
+</style>
+</head>
+<body>
+  <main>
+    <form id="go" role="search">
+      <label for="q" style="position:absolute;left:-9999px">Search the web or type an address</label>
+      <input id="q" name="q" autocomplete="off" autofocus placeholder="Search the web or type an address">
+      <button type="submit">Go</button>
+    </form>
+    <p>Hold <kbd>⌥</kbd> <kbd>Space</kbd>, or hold Mo, and tell Show Me what to do.</p>
+  </main>
+  <script src="newtab.js"></script>
+  <script src="mascot.js"></script>
+</body>
+</html>

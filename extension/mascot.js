@@ -79,11 +79,12 @@
   <div class="bubble" hidden></div>
   <div class="pill" hidden><span class="rec"></span><div class="bars">${'<span></span>'.repeat(BARS)}</div><span class="words">Listening…</span></div>
   <div class="menu" hidden role="menu">
-    <button data-act="talk" role="menuitem">How to talk to me</button>
+    <button data-act="teach" role="menuitem" hidden>Teach me (opens the panel)</button>
     <button data-act="panel" role="menuitem">Open the Show Me panel</button>
+    <button data-act="talk" role="menuitem">How to talk to me</button>
     <button data-act="hide" role="menuitem">Hide on this site</button>
   </div>
-  <button class="mo" aria-label="Show Me: click to talk, drag to move">
+  <button class="mo" aria-label="Show Me: hold to talk, drag to move, right-click for the menu">
     <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
       <defs>
         <radialGradient id="mo-g" cx="35%" cy="30%" r="75%">
@@ -330,10 +331,29 @@
     chrome.storage.local.set({ moCorner: next }).catch(() => {});
   });
 
-  root.querySelector('.more').addEventListener('click', () => { menu.hidden = !menu.hidden; });
+  // The panel opens only from this menu: right-click Mo, or the ⋯ button, or the
+  // "Can you show me?" bubble, which opens the menu with "Teach me" on top.
+  const teachItem = menu.querySelector('[data-act=teach]');
+  function openMenu({ teach = false } = {}) {
+    teachItem.hidden = !teach;
+    menu.hidden = false;
+    host.dataset.menu = 'open';
+    (teach ? teachItem : menu.querySelector('[data-act=panel]')).focus({ preventScroll: true });
+  }
+  function closeMenu() {
+    menu.hidden = true;
+    delete host.dataset.menu;
+  }
+  moButton.addEventListener('contextmenu', e => { e.preventDefault(); openMenu({ teach: wrap.dataset.state === 'stuck' && bubbleAction === 'teach' }); });
+  root.querySelector('.more').addEventListener('click', () => (menu.hidden ? openMenu({ teach: wrap.dataset.state === 'stuck' && bubbleAction === 'teach' }) : closeMenu()));
+  const onOutside = e => { if (!menu.hidden && !e.composedPath().includes(host)) closeMenu(); };
+  const onEscape = e => { if (e.key === 'Escape' && !menu.hidden) closeMenu(); };
+  document.addEventListener('pointerdown', onOutside, true);
+  document.addEventListener('keydown', onEscape, true);
   menu.addEventListener('click', async e => {
     const act = e.target.closest('button')?.dataset.act;
-    menu.hidden = true;
+    closeMenu();
+    if (act === 'teach') chrome.runtime.sendMessage({ type: 'showme:bubble', action: 'teach' }).catch(() => {});
     if (act === 'talk') holdHint();
     if (act === 'panel') {
       const r = await chrome.runtime.sendMessage({ type: 'showme:open-panel' }).catch(() => null);
@@ -347,8 +367,12 @@
   });
   let bubbleAction = null; // what clicking an "ask" bubble does: 'teach' or 'mic'
   bubble.addEventListener('click', () => {
-    if (bubble.classList.contains('ask')) chrome.runtime.sendMessage({ type: 'showme:bubble', action: bubbleAction || 'teach' }).catch(() => {});
+    const ask = bubble.classList.contains('ask');
     hideBubble();
+    if (!ask) return;
+    // Microphone help opens its own tab; teaching goes through the menu, never straight to the panel.
+    if (bubbleAction === 'mic') chrome.runtime.sendMessage({ type: 'showme:bubble', action: 'mic' }).catch(() => {});
+    else openMenu({ teach: true });
   });
 
   function setCorner(next) {
@@ -376,7 +400,7 @@
       else if (msg.state === 'acting') { setState('acting', { text: msg.text, hold: 0 }); actOn(msg.targetId); }
       else if (msg.state === 'learning') { setState('learning', { text: msg.text, hold: 3200 }); flyCards(msg.count); }
       else if (msg.state === 'stuck') { bubbleAction = msg.action || 'teach'; setState('stuck', { text: msg.text || 'Can you show me?', ask: true, hold: 15000 }); }
-      else if (msg.state === 'success') setState('success', { text: msg.text || 'Done!', hold: 2500 });
+      else if (msg.state === 'success') setState('success', { text: msg.text || 'Done!', hold: msg.hold || 2500 });
       else setState(msg.state || 'idle', { text: msg.text, hold: msg.hold || 0 });
       reply({ ok: true });
       return false;
@@ -477,6 +501,8 @@
     document.removeEventListener('keydown', onKeyDown, true);
     document.removeEventListener('keyup', onKeyUp, true);
     window.removeEventListener('blur', onBlur);
+    document.removeEventListener('pointerdown', onOutside, true);
+    document.removeEventListener('keydown', onEscape, true);
     try { chrome.runtime.onMessage.removeListener(onMessage); } catch { /* already dead */ }
     host.remove();
   }

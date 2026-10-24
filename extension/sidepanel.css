@@ -267,3 +267,24 @@ input:focus-visible { border-color: var(--ember); }
 .timer { font-size: var(--fs-xl); font-weight: 650; letter-spacing: -0.02em; margin-right: 6px; }
 .criterion .row { display: flex; align-items: center; gap: 10px; }
 .criterion .ghost { border: 0; background: var(--mist); border-radius: var(--r-m); padding: 6px 12px; font-size: var(--fs-s); font-weight: 600; }
+
+/* Recorded steps and the lesson review */
+.recorded { list-style: none; padding: 0; margin: 4px 0 6px; max-height: 220px; overflow: auto; }
+.recorded li { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: start; padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--ember) 18%, var(--rule)); }
+.recorded li:last-child { border-bottom: 0; }
+.recorded li.new { animation: flash-ember 900ms var(--ease); }
+@keyframes flash-ember { from { background: color-mix(in srgb, var(--ember) 18%, transparent); } }
+.recorded .kind { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: var(--paper); color: var(--slate); font-size: 11px; font-weight: 700; }
+.recorded .kind.highlight { background: var(--ember); color: #fff; }
+.recorded .kind.tab { background: var(--iris-tint); color: var(--iris); }
+.recorded .what { font-size: var(--fs-s); overflow-wrap: anywhere; }
+.recorded .where { display: block; color: var(--slate); font-size: var(--fs-xs); }
+.recorded .remove { border: 0; background: none; color: var(--slate); font-size: 16px; line-height: 1; padding: 0 2px; cursor: pointer; }
+.recorded .remove:hover { color: var(--brick); }
+.review { list-style: none; padding: 0; margin: 4px 0 6px; }
+.review li { padding: 6px 0; border-bottom: 1px solid color-mix(in srgb, var(--ember) 18%, var(--rule)); }
+.review label { display: grid; grid-template-columns: 18px 1fr; gap: 8px; font-size: var(--fs-s); cursor: pointer; }
+.review input { accent-color: var(--ember); margin-top: 3px; }
+.review li.dropped .what { color: var(--slate); text-decoration: line-through; }
+.review .reason { display: block; color: var(--brick); font-size: var(--fs-xs); text-decoration: none; }
+.answer-text { font-weight: 600; }

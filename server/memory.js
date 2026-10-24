@@ -31,7 +31,7 @@ function saveDemos(demos) {
   fs.writeFileSync(demosFile(), JSON.stringify(demos, null, 2));
 }
 
-export function addDemo({ goal, url, steps, mistake }) {
+export function addDemo({ goal, url, steps, mistake, answers = [] }) {
   // Steps are stored by element label, not id: ids change between page loads.
   // Each step keeps the page it happened on, so a lesson spanning several pages
   // is recalled on every one of them.
@@ -43,9 +43,11 @@ export function addDemo({ goal, url, steps, mistake }) {
     id: crypto.randomUUID().slice(0, 8),
     goal,
     page: pageKey(url),
-    pages: [...new Set([pageKey(url), ...stored.map(s => s.page)])],
+    pages: [...new Set([pageKey(url), ...stored.map(s => s.page), ...answers.map(a => pageKey(a.page?.url || url))])],
     steps: stored,
     mistake: mistake ? String(mistake).slice(0, 300) : null,
+    // Text the human pointed out as the answer, recalled by the locate task.
+    answers: answers.map(a => ({ value: String(a.value || '').slice(0, 200), page: pageKey(a.page?.url || url) })),
     createdAt: new Date().toISOString(),
   };
   const demos = listDemos();

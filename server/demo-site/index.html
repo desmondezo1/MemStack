@@ -27,6 +27,11 @@
   .ghost { background: transparent; color: var(--muted); }
   .error { color: #b00020; font: 14px system-ui, sans-serif; min-height: 20px; margin: 8px 0 0; }
   #confirmation { display: none; text-align: center; }
+  .info { margin-top: 16px; }
+  .info h2 + dl { margin-top: 0; }
+  .info dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 18px; font: 15px/1.45 system-ui, sans-serif; }
+  .info dt { font-weight: 600; }
+  .info dd { margin: 0; color: var(--muted); }
   #confirmation h2 { color: var(--accent); }
   .overlay { position: fixed; inset: 0; background: rgba(43,33,24,.45); display: grid; place-items: center; padding: 16px; }
   .overlay[hidden] { display: none; }
@@ -85,6 +90,21 @@
     <h2>Booking confirmed</h2>
     <p id="summary"></p>
     <button type="button" class="ghost" id="again">Make another booking</button>
+  </section>
+  <section class="card info" id="info">
+    <h2>Opening hours</h2>
+    <dl>
+      <dt>Monday</dt><dd>Closed</dd>
+      <dt>Tuesday to Saturday</dt><dd>12:00–23:00</dd>
+      <dt>Sunday</dt><dd>12:00–21:00, Sunday roast until 16:00</dd>
+    </dl>
+    <h2>Good to know</h2>
+    <dl>
+      <dt>Vegetarian and vegan</dt><dd>Every menu has vegetarian dishes. Tell us about vegan needs when you reserve and the kitchen will plan for you.</dd>
+      <dt>Private dining</dt><dd>Our upstairs room seats up to 18 people. Email events@trattorianove.example.</dd>
+      <dt>Getting here</dt><dd>14 Mare Street, Hackney, London E8 4RP. Five minutes from Hackney Central station.</dd>
+      <dt>Dogs</dt><dd>Well-behaved dogs are welcome at the bar tables.</dd>
+    </dl>
   </section>
 </main>
 

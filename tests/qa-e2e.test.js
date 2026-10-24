@@ -169,7 +169,7 @@ async function runGoal(panel, goal, timeout = 40_000) {
   return { verdict: await panel.textContent('#verdict'), timeline: (await panel.textContent('#timeline')).replace(/\s+/g, ' ') };
 }
 const clearMemory = () => fetch(`${base}/api/demonstrations`, { method: 'DELETE' });
-const recordedList = panel => panel.$$eval('#recorded li', lis => lis.map(li => li.textContent));
+const recordedList = panel => panel.$$eval('#recorded li .what-text', lis => lis.map(li => li.textContent));
 
 // Teach the demo restaurant by hand (same as tests/e2e.test.js), choosing a sitting.
 async function teachDemo(panel, site, sitting = 'Sitting C') {

@@ -61,9 +61,30 @@ Mo is the orange orb in the bottom-right corner of every page. It bobs and wande
 dots while Claude is thinking, floats to whatever the agent is about to click, and asks *"Can you show
 me?"* when stuck. When a lesson is sent it throws **+1 → Mubit** cards, and it jumps when it's done.
 
-- **Click Mo** to talk. **Drag** it to any corner. **⋯** (on hover) has *Open the Show Me panel* and
-  *Hide on this site*.
-- When it asks for help, clicking its bubble starts **Show me how**.
+- **Hold Mo** (or hold ⌥ Space) to talk, let go to run. A quick click just reminds you to hold.
+- **Right-click Mo** (or ⋯ on hover) for its menu: *Open the Show Me panel*, *How to talk to me*,
+  *Hide on this site*. The panel only ever opens from this menu.
+- When it asks for help, clicking its bubble opens the menu with **Teach me (opens the panel)** on top.
+- **New tabs** show Show Me's own New Tab page (a search box, the talk hint, and Mo), because Chrome's
+  built-in one can't run extensions. Chrome asks once whether to keep it.
+
+### Asking questions
+
+Ask a question instead of giving a task, e.g. *"What time do they open on Sunday?"* on the demo
+restaurant. Show Me finds the part of the page that answers it, scrolls there, and draws a box around
+it with the answer. Mo says the answer too. If the answer isn't on the page, it navigates first. If it
+can't find it, it asks you to show it: go to the page and **select the answer text**.
+
+### Teaching ("Show me how")
+
+- Every step you take flashes on the page (*Recorded: click*), and appears in the panel with its site.
+  Click **×** on any step to remove it.
+- **New tabs and tab switches** are recorded, and the recorder follows you to the new tab.
+- **Selecting text** records "this is the answer" (for questions).
+- When you press **Done**, Show Me checks the lesson for detours, using simple rules and the model
+  through Mubit. A result you opened and then came back from, typing you corrected, and opening a tab
+  are suggested for removal. You review them (*Check your lesson*), and only the ticked steps are
+  taught. If nothing looks unneeded, it saves straight away.
 
 ### Reading the side panel
 
@@ -139,9 +160,9 @@ ratio in `.env` (`ADAPTER_COST_RATIO`, `ADAPTER_LATENCY_MS`) so the ledger stops
 
 ## 6. Voice
 
-- **⌥ Space** (Option + Space) from any page opens the panel and starts listening. A waveform appears
-  next to Mo with your words; when you stop talking, it runs. Press it again to stop listening. Change
-  the key at `chrome://extensions/shortcuts`. (The Fn/Globe key can't be used: macOS keeps it.)
+- **Hold ⌥ Space** (Option + Space) on any page, or hold Mo, and talk. A waveform appears next to Mo
+  with your words; let go and it runs. Esc cancels. The panel doesn't open: if it's already open it
+  shows the run, otherwise Mo narrates. (The Fn/Globe key can't be used: macOS keeps it.)
 - **Mic button**: uses Chrome's built-in speech recognition. The first time, Chrome opens a tab to allow
   the microphone (side panels can't ask). Allow it, close the tab and press the mic again. With
   "Run as soon as I finish speaking" ticked, the agent starts when you stop talking.
@@ -160,6 +181,23 @@ SHOWME_E2E_LIVE=1 node --test tests/e2e.test.js   # main flow with your .env key
 
 The first time, if Playwright says Chromium is missing: `npx playwright install chromium`.
 
+## Live check (real websites, real model)
+
+`npm test` uses local pages so it's quick and repeatable. `npm run live` is the opposite: the real
+extension in a visible browser, real Claude through Mubit, on real sites. It covers YouTube (play a
+video), Wikipedia (when was Burna Boy born), the weather in London tomorrow, and teaching on Wikipedia
+with a deliberate detour. Goals only read and search; nothing is booked, bought or submitted. It
+prints each step and saves screenshots and `report.json` in `test-results/live/`. A run costs about
+half a cent of Mubit credit.
+
+```bash
+npm run live                    # all four
+npm run live -- wikipedia       # only the matching ones
+```
+
+Google often blocks automated searches with an "unusual traffic" page. The agent is expected to go
+to another site, not to try to get past it.
+
 ## Rehearsal tips
 
 - Changed the next-action prompt on 24 Oct (full toolset), so Mubit sees a new next-action task; the seed
@@ -177,3 +215,15 @@ The first time, if Playwright says Chromium is missing: `npx playwright install 
   and the adapter is compared in Try models.
 - Clicks are page-script clicks. A few sites ignore those; the demo site doesn't.
 - `chrome://` pages and the Chrome Web Store can't be read by any extension.
+
+## Sapling verifier
+
+Every done-check and every risky click (pay, submit, confirm, reserve, delete…) also gets an
+independent check from Banyan Sapling. It's on with a Mubit key and off in practice mode. Set
+`SAPLING=on` or `SAPLING=off` to choose. Every call is logged to `verifier.log`. Try it on saved pages:
+
+```bash
+node verify-demo.js fixtures/booking-correct.txt
+node verify-demo.js fixtures/booking-wrong-date.txt
+node verify-demo.js fixtures/payment-page.txt
+```

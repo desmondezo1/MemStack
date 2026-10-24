@@ -23,6 +23,8 @@ test('system prompts are unchanged (Mubit task fingerprints)', () => {
     'next-action': '2cb30b8a806c41bf',
     'done-check': '0d1ab2abb424237b',
     'safety-gate': 'd66fb5cd082cdb56',
+    'locate': '7ddb0f5bb58d1e0a',
+    'refine-lesson': '49827a408028c5f6',
   });
 });
 

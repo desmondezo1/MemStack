@@ -56,6 +56,7 @@ export async function callTask({ task, userMessage, sessionId, kind = 'live', mo
     task, kind, ms, ok: !!json, model: config.model, provider: config.provider, sessionId,
     inTokens: result.inTokens, outTokens: result.outTokens, requestId: result.requestId,
     summary: json ? safeSummary(summarize, json) : 'reply was not JSON',
+    ...(json ? {} : { reply: result.text.slice(0, 1500) }), // kept locally to debug bad replies
   });
   if (!json) throw new LlmError(`Model reply was not JSON: ${result.text.slice(0, 200)}`, { requestId: result.requestId, code: 'bad_reply' });
   const usage = config.provider === 'mock'
@@ -145,12 +146,23 @@ export function parseJson(text) {
   // No JSON at all: read a tool-call style reply,
   // <invoke name="click"><parameter name="element_id">e28</parameter>…</invoke>
   const invoke = [...text.matchAll(/<invoke name="([^"]+)">([\s\S]*?)(?=<invoke|<\/invoke>|$)/g)].pop();
-  if (!invoke) return null;
+  if (!invoke) return looseObject(text);
   const out = { action: invoke[1] };
   for (const [, key, value] of invoke[2].matchAll(/<parameter name="([^"]+)">([\s\S]*?)<\/parameter>/g)) {
     out[key] = value === 'true' ? true : value === 'false' ? false : value.trim();
   }
   return out;
+}
+
+// Almost-JSON, e.g. an unescaped quote inside "reason": pick out the fields we act on.
+const LOOSE_KEYS = ['action', 'element_id', 'value', 'submit', 'done', 'allow', 'found', 'block_id', 'answer', 'reason'];
+function looseObject(text) {
+  const out = {};
+  for (const key of LOOSE_KEYS) {
+    const m = text.match(new RegExp(`"${key}"\\s*:\\s*(?:"((?:[^"\\\\]|\\\\.)*)"|(true|false|-?\\d+))`));
+    if (m) out[key] = m[2] === undefined ? m[1].replace(/\\"/g, '"') : m[2] === 'true' ? true : m[2] === 'false' ? false : Number(m[2]);
+  }
+  return ANSWER_KEYS.some(k => k in out) ? out : null;
 }
 
 function jsonObjects(text) {

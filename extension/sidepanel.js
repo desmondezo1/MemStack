@@ -191,6 +191,7 @@ async function run(goal) {
           const why = li.querySelector('.step-why') || li.appendChild(Object.assign(document.createElement('div'), { className: 'step-why' }));
           why.insertAdjacentHTML('beforeend', `<span class="went">${why.textContent ? '. ' : ''}Now on ${esc(shortUrl(url))}</span>`);
         },
+        answer: found => addStep(stepHtml(`Found it: <span class="answer-text">${esc(found.answer)}</span>`, { why: 'Highlighted on the page', badge: found.demoUsed ? '<span class="badge lesson">from lesson</span>' : '' }), { kind: 'check' }),
         check: check => addStep(stepHtml(check.done ? 'Checked: goal met' : 'Checked: goal not met', { why: esc(check.reason), nums: check.ms >= 100 ? `${(check.ms / 1000).toFixed(1)} s` : '' }), { error: !check.done, kind: 'check' }),
         error: message => addStep(stepHtml(esc(message)), { error: true, kind: 'note' }),
       },
@@ -213,6 +214,10 @@ async function run(goal) {
       mo('stuck', { text: asked ? `I need help: ${failure.replace(/^I need help: /, '')}` : 'I couldn\'t finish this. Can you show me?' });
       speak(asked ? `I need help. ${failure.replace(/^I need help: /, '')}. Can you show me?` : 'I couldn\'t finish this. Can you show me how?');
     }
+  } else if (r.answer) {
+    setVerdict(true, 'Found it ✓');
+    mo('success', { text: r.answer, hold: 10000 });
+    speak(r.answer);
   } else {
     setVerdict(true, 'Done ✓');
     mo('success', { text: usedLesson ? 'Done, using what you taught me!' : 'Done!' });
@@ -226,6 +231,7 @@ function offerTeaching(reason) {
   $('teach').hidden = false;
   $('teach-ask').hidden = false;
   $('teach-recording').hidden = true;
+  $('teach-review').hidden = true;
   $('teach-saved').hidden = true;
   $('teach-reason').textContent = reason;
 }
@@ -247,6 +253,7 @@ async function startTeaching() {
   state.recording = true;
   state.recorded = [];
   state.recordTabId = tab.id;
+  $('saved-summary').textContent = '';
   state.lastUrl = page.url;
   state.lastStepAt = Date.now();
   $('recorded').innerHTML = '';
@@ -257,14 +264,33 @@ async function startTeaching() {
   mo('idle', { text: 'I\'m watching. Show me how.', hold: 5000 }, tab.id);
 }
 
+// Steps that can move the page on; a URL change right after one of these was caused by it.
+const NAV_CAUSES = new Set(['click', 'type', 'select', 'press', 'open_url']);
+const STEP_ICON = { click: '↖', type: 'T', select: '▾', press: '⏎', highlight: '★', open_url: '↗', new_tab: '+', switch_tab: '⇄' };
+const siteOf = st => { try { return new URL(st.action === 'open_url' || st.action === 'switch_tab' ? st.value : st.page?.url).hostname.replace(/^www\./, ''); } catch { return ''; } };
+
 function onRecorded(step) {
   if (!state.recording) return;
-  state.lastStepAt = Date.now();
+  if (NAV_CAUSES.has(step.action)) state.lastStepAt = Date.now();
   state.recorded.push(step);
-  const li = document.createElement('li');
-  li.textContent = describeAction(step);
-  $('recorded').appendChild(li);
-  $('done-teaching').disabled = false;
+  renderRecorded(true);
+}
+
+function renderRecorded(flashLast = false) {
+  const list = $('recorded');
+  list.innerHTML = '';
+  state.recorded.forEach((st, i) => {
+    const li = document.createElement('li');
+    const kind = st.action === 'highlight' ? 'highlight' : st.action === 'new_tab' || st.action === 'switch_tab' ? 'tab' : '';
+    li.innerHTML = `<span class="kind ${kind}" aria-hidden="true">${STEP_ICON[st.action] || '•'}</span>` +
+      `<span class="what"><span class="what-text">${esc(describeAction(st))}</span><span class="where">${esc(siteOf(st))}</span></span>` +
+      `<button class="remove" title="Remove this step" aria-label="Remove step ${i + 1}">×</button>`;
+    li.querySelector('.remove').addEventListener('click', () => { state.recorded.splice(i, 1); renderRecorded(); });
+    if (flashLast && i === state.recorded.length - 1) li.classList.add('new');
+    list.appendChild(li);
+  });
+  list.lastElementChild?.scrollIntoView({ block: 'nearest' });
+  $('done-teaching').disabled = !state.recorded.length;
 }
 
 async function stopRecording() {
@@ -272,6 +298,8 @@ async function stopRecording() {
   if (state.recordTabId) await send(state.recordTabId, { type: 'showme:record', on: false }).catch(() => {});
 }
 
+// Done: first check the lesson for detours (rules, then the model through Mubit). If any
+// steps look unneeded, you review them; otherwise it's saved straight away.
 async function finishTeaching() {
   if (state.saving || !state.recording || !state.recorded.length) return;
   state.saving = true;
@@ -279,6 +307,42 @@ async function finishTeaching() {
   await stopRecording();
   const steps = state.recorded;
   $('teach-recording').hidden = true;
+  $('teach-saved').hidden = false;
+  $('saved-summary').textContent = 'Checking your lesson for detours…';
+  $('rerun').disabled = true;
+  const lite = st => ({ action: st.action, label: st.label, role: st.role, value: st.value, submit: st.submit, led_to: st.led_to, page: { url: st.page?.url } });
+  const review = await api('/api/refine-lesson', { method: 'POST', body: { goal: state.lastGoal, steps: steps.map(lite) } }).catch(() => null);
+  state.saving = false;
+  if (review && review.keep.some(k => !k)) return showReview(steps, review);
+  await saveLesson(steps);
+}
+
+function showReview(steps, review) {
+  $('teach-recording').hidden = true;
+  $('teach-saved').hidden = true;
+  $('teach-review').hidden = false;
+  const list = $('review');
+  list.innerHTML = '';
+  steps.forEach((st, i) => {
+    const li = document.createElement('li');
+    const keep = review.keep[i];
+    li.classList.toggle('dropped', !keep);
+    li.innerHTML = `<label><input type="checkbox" ${keep ? 'checked' : ''}><span class="what">${esc(describeAction(st))}` +
+      `${keep ? '' : `<span class="reason">${esc(review.why[i] || 'Looks unneeded')}</span>`}</span></label>`;
+    li.querySelector('input').addEventListener('change', e => li.classList.toggle('dropped', !e.target.checked));
+    list.appendChild(li);
+  });
+  $('save-lesson').onclick = () => {
+    const kept = steps.filter((_, i) => list.children[i].querySelector('input').checked);
+    if (kept.length) saveLesson(kept);
+  };
+}
+
+async function saveLesson(steps) {
+  if (state.saving) return;
+  state.saving = true;
+  $('teach-recording').hidden = true;
+  $('teach-review').hidden = true;
   $('teach-saved').hidden = false;
   $('saved-summary').textContent = `Saving ${steps.length} steps and sending them through Mubit…`;
   $('rerun').disabled = true;
@@ -344,8 +408,12 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   // the address bar or a bookmark: record it as open_url.
   if (info.url && info.url !== state.lastUrl) {
     if (isWebPage(info.url) && Date.now() - state.lastStepAt > 4000) {
-      onRecorded({ action: 'open_url', element_id: '', label: '', role: '', value: info.url,
+      onRecorded({ action: 'open_url', element_id: '', label: '', role: '', value: info.url, led_to: info.url,
         page: { url: state.lastUrl || 'about:blank', title: '', headings: [], elements: [], text: '', note: 'none (browser start page: use open_url to go to a site)' } });
+    } else {
+      // Caused by the step just recorded: remember where it led, to spot detours later.
+      const last = state.recorded[state.recorded.length - 1];
+      if (last && !last.led_to) last.led_to = info.url;
     }
     state.lastUrl = info.url;
   }
@@ -356,6 +424,28 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'showme:recorded' && sender.tab?.id === state.recordTabId) onRecorded(msg.step);
+});
+
+// New tabs and tab switches while you teach: record them, and follow you there.
+const startPage = () => ({ url: state.lastUrl || 'about:blank', title: '', headings: [], elements: [], text: '', note: 'none (browser start page: use open_url to go to a site)' });
+async function followTab(tab) {
+  if (state.recordTabId && state.recordTabId !== tab.id) send(state.recordTabId, { type: 'showme:record', on: false }).catch(() => {});
+  state.recordTabId = tab.id;
+  state.lastUrl = tab.url || tab.pendingUrl || 'chrome://newtab/';
+  if (isWebPage(tab.url)) send(tab.id, { type: 'showme:record', on: true }).catch(() => {});
+}
+chrome.tabs.onCreated.addListener(tab => {
+  if (!state.recording) return;
+  state.newTabId = tab.id;
+  onRecorded({ action: 'new_tab', element_id: '', label: '', role: '', value: '', page: startPage() });
+});
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  if (!state.recording || tabId === state.recordTabId) return;
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab || (isOwnPage(tab.url) && !tab.url?.startsWith('chrome://newtab'))) return;
+  if (tabId !== state.newTabId) onRecorded({ action: 'switch_tab', element_id: '', label: tab.title || '', role: '', value: tab.url, page: startPage() });
+  state.newTabId = null;
+  await followTab(tab);
 });
 
 // ---- Voice --------------------------------------------------------------------
@@ -556,6 +646,13 @@ async function init() {
   $('show-me').addEventListener('click', () => startTeaching().catch(err => offerTeaching(err.message)));
   $('done-teaching').addEventListener('click', finishTeaching);
   $('cancel-teaching').addEventListener('click', async () => { await stopRecording(); offerTeaching('Demonstration cancelled.'); });
+  $('back-to-recording').addEventListener('click', async () => {
+    $('teach-review').hidden = true;
+    $('teach-recording').hidden = false;
+    state.recording = true;
+    renderRecorded();
+    if (state.recordTabId) await send(state.recordTabId, { type: 'showme:record', on: true }).catch(() => {});
+  });
   $('rerun').addEventListener('click', rerun);
   $('forget').addEventListener('click', async () => { await api('/api/demonstrations', { method: 'DELETE' }).catch(() => {}); refreshMemory(); });
   $('refresh-ledger').addEventListener('click', () => mubit.refresh());

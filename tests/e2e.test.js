@@ -81,7 +81,7 @@ test('fail, show me, rerun succeeds', { timeout: live ? 300_000 : 90_000 }, asyn
   await site.waitForSelector('#confirmation', { state: 'visible' });
 
   await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 5);
-  const recorded = await panel.$$eval('#recorded li', lis => lis.map(li => li.textContent));
+  const recorded = await panel.$$eval('#recorded li .what-text', lis => lis.map(li => li.textContent));
   console.log('recorded:', recorded);
   assert.deepEqual(recorded, [
     'click “No thanks”',

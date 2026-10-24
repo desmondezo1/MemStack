@@ -94,7 +94,7 @@ async function runHeadless(tabId, goal) {
   try {
     const r = await runAgent({ goal, tabId, api });
     if (r.outcome === 'done') {
-      mo(tabId, 'success', { text: r.usedLesson ? 'Done, using what you taught me!' : 'Done!' });
+      mo(tabId, 'success', r.answer ? { text: r.answer, hold: 10000 } : { text: r.usedLesson ? 'Done, using what you taught me!' : 'Done!' });
     } else if (r.outcome === 'failed' || r.outcome === 'asked') {
       // Teaching needs the panel: keep what's needed so it can pick up from here.
       await chrome.storage.session.set({ pendingTeach: { goal, tabId, startUrl: headless.startUrl, failure: r.failure, at: Date.now() } });

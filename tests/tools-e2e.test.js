@@ -141,7 +141,7 @@ test('demonstration records address-bar navigation and Enter, rerun replays it',
   await site.waitForSelector('#showme-recording-badge');
   await site.click('#play');
   await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 4);
-  const recorded = await panel.$$eval('#recorded li', l => l.map(li => li.textContent));
+  const recorded = await panel.$$eval('#recorded li .what-text', l => l.map(li => li.textContent));
   console.log('recorded:', recorded);
   assert.match(recorded[0], /^open localhost:\d+\/demo\/tube$/);
   assert.equal(recorded[1], 'type “Burna Boy” into “Search videos” + Enter');
@@ -452,4 +452,129 @@ test('Mo\'s eyes follow the pointer and it blinks on its own', { timeout: 40_000
   // Blinks come every 2–6 s.
   await site.waitForFunction(() => +(document.querySelector('showme-mo').dataset.blinks || 0) >= 1, null, { timeout: 8000 });
   await site.close();
+});
+
+test('Mo never opens the panel by itself: right-click and the help bubble open its menu', { timeout: 30_000 }, async () => {
+  const { site, tabId } = await tabAt(`${base}/demo/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  const panels = () => worker.evaluate(() => chrome.runtime.getContexts({ contextTypes: ['SIDE_PANEL'] }).then(c => c.length));
+  const before = await panels();
+  const box = await site.evaluate(() => ({ x: innerWidth - 18 - 32, y: innerHeight - 18 - 32 }));
+  // Right-click Mo: the menu opens, no panel.
+  await site.mouse.click(box.x, box.y, { button: 'right' });
+  await site.waitForFunction(() => document.querySelector('showme-mo').dataset.menu === 'open');
+  // Escape closes it.
+  await site.keyboard.press('Escape');
+  await site.waitForFunction(() => !document.querySelector('showme-mo').dataset.menu);
+  // Stuck: clicking the "Can you show me?" bubble opens the menu (with Teach me), not the panel.
+  await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:mo', state: 'stuck', text: 'Can you show me?' }), tabId);
+  await site.waitForFunction(() => document.querySelector('showme-mo').dataset.bubble === 'Can you show me?');
+  const bubbleAt = { x: box.x - 40, y: box.y - 60 };
+  await site.mouse.click(bubbleAt.x, bubbleAt.y);
+  await site.waitForFunction(() => document.querySelector('showme-mo').dataset.menu === 'open');
+  // A plain click on Mo just hints at holding to talk.
+  await site.keyboard.press('Escape');
+  await site.mouse.click(box.x, box.y);
+  await site.waitForFunction(() => /Hold/.test(document.querySelector('showme-mo').dataset.bubble || ''));
+  assert.equal(await panels(), before, 'no side panel was opened');
+  await site.close();
+});
+
+test('a new tab shows Show Me\'s page with Mo, and its box opens addresses', { timeout: 30_000 }, async () => {
+  const page = await context.newPage();
+  await page.goto('chrome://newtab/');
+  await page.waitForSelector('showme-mo', { state: 'attached' });
+  assert.match(page.url(), /^chrome-extension:\/\/.+\/newtab\.html$/);
+  // The extension can still talk to Mo here (thinking, listening…).
+  const tabId = await worker.evaluate(async () => (await chrome.tabs.query({})).find(t => t.url === 'chrome://newtab/')?.id);
+  await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:mo', state: 'thinking' }), tabId);
+  await page.waitForFunction(() => document.querySelector('showme-mo').dataset.state === 'thinking');
+  // An address without "https://" still opens as a site, not a search.
+  await page.fill('#q', `${base.replace('http://', '')}/demo/tube/`);
+  await page.press('#q', 'Enter');
+  await page.waitForURL(`${base}/demo/tube/`);
+  await page.close();
+});
+
+test('a question gets its answer highlighted on the page', { timeout: 60_000 }, async () => {
+  const { site, tabId } = await tabAt(`${base}/demo/`);
+  await site.click('#no-thanks');
+  const panel = await panelFor(tabId);
+  const r = await run(panel, 'What time do they open on Sunday?');
+  console.log('question:', r.verdict, '|', r.timeline);
+  assert.equal(r.verdict, 'Found it ✓');
+  assert.match(r.timeline, /Found it: 12:00–21:00, Sunday roast until 16:00/);
+  await site.waitForFunction(() => /12:00–21:00/.test(document.querySelector('showme-overlay')?.dataset.answer || ''));
+  // The answer is scrolled into view.
+  await site.waitForFunction(() => { const dd = [...document.querySelectorAll('dd')].find(d => d.textContent.startsWith('12:00–21:00')); const r = dd.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }, null, { timeout: 5000 });
+  assert.match(await site.evaluate(() => document.querySelector('showme-mo').dataset.bubble || ''), /12:00–21:00/);
+  await panel.close(); await site.close();
+});
+
+test('teaching follows a new tab, shows each catch, drops the detour, and learns the answer', { timeout: 120_000 }, async () => {
+  await fetch(`${base}/api/demonstrations`, { method: 'DELETE' });
+  const goal = 'Which Burna Boy video was filmed at Wembley?';
+  const { site, tabId } = await tabAt(`${base}/demo/tube/`);
+  const panel = await panelFor(tabId);
+  const r = await run(panel, goal);
+  console.log('first try:', r.verdict, '|', r.timeline);
+  assert.equal(r.verdict, 'Failed');
+  assert.match(await panel.textContent('#teach-reason'), /couldn't find the answer/);
+
+  await panel.click('#show-me');
+  await panel.waitForSelector('#teach-recording:not([hidden])');
+  await site.waitForTimeout(4500);
+  // Open a new tab and carry on there: the recorder follows.
+  const tab2 = await context.newPage();
+  await tab2.bringToFront();
+  await panel.waitForFunction(() => /open a new tab/.test(document.querySelector('#recorded').textContent));
+  await tab2.goto(`${base}/demo/tube/`);
+  await tab2.waitForSelector('#showme-recording-badge');
+  await tab2.fill('input[name=q]', 'Burna Boy');
+  await tab2.press('input[name=q]', 'Enter');
+  await tab2.waitForURL(/results/);
+  await tab2.waitForSelector('#showme-recording-badge');
+  // The detour: open the first result, then come back.
+  await tab2.click('a.video >> nth=0');
+  await tab2.waitForURL(/watch/);
+  await tab2.goBack();
+  await tab2.waitForSelector('#showme-recording-badge');
+  await tab2.click('a.video >> nth=1'); // "live at Wembley"
+  await tab2.waitForURL(/watch/);
+  await tab2.waitForSelector('#showme-recording-badge');
+  // Each caught step flashes on the page.
+  await tab2.click('#title', { clickCount: 3 }); // select the title: "this is the answer"
+  await panel.waitForFunction(() => /point out/.test(document.querySelector('#recorded').textContent));
+  const recorded = await panel.$$eval('#recorded li .what-text', l => l.map(li => li.textContent));
+  console.log('recorded:', recorded);
+  assert.equal(recorded[0], 'open a new tab');
+  assert.match(recorded[1], /^open localhost:\d+\/demo\/tube$/);
+  assert.equal(recorded[2], 'type “Burna Boy” into “Search videos” + Enter');
+  assert.match(recorded[3], /Official Music Video/);
+  assert.match(recorded[4], /live at Wembley/);
+  assert.match(recorded.at(-1), /^point out “Burna Boy live at Wembley/);
+
+  // Done → review: the new tab and the abandoned result are suggested for removal.
+  await panel.click('#done-teaching');
+  await panel.waitForSelector('#teach-review:not([hidden])');
+  const review = await panel.$$eval('#review li', l => l.map(li => ({ kept: li.querySelector('input').checked, text: li.textContent })));
+  console.log('review:', review.map(x => `${x.kept ? '✓' : '✗'} ${x.text}`));
+  assert.equal(review[0].kept, false);
+  assert.equal(review[3].kept, false);
+  assert.match(review[3].text, /came back/);
+  assert.ok(review.filter((_, i) => ![0, 3].includes(i)).every(x => x.kept));
+  await panel.click('#save-lesson');
+  await panel.waitForFunction(() => /Learned/.test(document.querySelector('#saved-summary').textContent));
+
+  // Next time: it follows the lesson and highlights the answer.
+  await tab2.close();
+  await panel.click('#rerun');
+  await panel.waitForSelector('#verdict', { state: 'hidden' });
+  await panel.waitForSelector('#verdict:not([hidden])', { timeout: 40_000 });
+  const timeline = (await panel.textContent('#timeline')).replace(/\s+/g, ' ');
+  console.log('rerun:', await panel.textContent('#verdict'), '|', timeline);
+  assert.equal(await panel.textContent('#verdict'), 'Found it ✓');
+  assert.match(timeline, /Found it: .*Wembley/);
+  assert.doesNotMatch(timeline, /Official Music Video/);
+  await panel.close(); await site.close();
 });

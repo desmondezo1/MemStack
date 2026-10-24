@@ -92,6 +92,9 @@ export function describeAction(a) {
     case 'scroll': return `scroll ${a.value || 'down'}`;
     case 'wait': return 'wait for the page';
     case 'ask_human': return `ask you: “${a.value}”`;
+    case 'highlight': return `point out “${a.value}”`;
+    case 'new_tab': return 'open a new tab';
+    case 'switch_tab': return `switch to ${a.label || shortUrl(a.value)}`;
     case 'done': return 'finish';
     default: return `click ${target}`;
   }
@@ -120,6 +123,43 @@ export async function perform(tabId, action) {
   return send(tabId, { type: 'showme:act', action });
 }
 
+// Privacy floor, in code, before anything the model picks: on a cookie banner, an
+// "accept" click becomes the banner's reject / necessary-only button when there is one.
+const ACCEPT = /\b(accept|agree|allow)( all)?\b/i;
+const REJECT = /\b(reject|decline|refuse)( all| additional)?\b|necessary only|only necessary|essential only|only essential/i;
+export function privacyFloor(next, page) {
+  if (next.action !== 'click' || !ACCEPT.test(next.label || '') || !/cookie/i.test(page.text || '')) return next;
+  const reject = (page.elements || []).find(e => (e.role === 'button' || e.role === 'link') && REJECT.test(e.label));
+  if (!reject) return next;
+  return { ...next, element_id: reject.id, label: reject.label, role: reject.role, reason: 'Chose the privacy-friendly option on the cookie banner' };
+}
+
+// Questions and "show me where…" requests get an answer highlighted on the page instead
+// of (or after) clicking around.
+export function isQuestion(goal) {
+  const g = String(goal).trim().toLowerCase();
+  return /\?$/.test(g)
+    || /^(what|when|where|who|whom|which|why|how|is|are|was|were|does|do|did|can|could|should|will|would|has|have)\b/.test(g)
+    || /^(show|tell) me (where|what|when|how|which|who|if)\b/.test(g)
+    || /^(highlight|point (me )?(to|at)|locate)\b/.test(g)
+    || /^find\b.*\b(on|in) (this|the) page\b/.test(g);
+}
+
+// Look for the answer on the page; if it's there, scroll to it and box it.
+async function answerHere({ goal, tabId, api, signal, r, call }) {
+  const page = await snapshot(tabId);
+  if (!page.blocks?.length && !page.elements?.length) return false;
+  mo(tabId, 'thinking');
+  const found = await api('/api/locate', { method: 'POST', body: { goal, page, sessionId: r.sessionId }, signal });
+  call('usage', found.usage, found.ms);
+  if (found.demoUsed) r.usedLesson = true;
+  if (!found.found) return false;
+  await send(tabId, { type: 'showme:act', action: { action: 'highlight', element_id: found.block_id, value: found.answer } });
+  r.answer = found.answer;
+  call('answer', found);
+  return true;
+}
+
 // One run of the agent on a tab. `ui` callbacks let the caller show progress
 // (the panel draws a timeline; the background lets Mo narrate):
 //   step(next) → handle, failedStep(handle), navigated(handle, url), check(check), error(message), usage(usage, ms)
@@ -129,11 +169,23 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
     failure: null, infra: false, finished: false, asked: false, usedLesson: false, decisions: 0, invalid: 0,
   };
   const call = (fn, ...args) => (ui[fn] ? ui[fn](...args) : undefined);
+  const question = isQuestion(goal);
   try {
-    for (let step = 1; step <= MAX_STEPS && !isStopped(); step++) {
+    await send(tabId, { type: 'showme:act', action: { action: 'clear_highlight' } }).catch(() => {});
+    // Already on the page that answers it? Then there's nothing to click.
+    if (question && isWebPage((await chrome.tabs.get(tabId)).url) && await answerHere({ goal, tabId, api, signal, r, call })) {
+      r.finished = true;
+    }
+    for (let step = 1; step <= MAX_STEPS && !isStopped() && !r.answer; step++) {
+      // A question: after every move (a new page, a scroll), check whether the answer is now
+      // in view before deciding what to do next. The next-action step only sees controls.
+      if (question && r.history.length && isWebPage((await chrome.tabs.get(tabId)).url) && await answerHere({ goal, tabId, api, signal, r, call })) {
+        r.finished = true;
+        break;
+      }
       const page = await snapshot(tabId);
       mo(tabId, 'thinking');
-      const next = await api('/api/next-action', { method: 'POST', body: { goal, page, history: r.history, sessionId: r.sessionId }, signal });
+      const next = privacyFloor(await api('/api/next-action', { method: 'POST', body: { goal, page, history: r.history, sessionId: r.sessionId }, signal }), page);
       call('usage', next.usage, next.ms);
       r.decisions++;
       if (!next.valid) r.invalid++;
@@ -169,7 +221,10 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
     if (isStopped()) r.failure = 'Stopped.';
     else if (!r.failure && !r.finished) r.failure = `I ran out of steps (${MAX_STEPS}).`;
 
-    if (!r.failure) {
+    // A question is done when the answer is on screen, not when a page "looks done".
+    if (!r.failure && question && !r.answer) {
+      if (!(await answerHere({ goal, tabId, api, signal, r, call }))) r.failure = 'I couldn\'t find the answer on this page. Can you show me where it is?';
+    } else if (!r.failure && !question) {
       await sleep(400);
       const check = await api('/api/done-check', { method: 'POST', body: { goal, page: await snapshot(tabId), sessionId: r.sessionId }, signal });
       call('usage', check.usage, check.ms);
@@ -191,7 +246,7 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
   // Every run is recorded for the Mubit tab's "failures that became fixes".
   api('/api/runs', { method: 'POST', body: {
     goal, outcome: r.outcome, usedLesson: r.usedLesson, steps: r.history.length, decisions: r.decisions, invalid: r.invalid,
-    tools: [...new Set(r.history.map(h => h.action).concat(r.finished ? ['done'] : []))], url: r.finalUrl,
+    tools: [...new Set(r.history.map(h => h.action).concat(r.finished ? ['done'] : [], r.answer ? ['highlight'] : []))], url: r.finalUrl,
   } }).catch(() => {});
   return r;
 }
