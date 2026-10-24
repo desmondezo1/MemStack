@@ -278,6 +278,9 @@
     el.scrollIntoView({ block: 'center', behavior: 'instant' });
     highlight(el.labels?.[0] || el);
     if (action === 'click') {
+      // Mo works in one tab: a link that would open a new tab opens here instead.
+      const link = el.closest('a[target]');
+      if (link && link.target !== '_self') link.target = '_self';
       el.click();
     } else if (action === 'type') {
       el.focus();
@@ -472,4 +475,7 @@
   const alive = () => { try { return !!chrome.runtime?.id; } catch { return false; } };
   const heartbeat = setInterval(() => { if (!alive()) dispose(); }, 2000);
   window.__showMeInstalled = { alive, dispose };
+  // A page that loads while you're teaching (a link, a new tab) asks whether to record,
+  // so it never misses the panel's "start recording" message.
+  chrome.runtime.sendMessage({ type: 'showme:recording?' }).then(r => { if (r?.on) setRecording(true); }).catch(() => {});
 })();

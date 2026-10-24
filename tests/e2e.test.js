@@ -44,7 +44,8 @@ after(async () => {
 });
 
 async function tabIdFor(url) {
-  return worker.evaluate(async u => (await chrome.tabs.query({})).find(t => t.url.startsWith(u))?.id, url);
+  // The newest tab at this address: earlier tests may leave theirs open.
+  return worker.evaluate(async u => (await chrome.tabs.query({})).filter(t => t.url.startsWith(u)).pop()?.id, url);
 }
 
 test('fail, show me, rerun succeeds', { timeout: live ? 300_000 : 90_000 }, async () => {
@@ -292,4 +293,39 @@ test('audit: find what Ada pays for and cancel what she does not use', { skip: !
   console.log('audit rerun ended on:', site.url(), '|', (await site.textContent('main')).replace(/\s+/g, ' ').slice(0, 300));
   assert.match(timeline, /No thanks, cancel my subscription/);
   assert.match(await site.textContent('main'), /ends: today[\s\S]*add-on: cancelled/);
+});
+
+test('teaching keeps recording when a link opens a new tab, until you press Done', { timeout: 90_000, skip: live }, async () => {
+  await fetch(`${base}/api/demonstrations`, { method: 'DELETE' });
+  const site = await context.newPage();
+  await site.goto(`${base}/demo/inbox/`);
+  const tabId = await tabIdFor(`${base}/demo/inbox/`);
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${tabId}`);
+  await panel.waitForSelector('#mode.mock', { timeout: 10_000 });
+  await panel.fill('#goal', 'Unsubscribe me from DealDash emails');
+  await panel.click('#run');
+  await panel.waitForSelector('#verdict:not([hidden])', { timeout: 30_000 });
+  await panel.click('#show-me');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  // An email link that opens in a new tab, as many real emails do.
+  await site.evaluate(() => {
+    const a = Object.assign(document.createElement('a'), { href: '/demo/calmly/', target: '_blank', textContent: 'Open Calmly in a new tab' });
+    document.querySelector('main').prepend(a);
+  });
+  await site.bringToFront();
+  const [tab2] = await Promise.all([context.waitForEvent('page'), site.click('text=Open Calmly in a new tab')]);
+  await tab2.waitForLoadState('load');
+  await tab2.bringToFront();
+  await tab2.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await tab2.click('text=Manage subscription');
+  await tab2.click('text=Cancel subscription');
+  await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 3, null, { timeout: 10_000 });
+  const recorded = await panel.$$eval('#recorded li .what-text', lis => lis.map(li => li.textContent));
+  console.log('new-tab recorded:', recorded);
+  assert.ok(recorded.some(t => /Manage subscription/.test(t)), 'records clicks in the new tab');
+  assert.ok(recorded.some(t => /Cancel subscription/.test(t)));
+  // Still recording after the new tab: only Done stops it.
+  assert.equal(await panel.isVisible('#done-teaching'), true);
+  await tab2.close(); await panel.close(); await site.close();
 });

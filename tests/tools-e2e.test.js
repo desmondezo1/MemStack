@@ -580,3 +580,15 @@ test('teaching follows a new tab, shows each catch, drops the detour, and learns
   assert.doesNotMatch(timeline, /Official Music Video/);
   await panel.close(); await site.close();
 });
+
+test('Mo opens a "new tab" link in its own tab, so a run never leaves its tab behind', { timeout: 30_000 }, async () => {
+  const { site, tabId } = await tabAt(`${base}/demo/inbox/`);
+  await site.evaluate(() => document.querySelector('main').prepend(Object.assign(document.createElement('a'), { href: '/demo/calmly/', target: '_blank', textContent: 'Open Calmly' })));
+  const snap = await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:snapshot' }), tabId);
+  const link = snap.page.elements.find(e => e.label === 'Open Calmly');
+  const tabsBefore = await worker.evaluate(() => chrome.tabs.query({}).then(t => t.length));
+  await worker.evaluate(([id, el]) => chrome.tabs.sendMessage(id, { type: 'showme:act', action: { action: 'click', element_id: el } }), [tabId, link.id]);
+  await site.waitForURL(/\/demo\/calmly\//);
+  assert.equal(await worker.evaluate(() => chrome.tabs.query({}).then(t => t.length)), tabsBefore);
+  await site.close();
+});

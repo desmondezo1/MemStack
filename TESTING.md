@@ -106,6 +106,10 @@ Open <http://localhost:8787/demo/inbox/>: Ada's inbox, 100 made-up emails. Three
 - **Phishing in the same inbox.** **PayPal: Unsubscribe from PayPal promotional emails** links to a look-alike page.
   Mo Guard outlines and labels it; the real senders' unsubscribe links stay plain.
 
+While you teach, Mo keeps recording until you press **Done**: across page loads, into a tab a link opens (in front
+or behind), and into a tab you switch to. When Mo replays a lesson, a link that would open a new tab opens in Mo's
+own tab, so the run never leaves its tab behind.
+
 Lessons record whether you ticked or unticked a checkbox, and Mo is told to make the same choices for a similar
 goal, so a lesson taught on one sender carries over to the next.
 

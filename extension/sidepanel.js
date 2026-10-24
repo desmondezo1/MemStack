@@ -434,8 +434,9 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   }
 });
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (msg.type === 'showme:recorded' && sender.tab?.id === state.recordTabId) onRecorded(msg.step);
+  if (msg.type === 'showme:recording?' && state.recording && sender.tab?.id === state.recordTabId) reply({ on: true });
 });
 
 // New tabs and tab switches while you teach: record them, and follow you there.
@@ -448,6 +449,16 @@ async function followTab(tab) {
 }
 chrome.tabs.onCreated.addListener(tab => {
   if (!state.recording) return;
+  // A link on the page you're teaching opened it (in front or behind): follow it at once.
+  // The click that opened it is already recorded, and that click leads here.
+  if (tab.openerTabId === state.recordTabId || Date.now() - state.lastStepAt < 1500) {
+    state.newTabId = tab.id;
+    const last = state.recorded[state.recorded.length - 1];
+    if (last && !last.led_to && tab.pendingUrl) last.led_to = tab.pendingUrl;
+    state.recordTabId = tab.id;
+    state.lastUrl = tab.pendingUrl || tab.url || state.lastUrl;
+    return;
+  }
   state.newTabId = tab.id;
   onRecorded({ action: 'new_tab', element_id: '', label: '', role: '', value: '', page: startPage() });
 });
