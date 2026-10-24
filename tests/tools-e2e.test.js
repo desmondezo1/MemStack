@@ -453,3 +453,29 @@ test('Mo\'s eyes follow the pointer and it blinks on its own', { timeout: 40_000
   await site.waitForFunction(() => +(document.querySelector('showme-mo').dataset.blinks || 0) >= 1, null, { timeout: 8000 });
   await site.close();
 });
+
+test('Mo never opens the panel by itself: right-click and the help bubble open its menu', { timeout: 30_000 }, async () => {
+  const { site, tabId } = await tabAt(`${base}/demo/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  const panels = () => worker.evaluate(() => chrome.runtime.getContexts({ contextTypes: ['SIDE_PANEL'] }).then(c => c.length));
+  const before = await panels();
+  const box = await site.evaluate(() => ({ x: innerWidth - 18 - 32, y: innerHeight - 18 - 32 }));
+  // Right-click Mo: the menu opens, no panel.
+  await site.mouse.click(box.x, box.y, { button: 'right' });
+  await site.waitForFunction(() => document.querySelector('showme-mo').dataset.menu === 'open');
+  // Escape closes it.
+  await site.keyboard.press('Escape');
+  await site.waitForFunction(() => !document.querySelector('showme-mo').dataset.menu);
+  // Stuck: clicking the "Can you show me?" bubble opens the menu (with Teach me), not the panel.
+  await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:mo', state: 'stuck', text: 'Can you show me?' }), tabId);
+  await site.waitForFunction(() => document.querySelector('showme-mo').dataset.bubble === 'Can you show me?');
+  const bubbleAt = { x: box.x - 40, y: box.y - 60 };
+  await site.mouse.click(bubbleAt.x, bubbleAt.y);
+  await site.waitForFunction(() => document.querySelector('showme-mo').dataset.menu === 'open');
+  // A plain click on Mo just hints at holding to talk.
+  await site.keyboard.press('Escape');
+  await site.mouse.click(box.x, box.y);
+  await site.waitForFunction(() => /Hold/.test(document.querySelector('showme-mo').dataset.bubble || ''));
+  assert.equal(await panels(), before, 'no side panel was opened');
+  await site.close();
+});
