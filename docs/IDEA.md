@@ -1,5 +1,7 @@
 # Show Me — the browser agent you teach by hand
 
+> **Renamed:** this project is now called **Mo** (24 Oct 2026). It grew from "Show Me", the browser agent you teach by hand, into an assistant that helps and keeps you safe. This document is kept as written at the time; see the [README](../README.md) for what Mo is today.
+
 > **Fail once, teach once, never again.**
 >
 > Night Shift London · Mubit track · demo Sunday 25 Oct 2026, 10:00

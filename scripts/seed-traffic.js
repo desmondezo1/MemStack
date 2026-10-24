@@ -137,7 +137,7 @@ const generators = [
     return { goal, page: { url, title: 'YouTube', headings: [], scroll: '0% down, 412 controls on the page', elements }, history };
   },
 
-  // Show Me's own demo sites, as the extension snapshots them, at every step of a booking
+  // Mo's own demo sites, as the extension snapshots them, at every step of a booking
   // or a video. Names and artists come from this file's lists only: exam/showme/heldout.js
   // keeps other names, artists and two page variants back for the held-out exam.
   function trattoriaNove() {

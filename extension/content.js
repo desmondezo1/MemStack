@@ -417,7 +417,7 @@
     if (on && !badge) {
       badge = document.createElement('div');
       badge.id = 'showme-recording-badge';
-      badge.textContent = '● Show Me is watching — do the task once';
+      badge.textContent = '● Mo is watching — do the task once';
       Object.assign(badge.style, {
         position: 'fixed', top: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: 2147483647,
         background: '#ff5a1f', color: '#fff', font: '600 13px system-ui, sans-serif', padding: '6px 14px',

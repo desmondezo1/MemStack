@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Show Me",
-  "version": "0.5.0",
-  "description": "The browser agent you teach by hand. Every demonstration becomes training data through Mubit.",
+  "name": "Mo",
+  "version": "0.6.0",
+  "description": "Mo, your browser assistant: does tasks when you ask, learns when you show it how, and warns you about phishing links. Every decision runs through Mubit.",
   "action": {
-    "default_title": "Open Show Me"
+    "default_title": "Open Mo"
   },
   "side_panel": {
     "default_path": "sidepanel.html"

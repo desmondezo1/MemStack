@@ -62,7 +62,7 @@ export async function send(tabId, message) {
       await sleep(150);
     }
   }
-  throw new InfraError('Show Me cannot read this page (try reloading it; chrome:// pages are off limits)');
+  throw new InfraError('Mo cannot read this page (try reloading it; chrome:// pages are off limits)');
 }
 
 export async function snapshot(tabId) {

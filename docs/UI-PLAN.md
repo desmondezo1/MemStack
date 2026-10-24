@@ -1,5 +1,7 @@
 # Show Me — UI plan: mascot, voice hotkey, and making Mubit visible
 
+> **Renamed:** this project is now called **Mo** (24 Oct 2026). It grew from "Show Me", the browser agent you teach by hand, into an assistant that helps and keeps you safe. This document is kept as written at the time; see the [README](../README.md) for what Mo is today.
+
 Written 24 Oct 2026, before the Sunday 10:00 demo. **Status: built** (items 1–5); the optional 3D Mo (item 6) is not. How to use it: [TESTING.md](../TESTING.md).
 
 Three goals:

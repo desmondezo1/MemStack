@@ -1,4 +1,6 @@
-# Test Show Me locally
+# Test Mo locally
+
+Mo was called Show Me until 24 Oct 2026; see the README for why.
 
 About 10 minutes. You need Node 20.11+ and Google Chrome.
 
@@ -10,7 +12,7 @@ npm install        # only installs Playwright, for the automated tests
 npm start
 ```
 
-You should see `Show Me server on http://localhost:8787 · MOCK model (no MUBIT_API_KEY set)`.
+You should see `Mo server on http://localhost:8787 · MOCK model (no MUBIT_API_KEY set)`.
 Leave it running.
 
 ## 2. Load the extension
@@ -18,18 +20,18 @@ Leave it running.
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and choose the `MemStack/extension` folder. (Already loaded? Press the
    reload icon on its card: new versions add files and the ⌥Space shortcut.)
-3. Pin **Show Me** from the puzzle-piece menu.
+3. Pin **Mo** from the puzzle-piece menu.
 
-After any change to files in `extension/`, press the reload icon on the Show Me card.
+After any change to files in `extension/`, press the reload icon on the Mo card.
 
 ## 3. Run the demo offline (mock model)
 
 1. Open <http://localhost:8787/demo/> (Trattoria Nove).
-2. Click the **Show Me** icon. The side panel opens; the pill says **Mock model (no Mubit key)**.
+2. Click the **Mo** icon. The side panel opens; the pill says **Practice mode (no Mubit key)**.
 3. Type `Book a table for two at eight` (or press the mic and say it) and press **Run**.
 4. Watch it dismiss the popup, pick a party size, **guess Sitting A**, book, and fail the check:
    *Booked, but not at 20:00*.
-5. Press **Show me how**. The page reloads with an orange "Show Me is watching" badge. Do it yourself:
+5. Press **Show me how**. The page reloads with an orange "Mo is watching" badge. Do it yourself:
    **No thanks** → Party size **2** → **Sitting C** (hover shows 20:00) → type a name → **Reserve table**.
    Each step appears in the panel.
 6. Press **Done teaching**. The panel says how many steps were saved and sent for training.
@@ -62,16 +64,16 @@ dots while Claude is thinking, floats to whatever the agent is about to click, a
 me?"* when stuck. When a lesson is sent it throws **+1 → Mubit** cards, and it jumps when it's done.
 
 - **Hold Mo** (or hold ⌥ Space) to talk, let go to run. A quick click just reminds you to hold.
-- **Right-click Mo** (or ⋯ on hover) for its menu: *Open the Show Me panel*, *How to talk to me*,
+- **Right-click Mo** (or ⋯ on hover) for its menu: *Open Mo's panel*, *How to talk to me*,
   *Hide on this site*. The panel only ever opens from this menu.
 - When it asks for help, clicking its bubble opens the menu with **Teach me (opens the panel)** on top.
-- **New tabs** show Show Me's own New Tab page (a search box, the talk hint, and Mo), because Chrome's
+- **New tabs** show Mo's own New Tab page (a search box, the talk hint, and Mo), because Chrome's
   built-in one can't run extensions. Chrome asks once whether to keep it.
 
 ### Asking questions
 
 Ask a question instead of giving a task, e.g. *"What time do they open on Sunday?"* on the demo
-restaurant. Show Me finds the part of the page that answers it, scrolls there, and draws a box around
+restaurant. Mo finds the part of the page that answers it, scrolls there, and draws a box around
 it with the answer. Mo says the answer too. If the answer isn't on the page, it navigates first. If it
 can't find it, it asks you to show it: go to the page and **select the answer text**.
 
@@ -81,7 +83,7 @@ can't find it, it asks you to show it: go to the page and **select the answer te
   Click **×** on any step to remove it.
 - **New tabs and tab switches** are recorded, and the recorder follows you to the new tab.
 - **Selecting text** records "this is the answer" (for questions).
-- When you press **Done**, Show Me checks the lesson for detours, using simple rules and the model
+- When you press **Done**, Mo checks the lesson for detours, using simple rules and the model
   through Mubit. A result you opened and then came back from, typing you corrected, and opening a tab
   are suggested for removal. You review them (*Check your lesson*), and only the ticked steps are
   taught. If nothing looks unneeded, it saves straight away.
@@ -133,7 +135,7 @@ The small dot next to the model name flashes purple on every Mubit call.
 
 **Mubit tab** (the proof that Mubit is used)
 
-- **Flow diagram**: a dot travels Browser → Show Me → Mubit → Claude on every call. Taught steps drop
+- **Flow diagram**: a dot travels Browser → Mo → Mubit → Claude on every call. Taught steps drop
   into the purple **examples** box.
 - **Live calls**: every call as it happens: task, what was decided, time, cost and the Mubit request
   ID. Click an ID to copy it and find the same call in Mubit → Requests. Taught steps are marked

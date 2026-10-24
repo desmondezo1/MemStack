@@ -148,7 +148,7 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 
-# Show Me
+# Mo
 !.env.example
 data/
 test-results/

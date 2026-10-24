@@ -124,7 +124,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       else {
         // Try to open the panel (allowed when Chrome counts the click as a user action);
         // an open panel picks up the pending lesson either way.
-        chrome.sidePanel.open({ tabId }).catch(() => mo(tabId, 'idle', { text: 'Click the Show Me icon in the toolbar to teach me.', hold: 5000 }));
+        chrome.sidePanel.open({ tabId }).catch(() => mo(tabId, 'idle', { text: 'Click Mo\'s icon in the toolbar to teach me.', hold: 5000 }));
         chrome.runtime.sendMessage({ type: 'showme:teach-request' }).catch(() => {});
       }
       break;

@@ -1,6 +1,6 @@
 // Mubit bridge: Mubit's console has no public API for kept examples or adapter status,
 // so while you have app.mubit.ai open in a tab, this read-only script reads those
-// numbers from the page text and shares them with the Show Me panel. It never clicks
+// numbers from the page text and shares them with Mo's panel. It never clicks
 // or changes anything. If the console's layout changes, it simply finds nothing.
 
 (() => {
