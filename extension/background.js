@@ -2,8 +2,19 @@
 // chrome://extensions/shortcuts) opens the panel and starts listening. Clicking Mo on a
 // page asks for the same thing.
 
+// Chrome only runs manifest content scripts in tabs opened after the extension loads.
+// On install and on every reload, add them to the tabs that are already open, so Mo and
+// the agent work there without refreshing each page.
+self.injectIntoOpenTabs = async function injectIntoOpenTabs() {
+  const tabs = await chrome.tabs.query({});
+  const results = await Promise.all(tabs.filter(t => /^(https?|file):/.test(t.url || '')).map(tab =>
+    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js', 'mascot.js'] }).then(() => true, () => false)));
+  return results.filter(Boolean).length;
+};
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+  self.injectIntoOpenTabs();
 });
 
 // Exposed on self so tests can trigger it without a real key press.

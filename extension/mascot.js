@@ -4,8 +4,13 @@
 // The side panel drives it with 'showme:mo' and 'showme:voice' messages.
 
 (() => {
-  if (window.__showMeMo || window.top !== window) return;
-  window.__showMeMo = true;
+  if (window.top !== window) return;
+  // After the extension is reloaded, the old copy in this page is dead (its chrome.runtime
+  // is gone). Replace a dead copy; skip only if a live one is already here.
+  const previous = window.__showMeMo;
+  if (previous?.alive?.()) return;
+  previous?.dispose?.();
+  document.querySelectorAll('showme-mo').forEach(el => el.remove());
 
   const BARS = 20;
   const host = document.createElement('showme-mo');
@@ -289,7 +294,7 @@
     applyHidden(moHiddenHosts.includes(location.host));
   }).catch(() => {});
 
-  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  function handleMessage(msg, reply) {
     if (msg.type === 'showme:mo') {
       if (msg.state === 'show') { chrome.storage.local.get('moHiddenHosts').then(({ moHiddenHosts = [] }) => chrome.storage.local.set({ moHiddenHosts: moHiddenHosts.filter(h => h !== location.host) })); applyHidden(false); }
       else if (msg.state === 'acting') { setState('acting', { text: msg.text, hold: 0 }); actOn(msg.targetId); }
@@ -302,7 +307,20 @@
     }
     if (msg.type === 'showme:voice') { voice(msg); reply({ ok: true }); return false; }
     return false;
-  });
+  }
+
+  const onMessage = (msg, _sender, reply) => handleMessage(msg, reply);
+  chrome.runtime.onMessage.addListener(onMessage);
+
+  function dispose() {
+    clearTimeout(wanderTimer); clearTimeout(stateTimer); clearTimeout(bubbleTimer); clearInterval(heartbeat);
+    try { chrome.runtime.onMessage.removeListener(onMessage); } catch { /* already dead */ }
+    host.remove();
+  }
+  const alive = () => { try { return !!chrome.runtime?.id; } catch { return false; } };
+  // A copy orphaned by an extension reload removes itself, so a fresh one can take over.
+  const heartbeat = setInterval(() => { if (!alive()) dispose(); }, 2000);
+  window.__showMeMo = { alive, dispose };
 
   wander();
 })();

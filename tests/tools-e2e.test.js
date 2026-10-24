@@ -328,3 +328,28 @@ test('Mubit bridge: kept examples and adapter status from the console page reach
     fixture.close();
   }
 });
+
+test('tabs open before the extension loaded get Mo and the page reader, without duplicates', { timeout: 60_000 }, async () => {
+  const { site, tabId } = await tabAt(`${base}/demo/tube/`);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  // Make this tab look like one opened before the extension was installed: no Mo, no reader.
+  await worker.evaluate(id => chrome.scripting.executeScript({ target: { tabId: id }, func: () => {
+    window.__showMeMo?.dispose(); window.__showMeInstalled?.dispose();
+    delete window.__showMeMo; delete window.__showMeInstalled;
+  } }), tabId);
+  assert.equal(await site.locator('showme-mo').count(), 0);
+  await assert.rejects(worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:ping' }), tabId));
+
+  const injected = await worker.evaluate(() => self.injectIntoOpenTabs());
+  assert.ok(injected >= 1);
+  await site.waitForSelector('showme-mo', { state: 'attached' });
+  assert.deepEqual(await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:ping' }), tabId), { ok: true });
+
+  // Running it again while the copies are alive changes nothing.
+  await worker.evaluate(() => self.injectIntoOpenTabs());
+  await site.waitForTimeout(300);
+  assert.equal(await site.locator('showme-mo').count(), 1);
+  const snap = await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:snapshot' }), tabId);
+  assert.ok(snap.page.elements.some(e => e.label === 'Search videos'));
+  await site.close();
+});

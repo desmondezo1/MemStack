@@ -4,8 +4,10 @@
 // 3. record: while the human shows the agent how, log each click / selection / typed value
 
 (() => {
-  if (window.__showMeInstalled) return;
-  window.__showMeInstalled = true;
+  // Same live/dead check as mascot.js: a copy orphaned by an extension reload is replaced.
+  const previous = window.__showMeInstalled;
+  if (previous?.alive?.()) return;
+  previous?.dispose?.();
 
   const SELECTOR = [
     'a[href]', 'button', 'input:not([type=hidden])', 'select', 'textarea', 'summary',
@@ -287,12 +289,9 @@
     emit({ action: 'type', element_id: item.id, label: item.label, role: item.role, value: clean(el.value ?? el.innerText, 200), submit: true, page });
   }
 
-  document.addEventListener('pointerdown', onPointerDown, true);
-  document.addEventListener('focusin', onFocusIn, true);
-  document.addEventListener('focusout', onFocusOut, true);
-  document.addEventListener('click', onClick, true);
-  document.addEventListener('change', onChange, true);
-  document.addEventListener('keydown', onKeyDown, true);
+  const DOM_LISTENERS = [['pointerdown', onPointerDown], ['focusin', onFocusIn], ['focusout', onFocusOut],
+    ['click', onClick], ['change', onChange], ['keydown', onKeyDown]];
+  for (const [type, fn] of DOM_LISTENERS) document.addEventListener(type, fn, true);
 
   function setRecording(on) {
     recording = on;
@@ -313,7 +312,7 @@
     }
   }
 
-  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  function onMessage(msg, _sender, reply) {
     try {
       if (msg.type === 'showme:ping') reply({ ok: true });
       else if (msg.type === 'showme:snapshot') reply({ ok: true, page: snapshot() });
@@ -324,5 +323,17 @@
       reply({ ok: false, error: err.message });
     }
     return false;
-  });
+  }
+  chrome.runtime.onMessage.addListener(onMessage);
+
+  function dispose() {
+    clearInterval(heartbeat);
+    for (const [type, fn] of DOM_LISTENERS) document.removeEventListener(type, fn, true);
+    try { chrome.runtime.onMessage.removeListener(onMessage); } catch { /* already dead */ }
+    recording = false;
+    document.getElementById('showme-recording-badge')?.remove();
+  }
+  const alive = () => { try { return !!chrome.runtime?.id; } catch { return false; } };
+  const heartbeat = setInterval(() => { if (!alive()) dispose(); }, 2000);
+  window.__showMeInstalled = { alive, dispose };
 })();
