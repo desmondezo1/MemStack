@@ -58,7 +58,7 @@ export async function send(tabId, message) {
     } catch {
       // No content script yet (page opened before the extension loaded, or mid-navigation).
       await waitForLoad(tabId).catch(() => {});
-      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js', 'mascot.js'] }).catch(() => {});
+      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js', 'mascot.js', 'guard.js'] }).catch(() => {});
       await sleep(150);
     }
   }

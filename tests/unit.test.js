@@ -25,6 +25,7 @@ test('system prompts are unchanged (Mubit task fingerprints)', () => {
     'safety-gate': 'd66fb5cd082cdb56',
     'locate': '7ddb0f5bb58d1e0a',
     'refine-lesson': '49827a408028c5f6',
+    'link-check': '9b92ad4cefc3ddfb',
   });
 });
 
@@ -232,4 +233,42 @@ test('answers carry no free-text reason; done-check problems read as plain sente
   assert.match(problemText('wrong_time'), /different time/);
   assert.match(problemText('no_confirmation'), /no confirmation/);
   assert.match(problemText('something-new'), /does not show the goal as done/);
+});
+
+test('Mo Guard rules: look-alikes, brand misuse, lying link text, trusted brands', async () => {
+  const { signals, localVerdict, registrableDomain } = await import('../server/guard.js');
+  const v = (url, text = '') => { const s = signals({ url, text, pageHost: 'chat.example' }); return [localVerdict(s.score), s.pretendsTo, s.signals]; };
+  assert.equal(registrableDomain('login.barclays.co.uk'), 'barclays.co.uk');
+  assert.equal(registrableDomain('paypal-com-login.localhost'), 'paypal-com-login.localhost');
+  assert.deepEqual(v('https://www.paypal.com/signin').slice(0, 2), ['safe', null]);
+  assert.deepEqual(v('https://paypa1.com/verify').slice(0, 2), ['phishing', 'paypal.com']);
+  assert.equal(v('https://paypal.com.secure-login.xyz/account')[0], 'phishing');
+  assert.ok(v('https://tracker.example/x', 'www.paypal.com/security')[2].includes('text_mismatch'));
+  assert.ok(v('https://www.xn--pypal-4ve.com/')[2].includes('punycode'));
+  assert.equal(v('https://en.wikipedia.org/wiki/Phishing')[0], 'safe');
+  assert.equal(v('http://example.com/page')[0], 'safe'); // an http link alone is not phishing
+});
+
+test('API: Mo Guard check, corrections are remembered and sent as training', async () => {
+  const check = await (await post('/api/guard/check', { pageUrl: 'http://chat.localhost/demo', links: [
+    { url: 'https://www.paypal.com/', text: 'paypal.com' },
+    { url: 'http://paypal-com-login.localhost/demo/guard/login.html', text: 'paypal.com/verify-account' },
+  ] })).json();
+  const fake = check.results.find(r => r.host === 'paypal-com-login.localhost');
+  const real = check.results.find(r => r.host === 'www.paypal.com');
+  assert.equal(real.verdict, 'safe');
+  assert.equal(fake.verdict, 'phishing');
+  assert.equal(fake.brand, 'PayPal');
+  assert.equal(fake.realSite, 'https://www.paypal.com');
+  assert.ok(fake.reasons.some(r => /PayPal/.test(r)));
+  assert.equal((await post('/api/guard/check', {})).status, 400);
+
+  const fb = await (await post('/api/guard/feedback', { url: fake.url, verdict: 'safe', pageUrl: 'http://chat.localhost/demo' })).json();
+  assert.equal(fb.training.sent, true);
+  const again = await (await post('/api/guard/check', { pageUrl: 'http://chat.localhost/demo', links: [{ url: fake.url, text: 'paypal.com/verify-account' }] })).json();
+  assert.equal(again.results.find(r => r.host === 'paypal-com-login.localhost').source, 'you');
+  assert.equal((await post('/api/guard/feedback', { url: fake.url, verdict: 'maybe' })).status, 400);
+  const overview = await (await fetch(`${base}/api/overview`)).json();
+  assert.ok(overview.guard.checked >= 3);
+  assert.equal(overview.guard.corrections, 1);
 });

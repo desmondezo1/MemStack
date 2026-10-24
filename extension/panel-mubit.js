@@ -142,6 +142,24 @@ export function createMubitView({ api, getServer, onOverview = () => {} }) {
     renderLessons(lessons);
     renderImprovements(runs, lessons);
     renderCosts(ledger);
+    renderGuard(overview.guard, ledger);
+  }
+
+  // Mo Guard: what it checked, and how Claude scored on links with known answers.
+  function renderGuard(g, ledger) {
+    const box = $('guard-stats');
+    if (!box || !g) return;
+    const task = ledger.tasks.find(t => t.task === 'link-check');
+    const parts = [];
+    if (g.checked) parts.push(`Checked <b>${g.checked}</b> links and pages since the server started and flagged <b>${g.flagged}</b>.`);
+    if (task) parts.push(`<b>${task.sentToMubit}</b> link checks went to Claude through Mubit${task.training ? `, <b>${task.training}</b> of them your corrections` : ''}.`);
+    if (g.eval?.claude) {
+      const c = g.eval.claude;
+      const soft = c.falseAlarms - (c.blockingFalseAlarms ?? 0);
+      parts.push(`On <b>${c.n}</b> links with known answers, Claude caught <b>${c.caught}</b> of ${c.phishing} phishing links. Of ${c.legit} real links, it called <b>${c.blockingFalseAlarms ?? c.falseAlarms}</b> phishing${c.blockingFalseAlarms !== undefined ? ` and marked ${soft} suspicious` : ''}.`);
+    }
+    if (g.feedHosts) parts.push(`Public phishing list: ${g.feedHosts} sites.`);
+    box.innerHTML = parts.length ? parts.join(' ') : '<span class="empty">Mo Guard checks links as you browse. Its numbers appear here.</span>';
   }
 
   function renderTasks(ledger) {

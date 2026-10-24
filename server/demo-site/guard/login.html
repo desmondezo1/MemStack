@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account verification</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 15px/1.5 system-ui, sans-serif; background: #eef1f6; color: #1d2433; }
+  .demo { position: fixed; top: 0; left: 0; right: 0; padding: 6px; text-align: center; font-size: 12px; background: #fff3c4; color: #6b5310; }
+  form { width: 340px; background: #fff; padding: 28px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  h1 { font-size: 20px; margin: 0 0 4px; } p { margin: 0 0 18px; color: #5b6475; font-size: 14px; }
+  label { display: block; font-size: 13px; margin: 10px 0 4px; } input { width: 100%; padding: 10px; border: 1px solid #ccd3df; border-radius: 8px; font: inherit; box-sizing: border-box; }
+  button { margin-top: 16px; width: 100%; padding: 11px; border: 0; border-radius: 999px; background: #1d4ed8; color: #fff; font: 600 15px system-ui; }
+</style>
+</head>
+<body>
+  <div class="demo">Practice phishing page for testing Mo Guard. It's on your own computer and sends nothing anywhere.</div>
+  <form onsubmit="event.preventDefault(); document.querySelector('p').textContent = 'Demo only: nothing was sent.';">
+    <h1 id="t">Verify your account</h1>
+    <p>Your account has been limited. Sign in to restore access.</p>
+    <label for="e">Email</label><input id="e" type="email" autocomplete="off">
+    <label for="pw">Password</label><input id="pw" type="password" autocomplete="off">
+    <button type="submit">Continue</button>
+  </form>
+  <script>
+    const brand = new URLSearchParams(location.search).get('brand');
+    if (brand) document.getElementById('t').textContent = `Verify your ${brand} account`;
+  </script>
+</body>
+</html>

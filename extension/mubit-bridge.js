@@ -12,6 +12,7 @@
     ['next-action', /you control a web browser/i],
     ['done-check', /you check whether a browser task/i],
     ['safety-gate', /you protect a user/i],
+    ['link-check', /you check links for phishing/i],
   ];
   const STATUS = /(v\d+ passed[^\n]*|passed its tests|Passed|Below target[^\n]*|Prompt only|Malformed tool calls|Not tested|Collecting examples|Reviewing examples|Training|Testing|Waiting[^\n]*|Can't train[^\n]*|No adapter yet[^\n]*|Not ready yet)/i;
 

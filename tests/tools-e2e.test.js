@@ -414,10 +414,10 @@ test('Mubit bridge: kept examples and adapter status from the console page reach
 test('tabs open before the extension loaded get Mo and the page reader, without duplicates', { timeout: 60_000 }, async () => {
   const { site, tabId } = await tabAt(`${base}/demo/tube/`);
   await site.waitForSelector('showme-mo', { state: 'attached' });
-  // Make this tab look like one opened before the extension was installed: no Mo, no reader.
+  // Make this tab look like one opened before the extension was installed: no Mo, no reader, no guard.
   await worker.evaluate(id => chrome.scripting.executeScript({ target: { tabId: id }, func: () => {
-    window.__showMeMo?.dispose(); window.__showMeInstalled?.dispose();
-    delete window.__showMeMo; delete window.__showMeInstalled;
+    window.__showMeMo?.dispose(); window.__showMeInstalled?.dispose(); window.__showMeGuard?.dispose();
+    delete window.__showMeMo; delete window.__showMeInstalled; delete window.__showMeGuard;
   } }), tabId);
   assert.equal(await site.locator('showme-mo').count(), 0);
   await assert.rejects(worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:ping' }), tabId));
