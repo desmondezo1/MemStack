@@ -35,6 +35,7 @@ function guestName(goal) {
   return m ? m[1].trim() : null;
 }
 
+const GENERIC = new Set(['unsubscribe', 'emails', 'email', 'cancel', 'membership', 'subscription', 'please', 'from', 'book', 'table']);
 const sameLabel = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
 const done = (history, label, action) => history.some(h => sameLabel(h.label, label) && (!action || h.action === action));
 
@@ -64,10 +65,20 @@ function nextAction({ goal, page, history = [], demo }) {
   const size = partySize(goal);
 
   if (demo) {
+    // Adapt a taught click to the current goal: taught on "DealDash", asked about "StyleHub".
+    const words = s => new Set(String(s).toLowerCase().split(/[^a-z0-9&]+/).filter(w => w.length > 3 && !GENERIC.has(w)));
+    const taughtWords = words(demo.goal), goalWords = words(goal);
+    const swapFor = step => {
+      const old = [...taughtWords].find(w => !goalWords.has(w) && String(step.label).toLowerCase().includes(w));
+      if (!old || step.action !== 'click') return null;
+      return els.find(e => [...goalWords].some(w => !taughtWords.has(w) && e.label.toLowerCase().startsWith(w))) || 'skip';
+    };
     for (const step of demo.steps) {
       if (step.action === 'open_url') continue; // handled above
       if (done(history, step.label, step.action)) continue;
-      const el = els.find(e => sameLabel(e.label, step.label));
+      const swapped = swapFor(step);
+      if (swapped === 'skip' || (swapped && done(history, swapped.label, 'click'))) continue;
+      const el = swapped || els.find(e => sameLabel(e.label, step.label));
       if (!el) continue;
       let value = step.value;
       if (step.action === 'select' && /party|guest|people|size/i.test(step.label) && size) value = String(size);
@@ -79,6 +90,19 @@ function nextAction({ goal, page, history = [], demo }) {
 
   // Cancelling a membership without a lesson: a naive agent takes the big
   // "recommended" button, which only pauses it. (A lesson, above, wins.)
+  // Unsubscribing from a sender in the demo inbox: open its email, follow "Unsubscribe",
+  // then take the big recommended button (which only pauses), as a naive agent would.
+  if (/\bunsubscribe\b/i.test(goal)) {
+    if (history.some(h => /pause/i.test(h.label || ''))) return { action: 'done', element_id: '', value: '', reason: 'Took the recommended option' };
+    const pause = els.find(e => e.role === 'button' && /pause/i.test(e.label));
+    if (pause) return act(pause, 'click', '', 'The recommended option');
+    const unsub = els.find(e => e.role === 'link' && /^unsubscribe$/i.test(e.label));
+    if (unsub) return act(unsub, 'click', '', 'Open the unsubscribe page');
+    const words = goal.toLowerCase().replace(/\bunsubscribe\b|\bme\b|\bfrom\b|\bemails?\b/g, ' ').split(/\W+/).filter(w => w.length > 3);
+    const mail = els.find(e => e.role === 'link' && words.some(w => e.label.toLowerCase().startsWith(w)));
+    if (mail) return act(mail, 'click', '', 'Open the email from that sender');
+  }
+
   if (/\bcancel\b/i.test(goal)) {
     if (history.some(h => /pause/i.test(h.label || ''))) return { action: 'done', element_id: '', value: '', reason: 'Took the recommended option' };
     const pause = els.find(e => e.role === 'button' && /pause/i.test(e.label));
@@ -131,6 +155,11 @@ export function videoQuery(goal) {
 
 function doneCheck({ goal, page }) {
   const text = page.text || '';
+  if (/\bunsubscribe\b/i.test(goal)) {
+    if (/paused/i.test(text)) return { done: false, problem: 'no_confirmation', reason: 'Emails are only paused' };
+    if (/no more marketing|won't get any more emails/i.test(text)) return { done: true, problem: 'none', reason: 'Unsubscribed from marketing' };
+    return { done: false, problem: 'no_confirmation', reason: 'Not unsubscribed' };
+  }
   if (/\bcancel\b/i.test(goal) && /membership|subscription/i.test(goal)) {
     if (!/membership cancelled/i.test(text)) return { done: false, problem: 'no_confirmation', reason: 'The membership is not cancelled' };
     if (/keep being charged/i.test(text)) return { done: false, problem: 'wrong_item', reason: 'Cancelled, but an add-on is still charging you' };

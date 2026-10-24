@@ -119,14 +119,23 @@ export function formatStep(step) {
     case 'new_tab': return 'open a new tab';
     case 'switch_tab': return `switch to the tab ${step.value}`;
     case 'done': return 'done';
-    default: return `click ${target}`;
+    default: return step.value === 'tick' || step.value === 'untick' ? `${step.value} ${target}` : `click ${target}`;
   }
 }
 
-export function formatDemonstration(demo) {
+export function formatDemonstration(demo, history = []) {
   if (!demo) return '';
-  const lines = [`Demonstration recorded by a human on this page for the goal "${demo.goal}":`];
+  // The human's choices are how this user wants it done, also for a similar goal on another sender,
+  // item or page of the same kind (taught on one newsletter, used on the next).
+  const lines = [`Demonstration recorded by a human on this page for the goal "${demo.goal}". It shows how this user wants this done: make the same choices for a similar goal, adapting names and values.`];
   demo.steps.forEach((s, i) => lines.push(`${i + 1}. ${formatStep(s)}`));
+  // "Steps already taken" shows only the last 8, so on a long lesson the model can't see it has
+  // already been through it all, and starts again. Say so once the lesson's last step is done.
+  const last = demo.steps[demo.steps.length - 1];
+  const same = (a, b) => a.action === b.action && String(a.label || '').trim().toLowerCase() === String(b.label || '').trim().toLowerCase();
+  if (last && Array.isArray(history) && history.length >= demo.steps.length && history.some(h => same(h, last))) {
+    lines.push('Every step of this demonstration has already been done, so the task is finished: reply done if the page confirms the last step.');
+  }
   return lines.join('\n');
 }
 
@@ -135,7 +144,7 @@ export function buildNextActionMessage({ goal, page, history = [], demo }) {
   parts.push('Steps already taken:');
   if (Array.isArray(history) && history.length) history.slice(-8).forEach((s, i) => parts.push(`${i + 1}. ${formatStep(s)}`));
   else parts.push('none');
-  if (demo) parts.push('', formatDemonstration(demo));
+  if (demo) parts.push('', formatDemonstration(demo, history));
   parts.push('', 'Answer with one JSON object only.');
   return parts.join('\n');
 }

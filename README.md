@@ -15,22 +15,24 @@ make teaches it.
 > into an assistant that helps and keeps you safe, so we named it after the character at its centre. Some internal
 > names (`showme:` messages, `SHOWME_*` settings) keep the old name.
 
-## One user, one chore: Ada cancels her gym
+## One user, one chore: Ada's subscriptions
 
-Ada wants to cancel her gym membership. The gym's site is built to stop her. The big button only *pauses* the
-membership (and still charges her). The real exit hides under "Manage plan". The form defaults to ending "later"
-and keeps a paid add-on ticked. Then there's a "50% off" offer and an "Are you sure? You'll lose your streak 😢".
+Ada's inbox fills up with marketing every week, and she pays for things she stopped using months ago. Every one
+of these sites is built to keep her: a big "Pause (recommended)" button that doesn't stop anything, the real way
+out hidden under "Manage", boxes already ticked, a "50% off" offer, an "Are you sure? 😢". Mo does the chore for
+her, and learns *her* way of doing it from one demonstration.
 
-Ada holds <kbd>⌥</kbd> <kbd>Space</kbd> and says *"Cancel my Iron Gym membership"*. Mo works through it. Where it
-can't know what she wants (end it now or later? keep the add-on?) or gets it wrong, it asks *"Can you show me
-how?"*, or she presses *"Not what you wanted?"*. She does it once. Mo marks the step where it went wrong, saves the
-lesson, and sends each step to Mubit as a training example. Next time, Mo cancels her way, start to finish.
+| Level | Ada says | Where Mo goes wrong (it can't know) | She shows it once, and then |
+| --- | --- | --- | --- |
+| **Easy: unsubscribe** | *"Unsubscribe me from DealDash"* | Unsubscribes from everything, including her order and delivery updates | Next sender, StyleHub: Mo unticks only the marketing and keeps her order updates |
+| **Medium: cancel a subscription** | *"Cancel my Iron Gym membership"* (from the renewal email) | Finds the hidden exit, but ends it in November and leaves a £9 add-on charging her | Next run: ends today, add-on cancelled, offer declined |
+| **Hard: the monthly audit** | *"Check my inbox for subscriptions I pay for but don't use, and cancel them"* | Reads receipts one at a time and can't keep track of what she uses | She shows her audit once (Calmly, then the gym), and next month Mo repeats it |
 
-Every subscription uses the same tricks, so Ada comes back. Mo learns them once from her, then does the chore
-for her: faster each time, cheaper once Mubit's adapter takes over. The same Mo keeps an eye on the links in her
-chats and warns her before a phishing link can trick her.
+Each correction is saved as a lesson and sent to Mubit as training examples, so the adapter Mubit trains for Mo
+learns Ada's way too. The same Mo checks the links in her inbox: a fake "unsubscribe" email that leads to a PayPal
+look-alike gets flagged before she clicks it.
 
-Try it: <http://localhost:8787/demo/gym/> (a demo gym; nothing is real or charged).
+Try it: <http://localhost:8787/demo/inbox/>, Ada's inbox with 100 made-up emails (nothing is real or charged).
 
 ## What else you can use it for
 
@@ -58,7 +60,8 @@ npm start                 # backend on http://localhost:8787
 
 1. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension/` folder.
 2. Try the demos:
-   - **The gym (main demo):** <http://localhost:8787/demo/gym/>. "Cancel my Iron Gym membership", then show Mo how you'd do it.
+   - **Ada's inbox (main demo):** <http://localhost:8787/demo/inbox/>. "Unsubscribe me from DealDash", then "Cancel my Iron Gym membership", then the monthly audit.
+   - **The gym:** <http://localhost:8787/demo/gym/>. "Cancel my Iron Gym membership" on its own.
    - **The restaurant:** <http://localhost:8787/demo/>. Ask Mo to "book a table for two at eight", and teach it when it gets stuck.
    - **The video site:** <http://localhost:8787/demo/tube/>. "Play a Wizkid video".
    - **The phishing chat:** <http://localhost:8787/demo/guard/>. Watch Mo flag the fake links.
@@ -108,7 +111,7 @@ The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). 
 | `server/memory.js`, `server/refine.js` | Lessons, recalled into later runs; detours removed from demonstrations before they train anything. |
 | `server/ledger.js` | Local log of every call: counts, speed, cost. |
 | `server/verifier.js` | A second, independent check from Banyan Sapling on "did it work?" and before risky clicks. On whenever a Mubit key is set; `SAPLING=off` turns it off; always off in practice mode. |
-| `server/demo-site/` | Iron Gym (a cancel-your-membership maze), Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
+| `server/demo-site/` | Ada's inbox (100 made-up emails and an email preferences page), Calmly and Iron Gym (subscriptions to cancel), Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
 | `scripts/seed-traffic.js`, `scripts/seed-guard.js` | Send practice calls through Mubit so each task has enough examples to train; `seed-guard` also scores Claude on known phishing and real links. |
 | `exam/` | Does the adapter learn? Mubit-routed vs provider-only on Mind2Web and the demo sites. |
 

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calmly · Your account</title>
+<style>
+  :root { --ink: #1d2230; --muted: #6a7184; --line: #e2e6ef; --bg: #eef3f8; --brand: #2f8f83; --ok: #1d7a46; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  .demo { padding: 6px 16px; text-align: center; font-size: 12px; background: #fff7d6; color: #6b5310; }
+  header { padding: 14px 28px; background: #fff; border-bottom: 1px solid var(--line); font-weight: 800; font-size: 19px; color: var(--brand); }
+  main { max-width: 600px; margin: 28px auto 60px; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 26px; }
+  h1 { margin: 0 0 4px; font-size: 25px; } h2 { margin: 0 0 6px; font-size: 21px; } .muted { color: var(--muted); }
+  .plan { margin: 16px 0; padding: 14px 16px; border-radius: 12px; background: var(--bg); }
+  .big { display: block; width: 100%; margin: 18px 0 10px; padding: 15px; border: 0; border-radius: 12px; background: var(--brand); color: #fff; font: 700 16px system-ui; cursor: pointer; }
+  .second { display: block; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: 600 15px system-ui; cursor: pointer; margin-bottom: 8px; }
+  .quiet { border: 0; background: none; padding: 4px 0; color: var(--muted); font: 13px system-ui; text-decoration: underline; cursor: pointer; }
+  .tiny { margin-top: 20px; text-align: center; } .ok { color: var(--ok); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="demo">Demo app for testing Mo. Nothing here is real, and nothing is charged.</div>
+<header>calmly</header>
+<main>
+  <section class="card" id="account">
+    <h1>Hi Ada 🌿</h1>
+    <p class="muted">This month: 0 minutes of calm.</p>
+    <div class="plan"><b>Calmly Premium</b><div class="muted">£6.99 a month · renews 3 November</div></div>
+    <button class="big" data-go="paused">Pause my subscription (3 months free)</button>
+    <button class="second" type="button">Start a 5-minute session</button>
+    <div class="tiny"><button class="quiet" data-go="manage">Manage subscription</button></div>
+  </section>
+  <section class="card" id="paused" hidden>
+    <h2>Subscription paused</h2>
+    <p>Your subscription is <b>paused</b>, not cancelled. It restarts on 3 February at £6.99 a month.</p>
+    <button class="second" data-go="account">Back to my account</button>
+  </section>
+  <section class="card" id="manage" hidden>
+    <h2>Your subscription</h2>
+    <p class="muted">Calmly Premium · £6.99 a month</p>
+    <button class="second" type="button">Switch to yearly and save 40%</button>
+    <button class="second" type="button">Gift Calmly to a friend</button>
+    <div class="tiny"><button class="quiet" data-go="offer">Cancel subscription</button></div>
+  </section>
+  <section class="card" id="offer" hidden>
+    <h2>Before you go: have a month on us</h2>
+    <p>Stay with Calmly and your next month is free.</p>
+    <button class="big" data-go="kept">Claim my free month</button>
+    <button class="quiet" data-go="done">No thanks, cancel my subscription</button>
+  </section>
+  <section class="card" id="kept" hidden>
+    <h2>Enjoy your free month 🎉</h2>
+    <p>Your subscription continues. It has <b>not</b> been cancelled, and £6.99 a month starts again on 3 December.</p>
+  </section>
+  <section class="card" id="done" hidden>
+    <h2 class="ok">Subscription cancelled ✓</h2>
+    <p>You won't be charged on 3 November. You can use Calmly Premium until then.</p>
+    <a class="quiet" href="/demo/inbox/">Back to your inbox</a>
+  </section>
+</main>
+<script>
+  const views = ['account', 'paused', 'manage', 'offer', 'kept', 'done'];
+  document.addEventListener('click', e => {
+    const go = e.target.closest('[data-go]')?.dataset.go;
+    if (go) views.forEach(id => { document.getElementById(id).hidden = id !== go; });
+  });
+</script>
+</body>
+</html>

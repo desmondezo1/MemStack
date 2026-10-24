@@ -182,7 +182,7 @@ export function gym(view = 'account', state = {}) {
   if (view === 'confirm') return { ...base, headings: ['Are you sure? 😢'],
     text: `${GYM_TOP} Are you sure? 😢 You'll lose your 42-day streak and all your class history. Keep my membership Yes, cancel my membership`,
     elements: els([btn('Keep my membership'), btn('Yes, cancel my membership')]) };
-  return { ...base, headings: ['Membership cancelled ✓'], text: `${GYM_TOP} ${gymDoneText(state)} Back to my account`, elements: els([btn('Back to my account')]) };
+  return { ...base, headings: ['Membership cancelled ✓'], text: `${GYM_TOP} ${gymDoneText(state)} Back to my account Back to your inbox`, elements: els([btn('Back to my account'), { role: 'link', label: 'Back to your inbox' }]) };
 }
 
 export function gymDoneText({ reason = 'Moving away', end = 'now', addon = false } = {}) {
@@ -213,4 +213,80 @@ export function gymAfter(stage, reason) {
     gym('account'), gym('manage'), gym('cancel'), gym('cancel', { reason }), gym('cancel', { reason, end: 'now' }),
     gym('cancel', { reason, end: 'now', addon: false }), gym('offer'), gym('confirm'), gym('done', { reason }),
   ][stage];
+}
+
+// Ada's inbox (Postbox), an email in it, and a sender's email preferences page.
+import { EMAILS, SENDERS } from '../../server/demo-site/inbox/mail.js';
+export const INBOX_URL = `${DEMO_ORIGIN}/demo/inbox/`;
+export const MARKETING = Object.keys(SENDERS).filter(k => SENDERS[k].kind === 'marketing' && EMAILS.some(e => e.sender === k && e.unsubscribe));
+const INBOX_TOP = 'Demo inbox for testing Mo. Every email, brand and address here is made up. Postbox ada@example.com Inbox Starred Sent Drafts Spam';
+const inboxBase = { url: INBOX_URL, title: 'Inbox · Ada · Postbox' };
+const rowLabel = e => `${e.name} ${e.subject} ${e.time}`;
+
+export function inboxList(query = '') {
+  const found = EMAILS.filter(e => !query || `${e.name} ${e.subject}`.toLowerCase().includes(query.toLowerCase())).slice(0, 25);
+  return { ...inboxBase, headings: [], scroll: '0% down, 31 controls on the page',
+    text: `${INBOX_TOP} ${query ? `${found.length} results for “${query}”` : '1–25 of 100'} ${found.slice(0, 6).map(rowLabel).join(' ')}`,
+    elements: [
+      { id: 'e1', role: 'searchbox', label: 'Search mail', value: query }, { id: 'e2', role: 'button', label: 'Search' },
+      { id: 'e3', role: 'button', label: 'Older' },
+      ...found.map((e, i) => ({ id: `e${i + 4}`, role: 'link', label: rowLabel(e) })),
+    ] };
+}
+
+export function inboxMail(email) {
+  const links = [{ role: 'button', label: '← Back to inbox' }];
+  if (email.cta) links.push({ role: 'link', label: email.cta });
+  if (email.unsubscribe) links.push({ role: 'link', label: 'Unsubscribe' }, { role: 'link', label: 'Email preferences' });
+  else if (email.phishing) links.push({ role: 'link', label: 'unsubscribe here' });
+  return { ...inboxBase, headings: [email.subject],
+    text: `${INBOX_TOP} ← Back to inbox ${email.subject} ${email.name} <${email.from}> · ${email.time} ${email.body.join(' ')} ${email.cta || ''}`,
+    elements: links.map((l, i) => ({ id: `e${i + 1}`, ...l })) };
+}
+
+const UNSUB_BOXES = ['Weekly deals and offers', 'Offers from our partners', 'Order and delivery updates'];
+// ticks: [deals, partners, orders]
+export function unsubscribePage(sender, ticks = [true, true, true]) {
+  const name = SENDERS[sender].name;
+  return { url: `${DEMO_ORIGIN}/demo/inbox/unsubscribe.html?s=${sender}`, title: `${name} · Email preferences`, headings: ['Sorry to see you go, Ada', 'Choose what you get'],
+    text: `Demo email preferences page for testing Mo. Nothing here is real. ${name} Sorry to see you go, Ada You're signed up as ada@example.com. Pause all emails for 30 days (recommended) Choose what you get ${UNSUB_BOXES.join(' ')} Save preferences Unsubscribe from all emails`,
+    elements: [
+      { id: 'e1', role: 'button', label: 'Pause all emails for 30 days (recommended)' },
+      ...UNSUB_BOXES.map((label, i) => ({ id: `e${i + 2}`, role: 'checkbox', label, checked: ticks[i] })),
+      { id: 'e5', role: 'button', label: 'Save preferences' },
+      { id: 'e6', role: 'button', label: 'Unsubscribe from all emails' },
+    ] };
+}
+
+// What Ada showed once: no marketing, but keep order and delivery updates.
+export function unsubscribeLesson(sender = 'dealdash') {
+  const first = EMAILS.find(e => e.sender === sender && e.unsubscribe);
+  return {
+    goal: `Unsubscribe me from ${SENDERS[sender].name} emails`,
+    steps: [
+      { action: 'click', label: rowLabel(first), role: 'link', value: '' },
+      { action: 'click', label: 'Unsubscribe', role: 'link', value: '' },
+      { action: 'click', label: 'Weekly deals and offers', role: 'checkbox', value: 'untick' },
+      { action: 'click', label: 'Offers from our partners', role: 'checkbox', value: 'untick' },
+      { action: 'click', label: 'Save preferences', role: 'button', value: '' },
+    ],
+  };
+}
+export const firstMailFrom = sender => EMAILS.find(e => e.sender === sender && e.unsubscribe);
+export const inboxRowLabel = rowLabel;
+
+// Calmly, the meditation app Ada pays for but doesn't use.
+export const CALMLY_URL = `${DEMO_ORIGIN}/demo/calmly/`;
+export function calmly(view = 'account') {
+  const base = { url: CALMLY_URL, title: 'Calmly · Your account' };
+  const top = 'Demo app for testing Mo. Nothing here is real, and nothing is charged. calmly';
+  const els = list => list.map((label, i) => ({ id: `e${i + 1}`, role: 'button', label }));
+  if (view === 'account') return { ...base, headings: ['Hi Ada 🌿'], text: `${top} Hi Ada 🌿 This month: 0 minutes of calm. Calmly Premium £6.99 a month · renews 3 November Pause my subscription (3 months free) Start a 5-minute session Manage subscription`,
+    elements: els(['Pause my subscription (3 months free)', 'Start a 5-minute session', 'Manage subscription']) };
+  if (view === 'manage') return { ...base, headings: ['Your subscription'], text: `${top} Your subscription Calmly Premium · £6.99 a month Switch to yearly and save 40% Gift Calmly to a friend Cancel subscription`,
+    elements: els(['Switch to yearly and save 40%', 'Gift Calmly to a friend', 'Cancel subscription']) };
+  if (view === 'offer') return { ...base, headings: ['Before you go: have a month on us'], text: `${top} Before you go: have a month on us Stay with Calmly and your next month is free. Claim my free month No thanks, cancel my subscription`,
+    elements: els(['Claim my free month', 'No thanks, cancel my subscription']) };
+  return { ...base, headings: ['Subscription cancelled ✓'], text: `${top} Subscription cancelled ✓ You won't be charged on 3 November. You can use Calmly Premium until then. Back to your inbox`,
+    elements: [{ id: 'e1', role: 'link', label: 'Back to your inbox' }] };
 }

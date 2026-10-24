@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbox · Ada · Postbox</title>
+<style>
+  :root { --ink: #1c1d21; --muted: #6e717a; --line: #e5e6ea; --bg: #f6f7f9; --accent: #2457d6; --unread: #101114; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  .demo { padding: 6px 16px; text-align: center; font-size: 12px; background: #fff7d6; color: #6b5310; }
+  header { display: flex; align-items: center; gap: 18px; padding: 10px 20px; background: #fff; border-bottom: 1px solid var(--line); }
+  header b { font-size: 17px; color: var(--accent); }
+  header form { flex: 1; max-width: 520px; display: flex; gap: 6px; }
+  header input { flex: 1; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--bg); }
+  header button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; cursor: pointer; }
+  .layout { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 90px); }
+  nav { padding: 14px 10px; } nav p { margin: 2px 0; padding: 6px 10px; border-radius: 8px; color: var(--muted); } nav p.on { background: #e8eefc; color: var(--accent); font-weight: 600; }
+  main { padding: 12px 20px 40px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; color: var(--muted); margin-bottom: 6px; }
+  ul.list { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  ul.list li a { display: grid; grid-template-columns: 170px 1fr 80px; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+  ul.list li:last-child a { border-bottom: 0; }
+  ul.list li a:hover { background: #f3f6fd; }
+  ul.list li.unread a { font-weight: 650; color: var(--unread); }
+  .when { text-align: right; color: var(--muted); font-weight: 400; }
+  .subject { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  article { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 22px 26px; max-width: 760px; }
+  article h1 { font-size: 21px; margin: 6px 0 4px; } .from { color: var(--muted); margin-bottom: 18px; }
+  .cta { display: inline-block; margin: 10px 0 20px; padding: 10px 18px; border-radius: 10px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+  .footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12px; color: var(--muted); }
+  .footer a { color: var(--muted); }
+  .link { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0; }
+  [hidden] { display: none !important; }
+  @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } nav { display: none; } ul.list li a { grid-template-columns: 110px 1fr 60px; } }
+</style>
+</head>
+<body>
+<div class="demo">Demo inbox for testing Mo. Every email, brand and address here is made up.</div>
+<header>
+  <b>Postbox</b>
+  <form id="search"><input id="q" type="search" placeholder="Search mail" aria-label="Search mail"><button type="submit">Search</button></form>
+  <span>ada@example.com</span>
+</header>
+<div class="layout">
+  <nav><p class="on">Inbox</p><p>Starred</p><p>Sent</p><p>Drafts</p><p>Spam</p></nav>
+  <main>
+    <section id="list-view">
+      <div class="bar"><span id="count"></span><span><button class="link" id="newer">Newer</button> · <button class="link" id="older">Older</button></span></div>
+      <ul class="list" id="list"></ul>
+    </section>
+    <article id="mail-view" hidden></article>
+  </main>
+</div>
+<script type="module">
+  import { EMAILS } from './mail.js';
+  const PAGE = 25;
+  const port = location.port || '80';
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let page = 0;
+  let query = '';
+
+  function render() {
+    const m = location.hash.match(/^#\/m\/(\d+)/);
+    if (m) return showMail(EMAILS.find(e => e.id === Number(m[1])));
+    $('mail-view').hidden = true;
+    $('list-view').hidden = false;
+    const q = query.toLowerCase();
+    const found = EMAILS.filter(e => !q || `${e.name} ${e.subject}`.toLowerCase().includes(q));
+    const shown = found.slice(page * PAGE, page * PAGE + PAGE);
+    $('count').textContent = q ? `${found.length} results for “${query}”` : `${page * PAGE + 1}–${page * PAGE + shown.length} of ${found.length}`;
+    $('newer').hidden = page === 0;
+    $('older').hidden = (page + 1) * PAGE >= found.length;
+    $('list').innerHTML = shown.map(e => `<li class="${e.id <= 8 ? 'unread' : ''}"><a href="#/m/${e.id}"><span>${esc(e.name)}</span><span class="subject">${esc(e.subject)}</span><span class="when">${esc(e.time)}</span></a></li>`).join('');
+  }
+
+  function showMail(e) {
+    if (!e) { location.hash = ''; return; }
+    $('list-view').hidden = true;
+    const href = (e.href || '#').replace('PORT', port);
+    $('mail-view').hidden = false;
+    $('mail-view').innerHTML = `
+      <button class="link" id="back">← Back to inbox</button>
+      <h1>${esc(e.subject)}</h1>
+      <div class="from">${esc(e.name)} &lt;${esc(e.from)}&gt; · ${esc(e.time)}</div>
+      ${e.body.map(p => `<p>${esc(p)}</p>`).join('')}
+      ${e.cta ? `<a class="cta" href="${esc(href)}">${esc(e.cta)}</a>` : ''}
+      ${e.unsubscribe ? `<div class="footer">You're getting this email because you signed up at ${esc(e.from.split('@')[1])}. <a href="${e.unsubscribe}">Unsubscribe</a> · <a href="${e.unsubscribe}">Email preferences</a></div>`
+        : e.phishing ? `<div class="footer">To stop these emails, <a href="${esc(href)}">unsubscribe here</a>.</div>` : ''}`;
+    $('back').addEventListener('click', () => { location.hash = ''; });
+  }
+
+  $('search').addEventListener('submit', ev => { ev.preventDefault(); query = $('q').value.trim(); page = 0; location.hash = ''; render(); });
+  $('older').addEventListener('click', () => { page++; render(); });
+  $('newer').addEventListener('click', () => { page = Math.max(0, page - 1); render(); });
+  addEventListener('hashchange', render);
+  render();
+</script>
+</body>
+</html>
