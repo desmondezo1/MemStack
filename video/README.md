@@ -11,7 +11,15 @@ npm install
 node render.js --stills          # a still for each key moment, in out/stills/
 node render.js --from 13 --to 27 # just one part, as out/part.mp4
 node render.js                   # the whole film: out/mo-intro.mp4 (1920×1080, 30 fps, about 5 minutes)
+node voice.js                    # then add the voiceover (Fish Audio; needs FISH_API_KEY in .env)
 ```
+
+## Voiceover
+
+`voice.js` records each line with Fish Audio (`s2.1-pro-free`, the "Documentary" narrator voice), with direction
+cues such as `[warm, slightly amused]` and `[break]`. Lines are cached in `out/voice/`, trimmed, placed at their
+caption's time (sped up by at most 12% if a line would overrun the next), and mixed over the sound effects, which dip
+under the voice. The mix is levelled to -16 LUFS. `node voice.js --check` reports how each line fits without mixing.
 
 ## The story (60 s)
 
