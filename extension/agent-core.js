@@ -123,6 +123,17 @@ export async function perform(tabId, action) {
   return send(tabId, { type: 'showme:act', action });
 }
 
+// Privacy floor, in code, before anything the model picks: on a cookie banner, an
+// "accept" click becomes the banner's reject / necessary-only button when there is one.
+const ACCEPT = /\b(accept|agree|allow)( all)?\b/i;
+const REJECT = /\b(reject|decline|refuse)( all| additional)?\b|necessary only|only necessary|essential only|only essential/i;
+export function privacyFloor(next, page) {
+  if (next.action !== 'click' || !ACCEPT.test(next.label || '') || !/cookie/i.test(page.text || '')) return next;
+  const reject = (page.elements || []).find(e => (e.role === 'button' || e.role === 'link') && REJECT.test(e.label));
+  if (!reject) return next;
+  return { ...next, element_id: reject.id, label: reject.label, role: reject.role, reason: 'Chose the privacy-friendly option on the cookie banner' };
+}
+
 // Questions and "show me where…" requests get an answer highlighted on the page instead
 // of (or after) clicking around.
 export function isQuestion(goal) {
@@ -166,9 +177,15 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
       r.finished = true;
     }
     for (let step = 1; step <= MAX_STEPS && !isStopped() && !r.answer; step++) {
+      // A question: after every move (a new page, a scroll), check whether the answer is now
+      // in view before deciding what to do next. The next-action step only sees controls.
+      if (question && r.history.length && isWebPage((await chrome.tabs.get(tabId)).url) && await answerHere({ goal, tabId, api, signal, r, call })) {
+        r.finished = true;
+        break;
+      }
       const page = await snapshot(tabId);
       mo(tabId, 'thinking');
-      const next = await api('/api/next-action', { method: 'POST', body: { goal, page, history: r.history, sessionId: r.sessionId }, signal });
+      const next = privacyFloor(await api('/api/next-action', { method: 'POST', body: { goal, page, history: r.history, sessionId: r.sessionId }, signal }), page);
       call('usage', next.usage, next.ms);
       r.decisions++;
       if (!next.valid) r.invalid++;

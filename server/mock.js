@@ -85,7 +85,7 @@ function nextAction({ goal, page, history = [], demo }) {
     if (play && !done(history, play.label)) return act(play, 'click', '', 'Start the video');
     const result = els.find(e => e.role === 'link' && words.every(w => e.label.toLowerCase().includes(w)));
     if (result && !history.some(h => h.role === 'link')) return act(result, 'click', '', 'Open the best match');
-    const search = els.find(e => e.role === 'textbox' && /search/i.test(e.label));
+    const search = els.find(e => (e.role === 'textbox' || e.role === 'combobox') && /search/i.test(e.label));
     if (search && !history.some(h => h.action === 'type')) return { ...act(search, 'type', query, 'Search for it'), submit: true };
   }
 
@@ -157,6 +157,7 @@ function locate({ goal, page, hint }) {
   let best = null;
   let bestScore = 0;
   for (const b of blocks) {
+    if (/^h\d$/.test(b.tag)) continue; // a heading names a section; it isn't the answer
     const matches = words(b.text).filter(w => want.has(w)).length;
     if (!matches) continue;
     // Ties go to the fuller block: an answer, not a label for it.

@@ -94,3 +94,21 @@ test('refine-lesson suggests the detours; a lesson with an answer trains locate'
   assert.equal(recalled.block_id, 'e42');
   assert.ok(recalled.demoUsed);
 });
+
+test('privacy floor: "accept cookies" becomes "reject" when the banner offers it', async () => {
+  const { privacyFloor } = await import('../extension/agent-core.js');
+  const page = { text: 'We use cookies to improve your experience.', elements: [
+    { id: 'e1', role: 'button', label: 'Accept all' }, { id: 'e2', role: 'button', label: 'Reject all' }] };
+  const swapped = privacyFloor({ action: 'click', element_id: 'e1', label: 'Accept all', role: 'button' }, page);
+  assert.equal(swapped.element_id, 'e2');
+  assert.match(swapped.reason, /privacy/);
+  // No reject button, or not a cookie banner: unchanged.
+  assert.equal(privacyFloor({ action: 'click', element_id: 'e1', label: 'Accept all' }, { ...page, elements: [page.elements[0]] }).element_id, 'e1');
+  assert.equal(privacyFloor({ action: 'click', element_id: 'e1', label: 'Accept invitation' }, { text: 'Team invite', elements: page.elements }).element_id, 'e1');
+});
+
+test('almost-JSON replies still give the fields to act on', async () => {
+  const { parseJson } = await import('../server/llm.js');
+  const r = parseJson('{"action":"type","element_id":"e3","value":"Burna Boy","submit":true,"reason":"type "Burna Boy" then Enter"}');
+  assert.deepEqual([r.action, r.element_id, r.value, r.submit], ['type', 'e3', 'Burna Boy', true]);
+});

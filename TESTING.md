@@ -181,6 +181,23 @@ SHOWME_E2E_LIVE=1 node --test tests/e2e.test.js   # main flow with your .env key
 
 The first time, if Playwright says Chromium is missing: `npx playwright install chromium`.
 
+## Live check (real websites, real model)
+
+`npm test` uses local pages so it's quick and repeatable. `npm run live` is the opposite: the real
+extension in a visible browser, real Claude through Mubit, on real sites. It covers YouTube (play a
+video), Wikipedia (when was Burna Boy born), the weather in London tomorrow, and teaching on Wikipedia
+with a deliberate detour. Goals only read and search; nothing is booked, bought or submitted. It
+prints each step and saves screenshots and `report.json` in `test-results/live/`. A run costs about
+half a cent of Mubit credit.
+
+```bash
+npm run live                    # all four
+npm run live -- wikipedia       # only the matching ones
+```
+
+Google often blocks automated searches with an "unusual traffic" page. The agent is expected to go
+to another site, not to try to get past it.
+
 ## Rehearsal tips
 
 - Changed the next-action prompt on 24 Oct (full toolset), so Mubit sees a new next-action task; the seed

@@ -103,7 +103,7 @@
   function priority(el) {
     const role = roleOf(el);
     const text = `${el.type || ''} ${el.getAttribute('role') || ''} ${labelOf(el)}`;
-    if (role === 'textbox' && /search/i.test(text)) return 0;
+    if ((role === 'textbox' || role === 'combobox') && /search/i.test(text)) return 0;
     const r = el.getBoundingClientRect();
     const onScreen = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
     const inMain = !!el.closest('main,[role=main],#content,#main,article');
@@ -125,7 +125,17 @@
     const all = [...document.querySelectorAll(BLOCKS)].filter(el =>
       isVisible(el) && !el.querySelector(BLOCKS) && clean(el.innerText).length > 1 && !el.closest(SELECTOR));
     const main = all.filter(el => !el.closest(SITE_CHROME));
-    return (main.length >= 3 ? main : all).slice(0, MAX_BLOCKS).map(el => ({ id: idOf(el), tag: el.tagName.toLowerCase(), text: clean(el.innerText, 180) }));
+    const pool = (main.length >= 3 ? main : all).map((el, index) => {
+      const r = el.getBoundingClientRect();
+      const onScreen = r.bottom > 0 && r.top < innerHeight;
+      return { el, index, near: onScreen ? 0 : Math.min(Math.abs(r.top - innerHeight / 2), 1e6) };
+    });
+    // What's on screen first, then the closest text above and below, listed in page order.
+    const kept = pool.sort((a, b) => a.near - b.near || a.index - b.index).slice(0, MAX_BLOCKS).sort((a, b) => a.index - b.index);
+    return kept.map(({ el }) => {
+      const tag = el.tagName.toLowerCase();
+      return { id: idOf(el), tag, text: clean(el.innerText, tag === 'pre' ? 3000 : 300) };
+    });
   }
 
   function snapshot() {
@@ -165,7 +175,7 @@
       box-shadow: 0 0 0 6px rgba(240, 90, 30, .18); transition: opacity 250ms; }
     .box.answer { animation: pulse 1.1s ease-out 2; }
     .box.flash { border-color: #5b4cf5; background: rgba(91, 76, 245, .06); box-shadow: 0 0 0 5px rgba(91, 76, 245, .16); }
-    .tag { position: absolute; left: -3px; bottom: calc(100% + 8px); max-width: min(420px, 80vw); pointer-events: auto; display: flex; gap: 10px; align-items: flex-start;
+    .tag { position: absolute; left: -3px; bottom: calc(100% + 8px); width: max-content; max-width: min(420px, 80vw); pointer-events: auto; display: flex; gap: 10px; align-items: flex-start;
       padding: 8px 12px; border-radius: 10px; background: #16181d; color: #fff; font: 500 14px/1.4 system-ui, sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
     .flash .tag { background: #5b4cf5; padding: 3px 9px; font-size: 12px; font-weight: 600; }
     .tag.below { bottom: auto; top: calc(100% + 8px); }
@@ -288,6 +298,14 @@
   const focusPages = new WeakMap();
   const editStart = new WeakMap(); // contenteditable text when focus arrived
 
+  // A place you type, whatever role the site gives it: search boxes are often "combobox".
+  const TEXT_TYPES = /^(text|search|email|url|tel|number|password)$/i;
+  function typesText(el) {
+    if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
+    if (el.tagName === 'INPUT') return TEXT_TYPES.test(el.type || 'text');
+    return ['textbox', 'searchbox', 'combobox'].includes(el.getAttribute('role'));
+  }
+
   function interactiveTarget(target) {
     if (!(target instanceof Element)) return null;
     const label = target.closest('label');
@@ -344,7 +362,7 @@
     const el = interactiveTarget(event.target);
     if (!el) return;
     const role = roleOf(el);
-    if (role === 'select' || role === 'textbox') return; // recorded on change instead
+    if (role === 'select' || typesText(el)) return; // recorded on change instead
     // Enter in a form makes the browser "click" its submit button (detail 0): that's
     // part of the "type + Enter" step already recorded, not a click of its own.
     if (event.detail === 0 && Date.now() - lastEnterAt < 1000 && role === 'button') return;
@@ -364,8 +382,8 @@
     if (!recording) return;
     const el = interactiveTarget(event.target);
     if (!el) return;
-    const role = roleOf(el);
-    if (role !== 'select' && role !== 'textbox') return;
+    const role = el.tagName === 'SELECT' ? 'select' : typesText(el) ? 'textbox' : null;
+    if (!role) return;
     if (el.type === 'password') return; // never record passwords
     if (submittedByEnter.get(el) === el.value) return; // already recorded as "type + Enter"
     const page = focusPages.get(el) || snapshot();
@@ -380,7 +398,7 @@
   function onKeyDown(event) {
     if (!recording || event.key !== 'Enter' || event.isComposing) return;
     const el = interactiveTarget(event.target);
-    if (!el || roleOf(el) !== 'textbox' || el.type === 'password' || el.tagName === 'TEXTAREA') return;
+    if (!el || !typesText(el) || el.type === 'password' || el.tagName === 'TEXTAREA') return;
     lastEnterAt = Date.now();
     submittedByEnter.set(el, el.value);
     const page = focusPages.get(el) || snapshot();

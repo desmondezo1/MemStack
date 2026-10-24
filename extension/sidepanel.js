@@ -253,6 +253,7 @@ async function startTeaching() {
   state.recording = true;
   state.recorded = [];
   state.recordTabId = tab.id;
+  $('saved-summary').textContent = '';
   state.lastUrl = page.url;
   state.lastStepAt = Date.now();
   $('recorded').innerHTML = '';
@@ -305,6 +306,10 @@ async function finishTeaching() {
   $('done-teaching').disabled = true;
   await stopRecording();
   const steps = state.recorded;
+  $('teach-recording').hidden = true;
+  $('teach-saved').hidden = false;
+  $('saved-summary').textContent = 'Checking your lesson for detours…';
+  $('rerun').disabled = true;
   const lite = st => ({ action: st.action, label: st.label, role: st.role, value: st.value, submit: st.submit, led_to: st.led_to, page: { url: st.page?.url } });
   const review = await api('/api/refine-lesson', { method: 'POST', body: { goal: state.lastGoal, steps: steps.map(lite) } }).catch(() => null);
   state.saving = false;
@@ -314,6 +319,7 @@ async function finishTeaching() {
 
 function showReview(steps, review) {
   $('teach-recording').hidden = true;
+  $('teach-saved').hidden = true;
   $('teach-review').hidden = false;
   const list = $('review');
   list.innerHTML = '';
