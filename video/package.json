@@ -1,0 +1,13 @@
+{
+  "name": "mo-intro-video",
+  "private": true,
+  "type": "module",
+  "description": "Mo's 60-second intro film: scenes in HTML, frames captured with Playwright, encoded with ffmpeg.",
+  "scripts": {
+    "stills": "node render.js --stills",
+    "render": "node render.js"
+  },
+  "dependencies": {
+    "ffmpeg-static": "5.2.0"
+  }
+}

@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Introducing Mo</title>
+<!-- Mo's 60-second intro. window.render(t) draws the frame at t seconds; render.js captures
+     every frame and encodes the MP4. Every element's state is a pure function of t. -->
+<style>
+  :root { --paper: #fbfaf7; --card: #ffffff; --ink: #16181d; --slate: #646a76; --rule: #e6e4df; --ember: #f05a1e; --ember-soft: #fff0e8; --night: #0f1013; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--paper);
+    font-family: -apple-system, "SF Pro Display", "Inter", system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .abs { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+  .layer { position: absolute; inset: 0; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 22px; box-shadow: 0 24px 60px rgba(22, 24, 29, .08), 0 2px 6px rgba(22, 24, 29, .04); }
+
+  /* captions */
+  .caption { position: absolute; left: 0; right: 0; top: 54px; text-align: center; font-size: 56px; font-weight: 700; letter-spacing: -0.025em; white-space: nowrap; }
+  .caption span { display: inline-block; margin: 0 .13em; will-change: transform, opacity; }
+  .caption .hl { color: var(--ember); }
+
+  /* forms */
+  .form .brand { position: absolute; left: 30px; top: 22px; font-size: 18px; font-weight: 700; color: #4f46e5; }
+  .form .title { position: absolute; left: 30px; top: 50px; font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .form .lab { position: absolute; left: 30px; font-size: 18px; font-weight: 600; color: var(--slate); }
+  .form .inp { position: absolute; left: 30px; height: 46px; border: 1.5px solid var(--rule); border-radius: 11px; background: #fff;
+    font-size: 21px; line-height: 46px; padding: 0 14px; box-sizing: border-box; overflow: hidden; white-space: nowrap; }
+  .form .inp.focus { border-color: var(--ember); box-shadow: 0 0 0 4px rgba(240, 90, 30, .14); }
+  .form .inp .caret { display: inline-block; width: 2px; height: 24px; background: var(--ink); vertical-align: -4px; margin-left: 1px; }
+  .form .btn { position: absolute; left: 30px; height: 50px; padding: 0 30px; border-radius: 12px; background: #4f46e5; color: #fff;
+    font-size: 20px; font-weight: 650; line-height: 50px; }
+  .form .sel::after { content: '▾'; position: absolute; right: 14px; color: var(--slate); font-size: 16px; }
+
+  /* sheet */
+  .sheet .bar { position: absolute; left: 24px; top: 18px; display: flex; gap: 12px; align-items: center; font-size: 22px; font-weight: 600; }
+  .sheet .logo { width: 22px; height: 28px; border-radius: 4px; background: #188038; }
+  .sheet .cell { position: absolute; font-size: 19px; line-height: 48px; padding: 0 12px; box-sizing: border-box; white-space: nowrap; overflow: hidden; border-right: 1px solid #ecebe7; border-bottom: 1px solid #ecebe7; }
+  .sheet .head { background: #f4f3f0; font-weight: 650; color: #3c4048; }
+  .sheet .num { color: #9a9ea7; text-align: center; padding: 0; background: #f8f7f4; }
+  .sheet .rowhl { position: absolute; background: rgba(240, 90, 30, .1); border: 2px solid rgba(240, 90, 30, .55); border-radius: 6px; box-sizing: border-box; }
+
+  .pill { position: absolute; padding: 10px 18px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 21px; font-weight: 600; white-space: nowrap; box-shadow: 0 10px 26px rgba(0, 0, 0, .18); }
+  .tag { position: absolute; padding: 9px 15px; border-radius: 12px; background: var(--ember-soft); border: 1.5px solid var(--ember); color: #b13a0b; font-size: 19px; font-weight: 600; white-space: nowrap; box-shadow: 0 8px 22px rgba(240, 90, 30, .18); }
+  .note { position: absolute; padding: 14px 18px; border-radius: 16px; background: var(--ember-soft); border: 2px solid var(--ember); color: #8f2d06; font-size: 21px; font-weight: 600; width: 420px; box-shadow: 0 14px 34px rgba(240, 90, 30, .2); }
+  .note b { color: var(--ember); }
+  .stamp { position: absolute; padding: 10px 22px; border: 4px solid var(--ember); border-radius: 14px; color: var(--ember); font-size: 34px; font-weight: 800; letter-spacing: .02em; background: rgba(255, 255, 255, .92); }
+
+  .skill { position: absolute; width: 440px; height: 104px; border-radius: 18px; background: #fff; border: 1px solid var(--rule); box-shadow: 0 14px 34px rgba(22, 24, 29, .08); overflow: hidden; }
+  .skill::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--ember); }
+  .skill .n { position: absolute; left: 28px; top: 20px; font-size: 25px; font-weight: 700; letter-spacing: -0.01em; }
+  .skill .m { position: absolute; left: 28px; top: 60px; font-size: 18px; color: var(--slate); }
+  .skill .run { position: absolute; right: 18px; top: 32px; padding: 8px 16px; border-radius: 10px; background: #f3f2ef; font-size: 18px; font-weight: 650; }
+  .badge { position: absolute; padding: 6px 12px; border-radius: 999px; background: var(--ember); color: #fff; font-size: 17px; font-weight: 700; white-space: nowrap; }
+  .shelf-label { position: absolute; font-size: 18px; font-weight: 700; color: var(--slate); letter-spacing: .08em; text-transform: uppercase; }
+
+  .node { position: absolute; border-radius: 50%; display: grid; place-items: center; }
+  .node-label { position: absolute; font-size: 24px; font-weight: 650; text-align: center; white-space: nowrap; transform: translateX(-50%); }
+  .node-sub { position: absolute; font-size: 18px; color: var(--slate); text-align: center; white-space: nowrap; transform: translateX(-50%); }
+  .dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 12px rgba(240, 90, 30, .6); }
+
+  .counter { position: absolute; font-size: 26px; font-weight: 650; color: var(--slate); white-space: nowrap; text-align: right; }
+  .counter b { color: var(--ink); font-size: 34px; }
+  .bigcount { position: absolute; font-size: 30px; font-weight: 650; color: var(--slate); text-align: right; white-space: nowrap; }
+  .bigcount b { display: block; font-size: 120px; line-height: 1; color: var(--ink); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+
+  .email { position: absolute; width: 1100px; height: 108px; border-radius: 18px; background: #fff; border: 1px solid var(--rule); box-shadow: 0 14px 34px rgba(22, 24, 29, .08); }
+  .email .from { position: absolute; left: 30px; top: 20px; font-size: 22px; font-weight: 700; }
+  .email .subj { position: absolute; left: 30px; top: 58px; font-size: 21px; color: var(--slate); }
+  .email .link { position: absolute; right: 30px; top: 36px; padding: 6px 4px; font-size: 21px; color: #1b62b8; text-decoration: underline; }
+  .email .warn { position: absolute; padding: 8px 14px; border-radius: 10px; background: #b42318; color: #fff; font-size: 19px; font-weight: 700; white-space: nowrap; }
+
+  .wordmark { position: absolute; left: 0; width: 1920px; text-align: center; font-weight: 800; letter-spacing: -0.05em; }
+  .tagline { position: absolute; left: 0; width: 1920px; text-align: center; font-size: 54px; font-weight: 600; color: var(--slate); letter-spacing: -0.02em; }
+  .footer { position: absolute; left: 0; width: 1920px; text-align: center; font-size: 24px; color: var(--slate); }
+  .footer b { color: var(--ink); }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="s1" class="layer"></div>
+  <div id="ws" class="layer"></div>
+  <div id="s5" class="layer"></div>
+  <div id="s6" class="layer"></div>
+  <div id="s2" class="layer"></div>
+  <div id="black" class="layer" style="background:#000"></div>
+  <div id="mo" class="abs" style="width:200px;height:200px">
+    <svg viewBox="0 0 64 64" width="200" height="200">
+      <defs>
+        <radialGradient id="mo-g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffb894"/><stop offset=".55" stop-color="#ff6a2b"/><stop offset="1" stop-color="#e0440e"/></radialGradient>
+      </defs>
+      <ellipse id="mo-shadow" cx="32" cy="61" rx="15" ry="2.6" fill="rgba(0,0,0,.16)"/>
+      <g id="mo-body">
+        <circle cx="32" cy="31" r="24" fill="url(#mo-g)"/>
+        <ellipse cx="23" cy="19" rx="6" ry="4" fill="#fff" opacity=".35"/>
+        <g id="mo-eyes">
+          <ellipse id="eye-l" cx="24" cy="31" rx="4.4" ry="5.4" fill="#fff"/>
+          <ellipse id="eye-r" cx="40" cy="31" rx="4.4" ry="5.4" fill="#fff"/>
+          <circle id="pup-l" cx="25" cy="32" r="2.5" fill="#1d1d1f"/>
+          <circle id="pup-r" cx="41" cy="32" r="2.5" fill="#1d1d1f"/>
+          <rect id="lid-l" x="19" y="24" width="10" height="0" fill="#ff7a3c"/>
+          <rect id="lid-r" x="35" y="24" width="10" height="0" fill="#ff7a3c"/>
+        </g>
+        <path id="mo-mouth" d="M27 41 Q32 45 37 41" stroke="#7a2306" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </div>
+  <div id="captions" class="layer"></div>
+  <svg id="cursor" class="abs" width="34" height="44" viewBox="0 0 34 44"><path d="M2 2 L2 34 L10 26 L16 40 L22 37 L16 24 L28 24 Z" fill="#16181d" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>
+  <div id="ripple" class="abs" style="width:60px;height:60px;border-radius:50%;border:3px solid var(--ember)"></div>
+</div>
+<script>
+// ---- Motion helpers ---------------------------------------------------------------------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, start, dur) => clamp((t - start) / dur);
+const lerp = (a, b, x) => a + (b - a) * x;
+const easeOut = p => 1 - (1 - p) ** 3;
+const easeIn = p => p ** 3;
+const easeInOut = p => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2);
+// One spring for everything: arrives with a small overshoot (about 10%) and settles.
+const spring = p => (p <= 0 ? 0 : p >= 1 ? 1 : 1 - Math.exp(-6 * p) * Math.cos(8.6 * p));
+const typed = (s, p) => s.slice(0, Math.round(s.length * clamp(p)));
+const $ = id => document.getElementById(id);
+function el(parent, cls, html = '', style = '') {
+  const e = document.createElement('div');
+  e.className = `abs ${cls}`;
+  e.innerHTML = html;
+  if (style) e.style.cssText += style;
+  parent.appendChild(e);
+  return e;
+}
+function put(e, { x = 0, y = 0, s = 1, sx = 1, sy = 1, r = 0, o = 1 } = {}) {
+  e.style.transform = `translate(${x}px, ${y}px) rotate(${r}deg) scale(${s * sx}, ${s * sy})`;
+  e.style.opacity = o;
+  e.style.visibility = o <= 0.001 ? 'hidden' : 'visible';
+}
+const CUES = [];
+const cue = (t, sound, v = 1) => CUES.push({ t: +t.toFixed(3), sound, v });
+
+// ---- Mo -----------------------------------------------------------------------------------
+// x, y: centre; size in px; look: [-1..1, -1..1]; blink 0..1; squash: >0 flattens, <0 stretches;
+// narrow 0..1 (suspicious); happy 0..1 (eyes curve up).
+function mo({ x = 960, y = 540, size = 200, look = [0, 0], blink = 0, squash = 0, narrow = 0, happy = 0, o = 1, r = 0, shadow = 1 }) {
+  const s = size / 200;
+  const sx = 1 + squash * 0.35, sy = 1 - squash * 0.35;
+  put($('mo'), { x: x - 100, y: y - 100, s, sx, sy, r, o });
+  $('mo').style.transformOrigin = '50% 92%';
+  const lx = clamp(look[0], -1, 1) * 2.4, ly = clamp(look[1], -1, 1) * 2.2;
+  const open = 1 - clamp(Math.max(blink, happy * 0.55));
+  for (const side of ['l', 'r']) {
+    const cx = side === 'l' ? 24 : 40;
+    $(`eye-${side}`).setAttribute('ry', (5.4 * Math.max(0.08, open)).toFixed(2));
+    $(`eye-${side}`).setAttribute('cx', cx + lx * 0.4);
+    $(`eye-${side}`).setAttribute('cy', 31 + ly * 0.3 - happy * 1.2);
+    $(`pup-${side}`).setAttribute('cx', cx + 1 + lx);
+    $(`pup-${side}`).setAttribute('cy', 32 + ly - happy * 1.2);
+    $(`pup-${side}`).setAttribute('r', (2.5 * Math.max(0.05, open)).toFixed(2));
+    $(`lid-${side}`).setAttribute('height', (narrow * 4.4).toFixed(2));
+    $(`lid-${side}`).setAttribute('x', cx - 5 + lx * 0.4);
+  }
+  $('mo-mouth').setAttribute('d', narrow > 0.3 ? 'M28 42 Q32 41 36 42' : `M27 41 Q32 ${45 + happy * 2} 37 41`);
+  $('mo-shadow').style.opacity = shadow;
+}
+const blinkAt = (t, at, dur = 0.16) => { const p = prog(t, at, dur); return p <= 0 || p >= 1 ? 0 : Math.sin(Math.PI * p); };
+const lookAt = (fx, fy, tx, ty) => { const dx = tx - fx, dy = ty - fy, d = Math.hypot(dx, dy) || 1; return [dx / Math.max(d, 260), dy / Math.max(d, 260)]; };
+
+// ---- Captions -------------------------------------------------------------------------------
+const CAPTIONS = [
+  [1.0, 6.25, 'Every week. The same <em>clicks.</em>'],
+  [13.55, 18.3, 'Show it <em>once.</em>'],
+  [18.55, 21.0, 'Add a note where it <em>needs one.</em>'],
+  [21.3, 25.55, 'Now it\'s a <em>skill.</em>'],
+  [25.7, 27.15, 'Next Monday, she presses <em>Run.</em>'],
+  [27.35, 36.95, 'Then it keeps <em>doing it.</em>'],
+  [37.1, 39.65, 'Ten starters. <em>One row</em> of effort.'],
+  [40.55, 42.65, 'Not quite right? <em>Fix it once.</em>'],
+  [42.8, 43.95, 'It learns <em>your way.</em>'],
+  [44.3, 49.65, 'Every lesson trains a <em>smaller model,</em> through Mubit.'],
+  [50.4, 53.3, 'Your weekly work, <em>taught once.</em>'],
+  [53.6, 55.55, 'And it watches <em>your back.</em>'],
+];
+const capEls = CAPTIONS.map(([, , text]) => {
+  const c = document.createElement('div');
+  c.className = 'caption';
+  c.innerHTML = text.replace(/<em>(.*?)<\/em>/g, (_, w) => w.split(' ').map(x => `<span class="hl">${x}</span>`).join(' '))
+    .split(/(<span class="hl">.*?<\/span>|\s+)/).filter(x => x && x.trim()).map(x => (x.startsWith('<span') ? x : `<span>${x}</span>`)).join('');
+  $('captions').appendChild(c);
+  return c;
+});
+function captions(t) {
+  CAPTIONS.forEach(([a, b], i) => {
+    const words = [...capEls[i].children];
+    const out = 1 - prog(t, b - 0.28, 0.28);
+    words.forEach((w, j) => {
+      const p = spring(prog(t, a + j * 0.065, 0.55));
+      w.style.opacity = clamp(p * 1.6) * out;
+      w.style.transform = `translateY(${(1 - p) * 26 - (1 - out) * 10}px)`;
+    });
+    capEls[i].style.visibility = t >= a - 0.01 && t <= b + 0.01 ? 'visible' : 'hidden';
+  });
+}
+
+// ---- Cursor ---------------------------------------------------------------------------------
+// A path of [time, x, y, click?] keys; it glides between keys with ease-in-out.
+const CURSOR = [];
+function cursorKey(t, x, y, click = false) { CURSOR.push([t, x, y, click]); if (click) cue(t, 'click'); }
+function cursor(t, visible) {
+  if (!visible || !CURSOR.length) { put($('cursor'), { o: 0 }); put($('ripple'), { o: 0 }); return; }
+  let i = CURSOR.findIndex(k => k[0] > t);
+  if (i === -1) i = CURSOR.length;
+  const a = CURSOR[Math.max(0, i - 1)], b = CURSOR[Math.min(CURSOR.length - 1, i)];
+  const p = a === b ? 1 : easeInOut(prog(t, a[0], b[0] - a[0]));
+  const x = lerp(a[1], b[1], p), y = lerp(a[2], b[2], p);
+  const lastClick = [...CURSOR].reverse().find(k => k[3] && k[0] <= t);
+  const since = lastClick ? t - lastClick[0] : 9;
+  put($('cursor'), { x: x - 2, y: y - 2, s: since < 0.12 ? 0.86 : 1 });
+  const rp = prog(since, 0, 0.45);
+  put($('ripple'), { x: (lastClick?.[1] ?? 0) - 30, y: (lastClick?.[2] ?? 0) - 30, s: 0.3 + rp * 1.1, o: since < 0.45 ? 1 - rp : 0 });
+  return [x, y];
+}
+
+// ---- Shared data ----------------------------------------------------------------------------
+const ROWS = [
+  ['Kofi Mensah', 'kofi.mensah@acme.example', 'Engineering', 'Priya Shah'],
+  ['Lena Fischer', 'lena.fischer@acme.example', 'Sales', 'Tom Reyes'],
+  ['Tunde Bello', 'tunde.bello@acme.example', 'Eng', 'Priya Shah'],
+  ['Mia Chen', 'mia.chen@acme.example', 'Finance', 'Grace Okoro'],
+  ['Sam Okafor', 'sam.okafor@acme.example', '', 'Grace Okoro'],
+  ['Aisha Bello', 'aisha.bello@acme.example', 'People', 'Ada Obi'],
+  ['Jonas Berg', 'jonas.berg@acme.example', 'Operations', 'Ada Obi'],
+  ['Chidi Eze', 'chidi.eze@acme.example', 'Sales', 'Tom Reyes'],
+  ['Hana Sato', 'hana.sato@acme.example', 'Engineering', 'Priya Shah'],
+  ['Femi Adeyemi', 'femi.adeyemi@acme.example', 'Finance', 'Grace Okoro'],
+];
+const START_DATES = ['03/11/2026', '05/11/2026', '30/10/2026', '04/11/2026', '28/10/2026', '06/11/2026', '02/11/2026', '29/10/2026', '27/10/2026', '05/11/2026'];
+const teamOf = d => (d === 'Eng' ? 'Engineering' : d || 'Operations');
+
+// A form card. fields: [[label, kind]]; returns its parts and where each input sits.
+function makeForm(parent, x, y, w, fields, { brand = 'PeopleDesk', title = 'Add a new starter', button = 'Submit', gap = 74, top = 104 } = {}) {
+  const h = top + fields.length * gap + 70;
+  const card = el(parent, 'card form', `<div class="brand">${brand}</div><div class="title">${title}</div>`, `width:${w}px;height:${h}px`);
+  const inputs = fields.map(([label, kind], i) => {
+    const ly = top + i * gap;
+    el(card, 'lab', label, `top:${ly}px`).style.transform = 'none';
+    const inp = el(card, `inp ${kind === 'select' ? 'sel' : ''}`, '', `top:${ly + 26}px;width:${w - 60}px`);
+    inp.style.transform = 'none';
+    return { inp, x: x + 30, y: y + ly + 26, w: w - 60, cx: x + 30 + 110, cy: y + ly + 49 };
+  });
+  const by = top + fields.length * gap + 4;
+  const btn = el(card, 'btn', button, `top:${by}px`);
+  btn.style.transform = 'none';
+  card.querySelectorAll('.brand,.title').forEach(e => { e.style.transform = 'none'; });
+  return { card, inputs, btn: { el: btn, cx: x + 30 + 60, cy: y + by + 25 }, x, y, w, h };
+}
+function setInput(f, i, text, { focus = false, caret = false, color = '' } = {}) {
+  const inp = f.inputs[i].inp;
+  const html = `<span style="${color ? `color:${color}` : ''}">${text}</span>${caret ? '<span class="caret"></span>' : ''}`;
+  if (inp.innerHTML !== html) inp.innerHTML = html;
+  inp.classList.toggle('focus', focus);
+}
+
+// ==== Scene 1: Again (0 to 7 s) ================================================================
+const S1 = (() => {
+  const layer = $('s1');
+  const fields = [['Full name', 'text'], ['Work email', 'text'], ['Team', 'select'], ['Start date', 'text']];
+  const f = makeForm(layer, 560, 250, 720, fields, { gap: 86, top: 110 });
+  const count = el(layer, 'bigcount', 'Row<b>1</b>');
+  // Cycles get faster: the same form, again and again.
+  const cycles = [];
+  let at = 0.35, d = 2.3;
+  while (at < 6.2) { cycles.push({ at, d }); at += d; d = Math.max(0.11, d * 0.6); }
+  // Row numbers climb faster than the cycles: 1, 2, 3, 5 … 212 on the last one.
+  cycles.forEach((c, k) => { c.row = k < 3 ? k + 1 : Math.round(3 * (212 / 3) ** ((k - 2) / (cycles.length - 3))); });
+  cycles.forEach(c => {
+    fields.forEach((_, i) => { const ft = c.at + c.d * (0.08 + i * 0.17); cue(ft, c.d > 0.5 ? 'click' : 'key', c.d > 0.5 ? 0.8 : 0.5); });
+    cue(c.at + c.d * 0.84, c.d > 0.5 ? 'click' : 'key', c.d > 0.5 ? 1 : 0.6);
+  });
+  const vals = r => [ROWS[r % 10][0], ROWS[r % 10][1], teamOf(ROWS[r % 10][2]), START_DATES[r % 10]];
+  return function render(t) {
+    const on = t < 6.6;
+    layer.style.display = on ? 'block' : 'none';
+    if (!on) return null;
+    const c = [...cycles].reverse().find(x => t >= x.at) || cycles[0];
+    const p = prog(t, c.at, c.d);
+    const speed = 2.3 / c.d;
+    const v = vals(c.row - 1);
+    const fieldP = i => prog(p, 0.08 + i * 0.17, 0.14);
+    fields.forEach((_, i) => setInput(f, i, typed(v[i], fieldP(i)), { focus: fieldP(i) > 0 && fieldP(i) < 1, caret: fieldP(i) > 0 && fieldP(i) < 1 && c.d > 0.5 }));
+    const pressed = p > 0.82 && p < 0.9;
+    f.btn.el.style.transform = `scale(${pressed ? 0.94 : 1})`;
+    // The form drops in, then shakes a little faster with every cycle.
+    const enter = spring(prog(t, 0, 0.7));
+    const jitter = speed > 3 ? Math.sin(t * 90) * Math.min(6, speed * 0.6) : 0;
+    put(f.card, { x: f.x + jitter, y: f.y + 30 + (1 - enter) * 60, o: clamp(enter * 1.5), s: 1.22 });
+    f.card.style.filter = `blur(${clamp((speed - 4) / 6) * 2.2}px)`;
+    const cIn = spring(prog(t, 0.5, 0.6));
+    count.innerHTML = `Row<b>${c.row}</b>`;
+    put(count, { x: 1440, y: 330 + (1 - cIn) * 30, o: cIn, s: 1.35 + (speed > 3 ? Math.sin(t * 40) * 0.012 : 0) });
+    // The cursor goes field to field, then to the button.
+    const targets = [...f.inputs.map(q => [q.cx + 120, q.cy]), [f.btn.cx, f.btn.cy]];
+    const seg = clamp(p / 0.86) * (targets.length - 1);
+    const a = targets[Math.floor(seg)], b = targets[Math.min(targets.length - 1, Math.floor(seg) + 1)];
+    const q = easeInOut(seg % 1);
+    // The card is scaled about its centre: move the cursor the same way.
+    const cx = f.x + f.w / 2, cy = f.y + 30 + f.h / 2, k = 1.22;
+    return [cx + (lerp(a[0], b[0], q) - cx) * k + jitter, cy + (lerp(a[1], b[1], q) + 30 - cy) * k];
+  };
+})();
+
+// ==== Scene 2: Meet Mo (7 to 13 s) ==============================================================
+const S2 = (() => {
+  const layer = $('s2');
+  const word = el(layer, 'wordmark', 'Mo', 'font-size:220px;top:330px;width:auto;left:0');
+  const line = el(layer, 'tagline', 'Do it once. <span style="color:var(--ember)">Mo does the rest.</span>', 'top:610px;width:auto;left:0;text-align:left;font-size:56px');
+  cue(7.42, 'thud'); cue(7.5, 'whoosh', 0.7); cue(8.25, 'pop', 0.6); cue(9.62, 'tick', 0.5); cue(9.95, 'whoosh', 0.5); cue(10.35, 'pop', 0.8);
+  return function render(t) {
+    const on = t >= 6.6 && t < 13.0;
+    layer.style.display = on ? 'block' : 'none';
+    if (!on) return null;
+    // Falls in, lands, squashes, springs back; the black opens out from it.
+    const fall = easeIn(prog(t, 7.0, 0.42));
+    const land = prog(t, 7.42, 0.6);
+    const squash = t < 7.42 ? -fall * 0.25 : Math.exp(-5 * land) * Math.cos(12 * land) * 0.55;
+    const grow = spring(prog(t, 7.55, 0.8));
+    const slide = spring(prog(t, 9.75, 0.8));
+    const x = lerp(960, 660, slide), y = t < 7.42 ? lerp(-120, 540, fall) : 540;
+    const size = lerp(90, 300, grow);
+    const eyesOpen = prog(t, 8.15, 0.25);
+    const look = t < 8.55 ? [0, 0] : t < 8.95 ? [-0.9, -0.1] : t < 9.3 ? [0.9, -0.1] : [0, 0.15];
+    const lookP = easeInOut(prog(t, Math.floor((t - 8.55) / 0.38) * 0.38 + 8.55, 0.14));
+    mo({ x, y, size, look: [look[0] * lookP, look[1] * lookP], blink: Math.max(1 - eyesOpen, blinkAt(t, 9.6), blinkAt(t, 12.72, 0.26)), squash, shadow: t > 7.42 ? 1 : 0 });
+    const wIn = spring(prog(t, 9.95, 0.7));
+    put(word, { x: 860 + (1 - wIn) * 60, y: -10, o: clamp(wIn * 1.4) });
+    const lIn = spring(prog(t, 10.35, 0.7));
+    put(line, { x: 872 + (1 - lIn) * 40, y: 0, o: clamp(lIn * 1.4) * (1 - prog(t, 12.6, 0.25)) });
+    word.style.opacity = clamp(wIn * 1.4) * (1 - prog(t, 12.6, 0.25));
+    const hole = easeOut(prog(t, 7.48, 0.7)) * 2300;
+    $('black').style.webkitMaskImage = `radial-gradient(circle at ${x}px ${y}px, transparent ${hole}px, #000 ${hole + 1}px)`;
+    $('black').style.visibility = t < 8.2 ? 'visible' : 'hidden';
+    return true;
+  };
+})();
+
+// ==== Scenes 3 and 4: the workspace (13 to 40 s) ================================================
+const WS = (() => {
+  const layer = $('ws');
+  const SX = 100, SY = 250, ROWH = 48, HEADH = 50, TOP = 66;
+  const cols = [['', 50], ['Full name', 220], ['Email', 330], ['Dept', 140], ['Manager', 150]];
+  const colX = cols.reduce((a, [, w], i) => (a.push(i ? a[i - 1] + cols[i - 1][1] : 0), a), []);
+  const SW = cols.reduce((a, [, w]) => a + w, 0) + 48;
+  const sheet = el(layer, 'card sheet', '<div class="bar"><div class="logo"></div>New starters, November</div>', `width:${SW}px;height:${TOP + HEADH + ROWH * 10 + 24}px`);
+  sheet.querySelector('.bar').style.transform = 'none';
+  const cell = (r, c) => ({ x: SX + 24 + colX[c], y: SY + TOP + HEADH + r * ROWH, w: cols[c][1] });
+  cols.forEach(([name, w], c) => { const e = el(sheet, 'cell head', name, `left:${24 + colX[c]}px;top:${TOP}px;width:${w}px`); e.style.transform = 'none'; });
+  const numEls = [];
+  ROWS.forEach((row, r) => {
+    const n = el(sheet, 'cell num', String(r + 1), `left:24px;top:${TOP + HEADH + r * ROWH}px;width:${cols[0][1]}px`);
+    n.style.transform = 'none';
+    numEls.push(n);
+    row.forEach((v, c) => { const e = el(sheet, 'cell', v, `left:${24 + colX[c + 1]}px;top:${TOP + HEADH + r * ROWH}px;width:${cols[c + 1][1]}px`); e.style.transform = 'none'; });
+  });
+  const rowhl = el(sheet, 'rowhl', '', `left:20px;width:${SW - 40}px;height:${ROWH + 4}px`);
+
+  const FX = 1100;
+  const fields = [['Full name', 'text'], ['Work email', 'text'], ['Team', 'select'], ['Manager', 'text'], ['Start date', 'text'], ['Laptop', 'select']];
+  const f = makeForm(layer, FX, SY, 720, fields);
+  const counter = el(layer, 'counter', '');
+  const stamp = el(layer, 'stamp', '✓ Added');
+  const chip = el(layer, 'pill', '');
+  const tagEng = el(layer, 'tag', '“Eng” → Engineering');
+  const tagOps = el(layer, 'tag', 'Blank → Operations <span style="font-weight:500">(your note)</span>');
+  const note = el(layer, 'note', '<b>✎ Note:</b> a random weekday in the next 2 weeks. It isn\'t in the sheet.');
+  const noteBadge = el(layer, 'badge', '✎ note');
+  const shelfLabel = el(layer, 'shelf-label', 'My skills');
+  const skill = el(layer, 'skill', '<div class="n">Add a new starter</div><div class="m">taught once · 6 fields · 1 note</div><div class="run">Run</div>');
+  const skillRan = skill.querySelector('.m');
+
+  // Lines from row 1's cells to the form fields they fill.
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', 1920); svg.setAttribute('height', 1080);
+  svg.style.cssText = 'position:absolute;left:0;top:0';
+  layer.appendChild(svg);
+  const links = [0, 1, 2, 3].map(c => {
+    const a = cell(0, c + 1), b = f.inputs[c];
+    const x1 = a.x + Math.min(a.w - 14, 30 + ROWS[0][c].length * 10.5), y1 = a.y + ROWH / 2, x2 = b.x - 4, y2 = b.cy;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M${x1} ${y1} C ${x1 + 260} ${y1}, ${x2 - 260} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('stroke', '#f05a1e'); path.setAttribute('stroke-width', '3'); path.setAttribute('fill', 'none'); path.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(path);
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = `${len}`;
+    const d1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); d1.setAttribute('cx', x1); d1.setAttribute('cy', y1); d1.setAttribute('r', 6); d1.setAttribute('fill', '#f05a1e'); svg.appendChild(d1);
+    const d2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); d2.setAttribute('cx', x2); d2.setAttribute('cy', y2); d2.setAttribute('r', 6); d2.setAttribute('fill', '#f05a1e'); svg.appendChild(d2);
+    return { path, len, d1, d2 };
+  });
+
+  // Scene 3: Ada does row 1. One field every 0.9 s, then the note, the laptop, Submit.
+  const T1 = [14.35, 15.25, 16.15, 17.05, 17.95, 19.95];
+  const row1 = [...ROWS[0].slice(0, 2), 'Engineering', ROWS[0][3], START_DATES[0], 'MacBook Air'];
+  cursorKey(13.2, 1500, 980);
+  T1.forEach((ft, i) => { cursorKey(ft - 0.35, f.inputs[i].cx + 60, f.inputs[i].cy + 4); cursorKey(ft, f.inputs[i].cx + 60, f.inputs[i].cy + 4, true); });
+  row1.forEach((v, i) => { for (let k = 0; k < Math.min(v.length, 10); k++) cue(T1[i] + 0.08 + k * 0.045, 'key', 0.6); if (i < 4) cue(T1[i] + 0.15, 'tick', 0.4); });
+  cursorKey(20.25, f.btn.cx, f.btn.cy); cursorKey(20.6, f.btn.cx, f.btn.cy, true); cursorKey(21.1, f.btn.cx + 40, f.btn.cy + 120);
+  cursorKey(25.3, 560, 1120); cursorKey(25.85, 495, 987); cursorKey(26.2, 495, 987, true); cursorKey(26.9, 700, 1140);
+  cue(18.6, 'pop', 0.8); cue(20.62, 'tick', 0.8); cue(21.6, 'fold'); cue(22.2, 'fold', 0.7); cue(23.2, 'pop'); cue(23.9, 'chime', 0.6);
+  // Scene 4: rows 2 to 10, faster as it goes.
+  const durs = [1.6, 1.5, 1.05, 1.5, 0.78, 0.72, 0.66, 0.62, 0.6];
+  const rowT = []; let at = 28.0;
+  durs.forEach(d => { rowT.push([at, d]); at += d; });
+  rowT.forEach(([a, d], j) => { cue(a + d * 0.05, 'whoosh', 0.35); for (let i = 0; i < 6; i++) cue(a + d * (0.3 + i * 0.07), 'key', 0.35); cue(a + d * 0.78, 'tick', 0.9); });
+  cue(37.1, 'rise', 0.8); for (let r = 0; r < 10; r++) cue(37.2 + r * 0.07, 'tick', 0.35);
+  cue(39.55, 'whoosh', 0.5);
+
+  return function render(t) {
+    const on = t >= 12.95 && t < 40.0;
+    layer.style.display = on ? 'block' : 'none';
+    if (!on) return null;
+    const inS = spring(prog(t, 13.0, 0.8)), inF = spring(prog(t, 13.12, 0.8));
+    put(sheet, { x: SX - (1 - inS) * 160, y: SY, o: clamp(inS * 1.5) });
+    put(f.card, { x: FX + (1 - inF) * 160, y: SY, o: clamp(inF * 1.5) });
+    const scene3 = t < 27.0;
+    let moTarget = [960, 600];
+
+    // ---- Scene 3 ----
+    const hl1 = spring(prog(t, 13.85, 0.5));
+    let hlRow = 0, hlO = scene3 ? clamp(hl1) * (1 - prog(t, 21.0, 0.4)) : 0;
+    links.forEach((L, c) => {
+      const p = scene3 ? easeInOut(prog(t, T1[c] + 0.05, 0.55)) : 0;
+      const fade = 1 - prog(t, 21.0, 0.5);
+      L.path.style.strokeDashoffset = L.len * (1 - p);
+      L.path.style.opacity = fade * 0.9;
+      L.d1.style.opacity = (p > 0 ? 1 : 0) * fade; L.d2.style.opacity = (p >= 1 ? 1 : 0) * fade;
+    });
+    if (scene3) {
+      row1.forEach((v, i) => {
+        const p = prog(t, T1[i] + 0.08, Math.min(0.5, v.length * 0.045));
+        setInput(f, i, typed(v, p), { focus: t > T1[i] - 0.05 && t < (T1[i + 1] ?? 20.5) - 0.3, caret: p > 0 && p < 1 });
+      });
+      f.btn.el.style.transform = `scale(${t > 20.6 && t < 20.72 ? 0.94 : 1})`;
+      const ci = T1.findIndex((x, i) => t < (T1[i + 1] ?? 21));
+      moTarget = ci >= 0 ? [f.inputs[ci].cx, f.inputs[ci].cy] : [f.btn.cx, f.btn.cy];
+      if (t > 13.85 && t < 14.3) moTarget = [cell(0, 1).x + 100, cell(0, 1).y];
+    }
+    // The note pops up by the start date, then tucks into a small badge.
+    const nIn = spring(prog(t, 18.55, 0.6)), nOut = easeInOut(prog(t, 19.75, 0.45));
+    const sd = f.inputs[4];
+    put(note, { x: sd.x + sd.w - 420 + nOut * 120, y: sd.y - 96 + (1 - nIn) * 20 + nOut * 70, s: lerp(0.9 + nIn * 0.1, 0.3, nOut), o: scene3 ? clamp(nIn * 1.5) * (1 - nOut) : 0 });
+    note.innerHTML = `<b>✎ Note:</b> ${typed('a random weekday in the next 2 weeks. It isn\'t in the sheet.', prog(t, 18.75, 0.9))}`;
+    const bIn = spring(prog(t, 20.0, 0.4));
+    put(noteBadge, { x: sd.x + sd.w - 112, y: sd.y + 9, s: bIn, o: scene3 ? clamp(bIn * 2) * (1 - prog(t, 21.2, 0.3)) : 0 });
+    if (scene3 && t > 18.5 && t < 19.9) moTarget = [sd.x + sd.w - 200, sd.y - 60];
+
+    // Folding into a skill: the filled fields fly down into a card on the shelf.
+    const fold = prog(t, 21.45, 0.9);
+    const cardIn = spring(prog(t, 22.25, 0.8));
+    const flyers = f.inputs.map(q => q.inp);
+    flyers.forEach((inp, i) => {
+      const p = easeInOut(prog(t, 21.45 + i * 0.07, 0.65));
+      const q = f.inputs[i];
+      const dx = (160 + 220) - (q.x + 200), dy = 990 - q.cy;
+      // The values fly into the card; the empty boxes come back for the next row.
+      const back = t > 22.6;
+      inp.style.transform = scene3 && t > 21.4 && !back ? `translate(${dx * p}px, ${dy * p}px) scale(${1 - p * 0.6})` : 'none';
+      inp.style.opacity = scene3 ? (back ? prog(t, 22.6 + i * 0.05, 0.35) : t > 21.4 ? 1 - prog(t, 21.85 + i * 0.07, 0.3) : 1) : 1;
+      if (scene3 && back) setInput(f, i, '');
+    });
+    const sIn = spring(prog(t, 22.1, 0.6));
+    put(shelfLabel, { x: 112, y: 900, o: clamp(sIn * 1.5) });
+    put(skill, { x: 110, y: 935, s: lerp(0.6, 1, cardIn), o: clamp(cardIn * 2) });
+    const ranCount = scene3 ? 0 : rowT.filter(([a, d]) => t >= a + d * 0.85).length;
+    skillRan.textContent = ranCount ? `from a sheet · 6 fields · 1 note · ran ${ranCount}×` : 'from a sheet · 6 fields · 1 note';
+    if (t > 22.2 && t < 24.8) moTarget = [400, 990];
+
+    // ---- Scene 4 ----
+    const cIn = spring(prog(t, 27.4, 0.6));
+    const done = rowT.filter(([a, d]) => t >= a + d * 0.85).length;
+    counter.innerHTML = `Row <b>${Math.min(10, done + 2)}</b> of 10`;
+    if (done >= 9) counter.innerHTML = `<b>10</b> of 10 <span style="color:var(--ember)">✓</span>`;
+    put(counter, { x: FX + 720 - 260, y: 195, o: scene3 ? 0 : clamp(cIn * 1.5) });
+    counter.style.width = '260px';
+    const cur = rowT.findIndex(([a, d]) => t >= a && t < a + d);
+    numEls.forEach((n, r) => {
+      const isDone = r === 0 ? t > 20.7 : (r - 1) < done;
+      const pulse = t > 37.2 ? Math.sin(Math.PI * prog(t, 37.2 + r * 0.07, 0.3)) : 0;
+      n.innerHTML = isDone ? `<span style="color:var(--ember);font-weight:800">✓</span>` : String(r + 1);
+      n.style.transform = `scale(${1 + pulse * 0.5})`;
+    });
+    let chipO = 0, stampO = 0, tagE = 0, tagO = 0;
+    if (!scene3 && cur >= 0) {
+      const [a, d] = rowT[cur];
+      const p = prog(t, a, d);
+      const r = cur + 1, row = ROWS[r];
+      hlRow = r; hlO = 1;
+      const fly = easeInOut(prog(p, 0, 0.32));
+      const from = cell(r, 1), to = [FX + 30, SY + 60];
+      chip.textContent = row[0];
+      put(chip, { x: lerp(from.x, to[0], fly), y: lerp(from.y + 2, to[1], fly) - Math.sin(Math.PI * fly) * 70, s: 1 + Math.sin(Math.PI * fly) * 0.08, o: clamp(p * 8) * (1 - prog(p, 0.3, 0.06)) });
+      chipO = 1;
+      const vals = [row[0], row[1], teamOf(row[2]), row[3], START_DATES[r], 'MacBook Air'];
+      vals.forEach((v, i) => setInput(f, i, typed(v, prog(p, 0.3 + i * 0.07, 0.12)), { focus: p > 0.3 + i * 0.07 && p < 0.42 + i * 0.07 }));
+      f.btn.el.style.transform = `scale(${p > 0.72 && p < 0.78 ? 0.94 : 1})`;
+      const st = spring(prog(p, 0.76, 0.2));
+      put(stamp, { x: FX + 430, y: SY + 22, r: -8, s: lerp(1.6, 1, st), o: clamp(st * 2) * (1 - prog(p, 0.95, 0.05)) });
+      stampO = 1;
+      if (r === 2) tagE = clamp(spring(prog(p, 0.45, 0.25)) * 1.5);
+      if (r === 4) tagO = clamp(spring(prog(p, 0.45, 0.25)) * 1.5);
+      moTarget = fly < 1 ? [lerp(from.x, to[0], fly), lerp(from.y, to[1], fly)] : [f.inputs[Math.min(5, Math.floor((p - 0.3) / 0.07))]?.cx ?? FX, f.inputs[0].cy + (p - 0.3) * 600];
+    } else if (!scene3 && t >= 37) {
+      const last = ROWS[9];
+      [last[0], last[1], teamOf(last[2]), last[3], START_DATES[9], 'MacBook Air'].forEach((v, i) => setInput(f, i, v));
+      moTarget = [cell(Math.floor(prog(t, 37.2, 0.8) * 9), 0).x, cell(Math.floor(prog(t, 37.2, 0.8) * 9), 0).y];
+    } else if (!scene3) {
+      [ROWS[0][0], ROWS[0][1], 'Engineering', ROWS[0][3], START_DATES[0], 'MacBook Air'].forEach((v, i) => setInput(f, i, v));
+    }
+    if (!chipO) put(chip, { o: 0 });
+    if (!stampO) put(stamp, { o: 0 });
+    put(tagEng, { x: FX + 720 - 300, y: f.inputs[2].y - 8, o: tagE, s: 0.9 + tagE * 0.1 });
+    put(tagOps, { x: FX + 720 - 410, y: f.inputs[2].y - 8, o: tagO, s: 0.9 + tagO * 0.1 });
+    rowhl.style.top = `${TOP + HEADH + hlRow * ROWH - 2}px`;
+    rowhl.style.opacity = hlO * (scene3 ? 1 : 0.9);
+    rowhl.style.visibility = hlO > 0 ? 'visible' : 'hidden';
+
+    // Mo watches from above the gap between the two cards.
+    const mIn = spring(prog(t, 13.4, 0.7));
+    const mx = 1069, my = 172;
+    const lk = lookAt(mx, my, moTarget[0], moTarget[1]);
+    const nod = Math.sin(Math.PI * prog(t, 23.55, 0.35)) * 10 + Math.sin(Math.PI * prog(t, 37.2, 0.4)) * 8;
+    mo({ x: mx, y: my + nod, size: 110 * mIn, look: lk, blink: Math.max(blinkAt(t, 16.6), blinkAt(t, 25.1), blinkAt(t, 33.4), blinkAt(t, 39.62, 0.3)),
+      happy: Math.max(Math.sin(Math.PI * prog(t, 23.4, 1.6)), Math.sin(Math.PI * prog(t, 37.1, 2.2))) * 0.9, o: clamp(mIn * 2) });
+    const runBtn = skill.querySelector('.run');
+    const pressed = t > 26.2 && t < 26.34;
+    runBtn.style.background = t > 26.2 && t < 27.6 ? 'var(--ember)' : '#f3f2ef';
+    runBtn.style.color = t > 26.2 && t < 27.6 ? '#fff' : '';
+    runBtn.style.transform = `scale(${pressed ? 0.92 : 1})`;
+    return scene3 ? ((t > 13.15 && t < 21.3) || (t > 25.2 && t < 27.0)) : false;
+  };
+})();
+
+// ==== Scene 5: Gets better (40 to 50 s) =========================================================
+const S5 = (() => {
+  const layer = $('s5');
+  const f = makeForm(layer, 560, 230, 800, [['Full name', 'text'], ['Team', 'select'], ['Laptop', 'select']], { title: 'Hana Sato', button: 'Saved ✓', gap: 80 });
+  const notRight = el(layer, 'pill', 'Not what you wanted? Show me how', 'background:#fff;color:var(--ember);border:2px solid var(--ember);box-shadow:none');
+  const note = el(layer, 'note', '<b>✎ Note:</b> Engineering gets a MacBook Pro.', 'width:430px');
+  const skill = el(layer, 'skill', '<div class="n">Add a new starter</div><div class="m">from a sheet · ran 9×</div><div class="run">Run</div>');
+  const badge = el(layer, 'badge', 'corrected 1×');
+  const mubit = el(layer, 'node', '<span style="color:#fff;font-size:86px;font-weight:300;margin-top:-8px">μ</span>', 'width:190px;height:190px;background:var(--night);box-shadow:0 20px 50px rgba(0,0,0,.25)');
+  const claude = el(layer, 'node', '<span style="font-size:30px;font-weight:700;color:#3d3a35">Claude</span>', 'width:170px;height:170px;background:#efe9e0;border:2px solid #ddd3c4');
+  const small = el(layer, 'node', '', 'width:150px;height:150px');
+  small.innerHTML = '<svg width="150" height="150" viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="#f3d6c8" stroke-width="10"/><circle id="ring" cx="75" cy="75" r="66" fill="none" stroke="#f05a1e" stroke-width="10" stroke-linecap="round" transform="rotate(-90 75 75)" stroke-dasharray="415" stroke-dashoffset="415"/><circle id="core" cx="75" cy="75" r="40" fill="#f05a1e"/></svg>';
+  const lMubit = el(layer, 'node-label', 'Mubit'), lClaude = el(layer, 'node-sub', 'does the work today'), lSmall = el(layer, 'node-label', 'A smaller model');
+  const sSmall = el(layer, 'node-sub', 'learning from your lessons');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', 1920); svg.setAttribute('height', 1080); svg.style.cssText = 'position:absolute;left:0;top:0';
+  layer.appendChild(svg);
+  const P = { card: [610, 640], mubit: [1010, 600], claude: [1480, 400], small: [1480, 800] };
+  const mk = (a, b, dash) => { const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', `M${a[0]} ${a[1]} C ${(a[0] + b[0]) / 2} ${a[1]}, ${(a[0] + b[0]) / 2} ${b[1]}, ${b[0]} ${b[1]}`); p.setAttribute('stroke', dash ? '#f05a1e' : '#cfcac2'); p.setAttribute('stroke-width', 3); p.setAttribute('fill', 'none'); if (dash) p.setAttribute('stroke-dasharray', '2 10'); p.setAttribute('stroke-linecap', 'round'); svg.appendChild(p); return p; };
+  const e1 = mk(P.card, P.mubit), e2 = mk(P.mubit, P.claude), e3 = mk(P.mubit, P.small, true);
+  const dots = Array.from({ length: 40 }, () => el(layer, 'dot'));
+  cursorKey(40.9, 1500, 1000); cursorKey(41.3, 960, 786); cursorKey(41.5, 960, 786, true); cursorKey(42.0, 1240, 640); cursorKey(42.15, 1240, 640, true); cursorKey(43.0, 1400, 1000);
+  cue(40.1, 'whoosh', 0.5); cue(42.25, 'key'); cue(42.5, 'pop', 0.8); cue(42.85, 'chime', 0.55); cue(43.7, 'whoosh', 0.5);
+  for (let k = 0; k < 24; k++) cue(44.3 + k * 0.2 + 0.55, 'tick', 0.18);
+  cue(48.6, 'rise', 0.6); cue(49.55, 'whoosh', 0.5);
+  return function render(t) {
+    const on = t >= 40.0 && t < 50.0;
+    layer.style.display = on ? 'block' : 'none';
+    if (!on) return null;
+    const part2 = prog(t, 43.55, 0.8);
+    const fIn = spring(prog(t, 40.0, 0.7));
+    const fOut = easeInOut(part2);
+    put(f.card, { x: f.x, y: f.y + (1 - fIn) * 60 - fOut * 80, s: 1 - fOut * 0.2, o: clamp(fIn * 1.5) * (1 - fOut) });
+    setInput(f, 0, 'Hana Sato'); setInput(f, 1, 'Engineering');
+    const fix = prog(t, 42.15, 0.35);
+    setInput(f, 2, fix > 0 ? `<s style="color:#a0a4ad">MacBook Air</s>&nbsp;&nbsp;<span style="color:var(--ember);font-weight:650">${typed('MacBook Pro', prog(t, 42.25, 0.4))}</span>` : 'MacBook Air', { focus: fix > 0 && fix < 1.5 && t < 43 });
+    const nr = spring(prog(t, 40.85, 0.5));
+    put(notRight, { x: 960 - 205, y: 760 + (1 - nr) * 20, s: t > 41.5 && t < 41.62 ? 0.95 : 1, o: clamp(nr * 1.5) * (1 - prog(t, 41.7, 0.25)) });
+    const nIn = spring(prog(t, 42.45, 0.5));
+    put(note, { x: 1240, y: 470 + (1 - nIn) * 20, o: clamp(nIn * 1.5) * (1 - fOut) });
+    // The skill card picks up "corrected 1×", then slides left to feed Mubit.
+    const kIn = spring(prog(t, 42.7, 0.6));
+    const kx = lerp(110, P.card[0] - 440, easeInOut(part2)), ky = lerp(935, P.card[1] - 52, easeInOut(part2));
+    put(skill, { x: kx, y: ky, o: clamp(kIn * 1.5), s: 1 + Math.sin(Math.PI * prog(t, 42.85, 0.4)) * 0.05 });
+    put(badge, { x: kx + 300, y: ky - 16, s: spring(prog(t, 42.85, 0.5)), o: clamp(spring(prog(t, 42.85, 0.5)) * 2) });
+    // The diagram: Mubit in the middle, Claude above, the smaller model below.
+    const n1 = spring(prog(t, 43.9, 0.6)), n2 = spring(prog(t, 44.1, 0.6)), n3 = spring(prog(t, 44.35, 0.6));
+    put(mubit, { x: P.mubit[0] - 95, y: P.mubit[1] - 95, s: n1, o: clamp(n1 * 2) });
+    put(claude, { x: P.claude[0] - 85, y: P.claude[1] - 85, s: n2, o: clamp(n2 * 2) });
+    put(small, { x: P.small[0] - 75, y: P.small[1] - 75, s: n3, o: clamp(n3 * 2) });
+    put(lMubit, { x: P.mubit[0], y: P.mubit[1] + 110, o: clamp(n1 * 2) });
+    put(lClaude, { x: P.claude[0], y: P.claude[1] - 135, o: clamp(n2 * 2) });
+    put(lSmall, { x: P.small[0], y: P.small[1] + 92, o: clamp(n3 * 2) });
+    put(sSmall, { x: P.small[0], y: P.small[1] + 128, o: clamp(n3 * 2) });
+    [e1, e2, e3].forEach((e, i) => { e.style.opacity = clamp([n1, n2, n3][i] * 2) * 0.9; });
+    // Lesson steps flow in: through Mubit to Claude, and into the smaller model.
+    let arrived = 0;
+    dots.forEach((d, k) => {
+      const start = 44.3 + Math.floor(k / 2) * 0.2;
+      const toSmall = k % 2 === 1;
+      const p1 = prog(t, start, 0.55), p2 = prog(t, start + 0.55, toSmall ? 0.7 : 0.5);
+      if (t < start || p2 >= 1) { put(d, { o: 0 }); if (p2 >= 1 && toSmall) arrived++; return; }
+      const path = p1 < 1 ? e1 : toSmall ? e3 : e2;
+      const q = p1 < 1 ? easeInOut(p1) : easeInOut(p2);
+      const pt = path.getPointAtLength(path.getTotalLength() * q);
+      put(d, { x: pt.x, y: pt.y, o: 1, s: p1 < 1 ? 1 : 0.85 });
+    });
+    const fill = clamp(arrived / 20) * 0.86;
+    small.querySelector('#ring').setAttribute('stroke-dashoffset', (415 * (1 - fill)).toFixed(1));
+    small.querySelector('#core').setAttribute('r', (16 + 24 * fill).toFixed(1));
+    // Mo: beside the form at first, then above the skill card, eyes on the flow.
+    const tgt = t < 43.6 ? (t < 41.6 ? [960, 786] : [1240, 640]) : (() => { const k = dots.findIndex(d => d.style.visibility === 'visible'); return k >= 0 ? [parseFloat(dots[k].style.transform.slice(10)), 600] : [1010, 600]; })();
+    const mxy = [lerp(430, P.card[0] - 220, easeInOut(part2)), lerp(380, P.card[1] - 190, easeInOut(part2))];
+    const mIn = spring(prog(t, 40.2, 0.6));
+    mo({ x: mxy[0], y: mxy[1], size: 130 * mIn, look: lookAt(mxy[0], mxy[1], tgt[0], tgt[1]), blink: Math.max(blinkAt(t, 41.9), blinkAt(t, 46.5), blinkAt(t, 49.62, 0.3)), happy: Math.sin(Math.PI * prog(t, 42.8, 1.2)) * 0.9, o: clamp(mIn * 2) });
+    return t < 43.2;
+  };
+})();
+
+// ==== Scene 6: the end (50 to 60 s) =============================================================
+const S6 = (() => {
+  const layer = $('s6');
+  const label = el(layer, 'shelf-label', 'My skills');
+  const items = [['Add a new starter', 'from a sheet · ran 9×'], ['Clear the shared inbox', 'corrected once'], ['Cancel a subscription', 'taught once'], ['Monthly software audit', 'two sites · taught once']];
+  const cards = items.map(([n, m]) => el(layer, 'skill', `<div class="n">${n}</div><div class="m">${m}</div><div class="run">Run</div>`, 'width:560px;height:118px'));
+  const mail = el(layer, 'email', '<div class="from">PayPal</div><div class="subj">Unsubscribe from PayPal promotional emails</div><div class="link">paypal-com-unsubscribe.co/confirm</div>');
+  const warn = el(layer, 'email-warn warn', '⛔ Fake PayPal?', 'position:absolute;padding:8px 14px;border-radius:10px;background:#b42318;color:#fff;font-size:20px;font-weight:700;white-space:nowrap');
+  const outline = el(layer, '', '', 'border:3px dashed #b42318;border-radius:8px;width:430px;height:46px');
+  const word = el(layer, 'wordmark', 'Mo', 'font-size:170px;top:0');
+  const tag = el(layer, 'tagline', 'Show it <span style="color:var(--ember)">once.</span>', 'top:0');
+  const foot = el(layer, 'footer', 'Built on <b>Claude</b>, through <b>Mubit</b>', 'top:0');
+  [0, 1, 2, 3].forEach(i => cue(50.15 + i * 0.12, 'fold', 0.6));
+  cue(53.75, 'alert'); cue(55.7, 'whoosh', 0.6); cue(56.05, 'thud', 0.6); cue(56.6, 'chime', 0.8); cue(58.45, 'tick', 0.4);
+  return function render(t) {
+    const on = t >= 50.0;
+    layer.style.display = on ? 'block' : 'none';
+    if (!on) return null;
+    const out1 = easeInOut(prog(t, 55.55, 0.5));
+    const lIn = spring(prog(t, 50.05, 0.5));
+    put(label, { x: 400, y: 300, o: clamp(lIn * 1.5) * (1 - out1) * (1 - 0.6 * prog(t, 53.5, 0.3)) });
+    cards.forEach((c, i) => {
+      const p = spring(prog(t, 50.15 + i * 0.12, 0.7));
+      const gx = 400 + (i % 2) * 590, gy = 345 + Math.floor(i / 2) * 145;
+      const dim = 1 - 0.75 * prog(t, 53.5, 0.3);
+      put(c, { x: gx, y: gy + (1 - p) * 120, o: clamp(p * 1.6) * dim * (1 - out1), r: (1 - p) * (i % 2 ? 3 : -3) });
+    });
+    // Phishing tag: an "unsubscribe" email that's really phishing gets flagged.
+    const mIn = spring(prog(t, 53.5, 0.6));
+    put(mail, { x: 410, y: 690 + (1 - mIn) * 40, o: clamp(mIn * 1.5) * (1 - out1) });
+    const flag = spring(prog(t, 53.75, 0.5));
+    put(outline, { x: 410 + 1100 - 30 - 436, y: 690 + 30, s: lerp(1.15, 1, flag), o: clamp(flag * 2) * (1 - out1) });
+    put(warn, { x: 410 + 1100 - 200, y: 690 - 30, s: flag, o: clamp(flag * 2) * (1 - out1) });
+    // Finale: Mo to the centre, the name, the line.
+    const fin = spring(prog(t, 55.75, 0.9));
+    const moX = lerp(300, 960, t < 55.6 ? 0 : fin), moY = lerp(740, 400, t < 55.6 ? 0 : fin);
+    const appear = spring(prog(t, 50.2, 0.6));
+    const susp = clamp(prog(t, 53.8, 0.25) * 1) * (1 - prog(t, 55.4, 0.3));
+    const land = prog(t, 56.05, 0.5);
+    mo({ x: moX, y: moY, size: lerp(150, 300, t < 55.6 ? 0 : fin) * appear, look: t < 55.6 ? (t > 53.6 ? [0.9, 0.1] : [0.6, -0.6]) : [0, 0.1],
+      narrow: susp, blink: Math.max(blinkAt(t, 52.2), blinkAt(t, 58.45, 0.22)), squash: t > 56.05 ? Math.exp(-5 * land) * Math.sin(10 * land) * 0.18 : 0, happy: prog(t, 57.0, 0.4) * 0.6, o: clamp(appear * 2) });
+    const w = spring(prog(t, 56.2, 0.7)), g = spring(prog(t, 56.55, 0.7)), ft = spring(prog(t, 57.1, 0.7));
+    put(word, { y: 575 + (1 - w) * 40, o: clamp(w * 1.4) });
+    put(tag, { y: 790 + (1 - g) * 30, o: clamp(g * 1.4) });
+    put(foot, { y: 975 + (1 - ft) * 20, o: clamp(ft * 1.4) });
+    return false;
+  };
+})();
+
+// ==== Frame ==================================================================================
+window.DURATION = 60;
+window.CUES = CUES.sort((a, b) => a.t - b.t);
+window.KEY_TIMES = [2.0, 5.6, 7.3, 8.6, 11.0, 13.5, 15.6, 18.9, 20.4, 22.6, 24.5, 28.6, 31.2, 33.9, 36.2, 38.0, 41.2, 42.9, 46.5, 51.6, 54.3, 58.0];
+window.render = function render(t) {
+  const c1 = S1(t);
+  const s2 = S2(t);
+  const ws = WS(t);
+  const s5 = S5(t);
+  S6(t);
+  if (!s2 && !ws && t < 6.6) $('mo').style.visibility = 'hidden';
+  if (t < 7.0 && t >= 6.6) { $('black').style.webkitMaskImage = 'none'; $('black').style.visibility = 'visible'; }
+  else if (t < 6.6 || t >= 8.2) $('black').style.visibility = 'hidden';
+  $('stage').style.background = 'var(--paper)';
+  captions(t);
+  const cursorOn = (t < 6.25 && c1) || ws === true || s5 === true;
+  if (t < 6.6 && c1) { CURSOR.length && 0; put($('cursor'), { x: c1[0] - 2, y: c1[1] - 2 }); put($('ripple'), { o: 0 }); }
+  else cursor(t, cursorOn);
+  if (t >= 6.6 && t < 7.0) put($('mo'), { o: 0 });
+};
+window.render(0);
+</script>
+</body>
+</html>
