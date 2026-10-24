@@ -203,3 +203,22 @@ test('API: runs, settings, overview and the live event stream', async () => {
   assert.match(text, /event: settings/);
   assert.match(text, /event: call\ndata: .*"task":"next-action"/);
 });
+
+test('Anthropic request shape per model generation', async () => {
+  const { anthropicBody } = await import('../server/llm.js');
+  const old = anthropicBody('claude-haiku-4-5', 'sys', 'hi', 's1');
+  assert.equal(old.temperature, 0);
+  assert.equal(old.output_config, undefined);
+  const next = anthropicBody('claude-haiku-5-5', 'sys', 'hi', 's1');
+  assert.equal(next.temperature, undefined); // Haiku 5.5 rejects non-default sampling
+  assert.deepEqual(next.output_config, { effort: 'low' });
+  assert.ok(next.max_tokens >= 2000); // room for adaptive thinking before the JSON
+  assert.deepEqual(next.metadata, { user_id: 's1' });
+});
+
+test('ledger prices calls by model', async () => {
+  const { costOf } = await import('../server/ledger.js');
+  assert.equal(costOf(1_000_000, 0, 'claude-haiku-5-5').costUsd.toFixed(2), '0.10');
+  assert.equal(costOf(0, 1_000_000, 'claude-haiku-5-5').costUsd.toFixed(2), '0.50');
+  assert.equal(costOf(1_000_000, 1_000_000, 'claude-haiku-4-5').costUsd.toFixed(2), '6.00');
+});

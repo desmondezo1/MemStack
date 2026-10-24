@@ -160,7 +160,9 @@ test('qa: anthropic request shape', async () => {
   assert.equal(c.headers['anthropic-version'], '2023-06-01');
   assert.equal(c.body.system, SYSTEM_PROMPTS['next-action']);
   assert.equal(c.body.metadata.user_id, 'run-42');
-  assert.equal(c.body.model, 'claude-haiku-4-5');
+  assert.equal(c.body.model, 'claude-haiku-5-5');
+  assert.equal(c.body.temperature, undefined);
+  assert.deepEqual(c.body.output_config, { effort: 'low' });
   assert.equal(c.body.messages[0].role, 'user');
   assert.match(c.body.messages[0].content, /^Goal: Book/);
 

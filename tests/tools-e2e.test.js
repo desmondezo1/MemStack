@@ -162,7 +162,8 @@ test('demonstration records address-bar navigation and Enter, rerun replays it',
 });
 
 test('ask_human with a live provider: savings strip, cost per step, help verdict', { timeout: 60_000 }, async () => {
-  Object.assign(process.env, { MUBIT_API_KEY: 'mbt_test', MUBIT_BASE_URL: fakeBase, MUBIT_PROVIDER: 'anthropic' });
+  // Pinned to Haiku 4.5 so the expected prices below don't depend on .env.
+  Object.assign(process.env, { MUBIT_API_KEY: 'mbt_test', MUBIT_BASE_URL: fakeBase, MUBIT_PROVIDER: 'anthropic', MUBIT_MODEL: 'claude-haiku-4-5' });
   delete process.env.SHOWME_MOCK;
   try {
     const { site, tabId } = await tabAt(`${base}/demo/`);
@@ -216,6 +217,7 @@ test('ask_human with a live provider: savings strip, cost per step, help verdict
   } finally {
     Object.assign(process.env, { MUBIT_API_KEY: '', SHOWME_MOCK: '1' });
     delete process.env.MUBIT_BASE_URL;
+    delete process.env.MUBIT_MODEL;
   }
 });
 

@@ -10,7 +10,7 @@ export function getConfig() {
   const key = process.env.MUBIT_API_KEY || '';
   let provider = (process.env.MUBIT_PROVIDER || 'anthropic').toLowerCase();
   if (!key || process.env.SHOWME_MOCK === '1') provider = 'mock';
-  const defaults = { anthropic: 'claude-haiku-4-5', openai: 'gpt-6-luna', mock: 'mock-agent' };
+  const defaults = { anthropic: 'claude-haiku-5-5', openai: 'gpt-6-luna', mock: 'mock-agent' };
   return {
     provider,
     model: provider === 'mock' ? 'mock-agent' : (process.env.MUBIT_MODEL || defaults[provider]),
@@ -60,7 +60,7 @@ export async function callTask({ task, userMessage, sessionId, kind = 'live', mo
   if (!json) throw new LlmError(`Model reply was not JSON: ${result.text.slice(0, 200)}`, { requestId: result.requestId, code: 'bad_reply' });
   const usage = config.provider === 'mock'
     ? { inTokens: 0, outTokens: 0, costUsd: 0, adapterCostUsd: 0, adapterMs: null, viaMubit: false }
-    : { inTokens: result.inTokens, outTokens: result.outTokens, ...costOf(result.inTokens, result.outTokens), viaMubit: true };
+    : { inTokens: result.inTokens, outTokens: result.outTokens, ...costOf(result.inTokens, result.outTokens, config.model), viaMubit: true };
   return { json, ms, requestId: result.requestId, raw: result.text, usage };
 }
 
@@ -94,19 +94,27 @@ async function post(url, headers, body) {
   return { data, requestId };
 }
 
-async function callAnthropic(config, system, userMessage, sessionId) {
-  const { data, requestId } = await post(`${config.baseUrl}/anthropic/v1/messages`, {
-    'x-api-key': config.key,
-    'anthropic-version': '2023-06-01',
-  }, {
-    model: config.model,
-    max_tokens: 600,
-    temperature: 0,
+// Claude 4.5-era models take temperature 0 and answer directly. Newer ones (Haiku 5.5,
+// Sonnet 5.5, Opus 5.5…) reject a non-default temperature and think by default: keep the
+// thinking short with low effort, and leave room for it before the JSON answer.
+export function anthropicBody(model, system, userMessage, sessionId) {
+  const legacy = /^claude-(3|haiku-4-5|sonnet-4-5|opus-4-[015])/.test(model);
+  return {
+    model,
+    max_tokens: legacy ? 600 : 4000,
+    ...(legacy ? { temperature: 0 } : { output_config: { effort: 'low' } }),
     system,
     messages: [{ role: 'user', content: userMessage }],
     // Anthropic takes only metadata.user_id; Mubit uses it as the session.
     metadata: { user_id: sessionId },
-  });
+  };
+}
+
+async function callAnthropic(config, system, userMessage, sessionId) {
+  const { data, requestId } = await post(`${config.baseUrl}/anthropic/v1/messages`, {
+    'x-api-key': config.key,
+    'anthropic-version': '2023-06-01',
+  }, anthropicBody(config.model, system, userMessage, sessionId));
   const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   return { text, inTokens: data.usage?.input_tokens || 0, outTokens: data.usage?.output_tokens || 0, requestId };
 }

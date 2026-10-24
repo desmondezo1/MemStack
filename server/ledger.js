@@ -24,7 +24,7 @@ export function emit(type, data) { for (const fn of listeners) { try { fn(type, 
 
 export function logCall(entry) {
   const record = { ts: new Date().toISOString(), ...entry };
-  if (record.ok && record.provider !== 'mock') Object.assign(record, costOf(record.inTokens, record.outTokens));
+  if (record.ok && record.provider !== 'mock') Object.assign(record, costOf(record.inTokens, record.outTokens, record.model));
   fs.appendFileSync(callsFile(), JSON.stringify(record) + '\n');
   emit('call', record);
   return record;
@@ -85,12 +85,23 @@ function median(nums) {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 
-// Prices in USD per million tokens. Override with PRICE_IN_PER_M / PRICE_OUT_PER_M.
-function prices() {
+// Provider prices in USD per million tokens (Anthropic first-party rates; Haiku 5.5's apply
+// up to 100K-token prompts). PRICE_IN_PER_M / PRICE_OUT_PER_M override them.
+const MODEL_PRICES = {
+  'claude-haiku-5-5': [0.10, 0.50],
+  'claude-haiku-4-5': [1, 5],
+  'claude-sonnet-5-5': [2, 10],
+  'claude-sonnet-5': [2, 10],
+  'claude-opus-5-5': [4, 20],
+  'claude-opus-5': [5, 25],
+};
+
+function prices(model) {
   const settings = getSettings();
+  const [tableIn, tableOut] = MODEL_PRICES[String(model || '').replace(/-\d{8}$/, '')] || [1, 5];
   return {
-    in: Number(process.env.PRICE_IN_PER_M || 1),
-    out: Number(process.env.PRICE_OUT_PER_M || 5),
+    in: Number(process.env.PRICE_IN_PER_M || tableIn),
+    out: Number(process.env.PRICE_OUT_PER_M || tableOut),
     // Adapter numbers are estimates until real ones from Try models are saved in settings.
     adapterCostRatio: settings.adapterCostRatio ?? Number(process.env.ADAPTER_COST_RATIO || 0.05),
     adapterLatencyMs: settings.adapterLatencyMs ?? Number(process.env.ADAPTER_LATENCY_MS || 200),
@@ -99,8 +110,8 @@ function prices() {
 }
 
 // Cost of one call on the provider, and the estimated cost of the same call on a Mubit adapter.
-export function costOf(inTokens = 0, outTokens = 0) {
-  const p = prices();
+export function costOf(inTokens = 0, outTokens = 0, model) {
+  const p = prices(model);
   const costUsd = (inTokens * p.in + outTokens * p.out) / 1e6;
   return { costUsd, adapterCostUsd: costUsd * p.adapterCostRatio, adapterMs: p.adapterLatencyMs };
 }
@@ -115,6 +126,8 @@ export function ledgerStats({ provider, model }) {
     if (c.kind === 'training') t.training++; else t.live++;
     if (!c.ok) { t.errors++; continue; }
     if (c.provider !== 'mock') {
+      // Mubit keeps a separate task per model, so counts and costs follow the latest model.
+      if (t.model && t.model !== c.model) Object.assign(t, { real: 0, trainingViaMubit: 0, ms: [], inTokens: 0, outTokens: 0, earlierModels: true });
       t.real++;
       if (c.kind === 'training') t.trainingViaMubit++;
       t.model = c.model;
@@ -124,6 +137,7 @@ export function ledgerStats({ provider, model }) {
     }
   }
   const tasks = Object.values(byTask).map(t => {
+    const p = prices(t.model || model);
     const costPerCall = t.real ? ((t.inTokens / t.real) * p.in + (t.outTokens / t.real) * p.out) / 1e6 : null;
     const providerPer1k = costPerCall === null ? null : costPerCall * 1000;
     return {
@@ -150,7 +164,7 @@ export function ledgerStats({ provider, model }) {
     };
   }).sort((a, b) => a.task.localeCompare(b.task));
   const real = calls.filter(c => c.ok && c.provider !== 'mock');
-  const spent = real.reduce((sum, c) => sum + costOf(c.inTokens, c.outTokens).costUsd, 0);
+  const spent = real.reduce((sum, c) => sum + costOf(c.inTokens, c.outTokens, c.model).costUsd, 0);
   const totals = {
     callsViaMubit: real.length,
     providerUsd: spent,
