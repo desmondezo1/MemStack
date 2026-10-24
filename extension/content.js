@@ -386,7 +386,11 @@
     const page = pending?.el === el ? pending.page : snapshot();
     pending = null;
     const item = describe(el);
-    emit({ action: 'click', element_id: item.id, label: item.label, role: item.role, value: '', page }, el);
+    // Ticking and unticking are different choices: say which. A click on the input itself has
+    // already toggled it; a click on its <label> toggles it just after this handler.
+    let value = '';
+    if (el.type === 'checkbox') value = (event.target === el ? el.checked : !el.checked) ? 'tick' : 'untick';
+    emit({ action: 'click', element_id: item.id, label: item.label, role: item.role, value, page }, el);
   }
 
   function onChange(event) {

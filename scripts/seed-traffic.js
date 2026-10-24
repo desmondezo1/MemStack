@@ -9,7 +9,7 @@
 
 import { loadEnv } from '../server/env.js';
 import { TASKS, buildNextActionMessage, buildDoneCheckMessage } from '../server/prompts.js';
-import { GYM_REASONS, NEW_TAB, TUBE_URL, gymAfter, gymDoneText, gymLesson, resultTitles, trattoria, trattoriaLesson, tubelyHome, tubelyResults, tubelyWatch } from '../exam/showme/pages.js';
+import { GYM_REASONS, MARKETING, NEW_TAB, calmly, firstMailFrom, inboxList, inboxMail, inboxRowLabel, unsubscribeLesson, unsubscribePage, TUBE_URL, gymAfter, gymDoneText, gymLesson, resultTitles, trattoria, trattoriaLesson, tubelyHome, tubelyResults, tubelyWatch } from '../exam/showme/pages.js';
 
 loadEnv();
 const { callTask, getConfig } = await import('../server/llm.js');
@@ -199,6 +199,41 @@ const generators = [
     return { goal, page: gymAfter(stage, reason), history: lesson.steps.slice(0, stage), lesson: taught ? lesson : null, alwaysLesson: taught };
   },
 
+  // Ada's inbox: unsubscribe from one sender. A plain "unsubscribe" goal can't tell pausing,
+  // unsubscribing from everything and keeping order updates apart, so those calls carry the
+  // lesson Ada taught on another sender; the rest spell her wish out.
+  function inboxUnsubscribe() {
+    const sender = pick(MARKETING);
+    const name = firstMailFrom(sender).name;
+    const taught = Math.random() < 0.6;
+    const goal = taught
+      ? pick([`Unsubscribe me from ${name}`, `Unsubscribe me from ${name} emails`, `Stop the ${name} emails`, `Unsubscribe from ${name}`])
+      : pick([`Unsubscribe me from ${name} marketing but keep order updates`, `Stop ${name}'s deals and partner offers, keep delivery updates`, `Unsubscribe from ${name} offers only, I still want order emails`]);
+    const mail = firstMailFrom(sender);
+    const steps = [
+      { action: 'click', label: inboxRowLabel(mail), role: 'link', value: '' },
+      { action: 'click', label: 'Unsubscribe', role: 'link', value: '' },
+      { action: 'click', label: 'Weekly deals and offers', role: 'checkbox', value: 'untick' },
+      { action: 'click', label: 'Offers from our partners', role: 'checkbox', value: 'untick' },
+      { action: 'click', label: 'Save preferences', role: 'button', value: '' },
+    ];
+    const stage = Math.floor(Math.random() * steps.length);
+    const pages = [Math.random() < 0.3 ? inboxList(name) : inboxList(), inboxMail(mail), unsubscribePage(sender), unsubscribePage(sender, [false, true, true]), unsubscribePage(sender, [false, false, true])];
+    const teacher = pick(MARKETING.filter(k => k !== sender));
+    return { goal, page: pages[stage], history: steps.slice(0, stage), lesson: taught ? unsubscribeLesson(teacher) : null, alwaysLesson: taught };
+  },
+
+  function calmlyCancel() {
+    const goal = pick(['Cancel my Calmly subscription', 'Cancel Calmly, I never use it', 'Cancel my meditation app subscription, no free month', 'Stop paying for Calmly']);
+    const steps = [
+      { action: 'click', label: 'Manage subscription', role: 'button', value: '' },
+      { action: 'click', label: 'Cancel subscription', role: 'button', value: '' },
+      { action: 'click', label: 'No thanks, cancel my subscription', role: 'button', value: '' },
+    ];
+    const stage = Math.floor(Math.random() * steps.length);
+    return { goal, page: calmly(['account', 'manage', 'offer'][stage]), history: steps.slice(0, stage) };
+  },
+
   function support() {
     idCounter = Math.floor(Math.random() * 25) + 1;
     const order = `#${Math.floor(10000 + Math.random() * 90000)}`;
@@ -213,7 +248,7 @@ const generators = [
 ];
 
 // Half the calls are on the demo sites, the pages the live demo sends.
-const DEMO_SITES = ['trattoriaNove', 'tubely', 'ironGym', 'ironGym'];
+const DEMO_SITES = ['trattoriaNove', 'tubely', 'ironGym', 'ironGym', 'inboxUnsubscribe', 'inboxUnsubscribe', 'inboxUnsubscribe', 'calmlyCancel'];
 const sample = () => (Math.random() < 0.5
   ? pick(generators.filter(g => DEMO_SITES.includes(g.name)))
   : pick(generators.filter(g => !DEMO_SITES.includes(g.name))))();
@@ -239,7 +274,24 @@ const other = (list, not) => pick(list.filter(x => x !== not));
 
 function doneCheckSample() {
   const roll = Math.random(); // < .5 success, < .9 near-miss, else nothing confirmed
-  const kind = pick(['restaurant', 'restaurant', 'gym', 'gym', 'video', 'waitlist', 'search', 'support']);
+  const kind = pick(['restaurant', 'restaurant', 'gym', 'gym', 'unsubscribe', 'unsubscribe', 'calmly', 'video', 'waitlist', 'search', 'support']);
+  if (kind === 'unsubscribe') {
+    const name = pick(['DealDash', 'StyleHub', 'Freshbox', 'GadgetGrove', 'TravelNest', 'Runwell']);
+    const goal = pick([`Unsubscribe me from ${name} marketing but keep order updates`, `Stop ${name}'s offers, keep delivery emails`]);
+    if (roll < 0.5) return { goal, text: `Preferences saved ✓ From ${name} you'll only get: order and delivery updates. No more marketing.` };
+    if (roll < 0.9) return { goal, text: pick([
+      `Unsubscribed from everything ✓ You won't get any more emails from ${name}, including order and delivery updates.`,
+      `Emails paused until 23 November You won't hear from ${name} for 30 days. After that, all emails start again, including weekly deals and partner offers.`,
+      `Preferences saved From ${name} you'll only get: partner offers, order and delivery updates.`,
+    ]) };
+    return { goal, text: `${name} Sorry to see you go, Ada Pause all emails for 30 days (recommended) Choose what you get Weekly deals and offers Offers from our partners Order and delivery updates Save preferences` };
+  }
+  if (kind === 'calmly') {
+    const goal = pick(['Cancel my Calmly subscription', 'Cancel Calmly with no free month']);
+    if (roll < 0.5) return { goal, text: "Subscription cancelled ✓ You won't be charged on 3 November. You can use Calmly Premium until then." };
+    if (roll < 0.9) return { goal, text: pick(["Enjoy your free month 🎉 Your subscription continues. It has not been cancelled, and £6.99 a month starts again on 3 December.", 'Subscription paused Your subscription is paused, not cancelled. It restarts on 3 February at £6.99 a month.']) };
+    return { goal, text: 'Before you go: have a month on us Stay with Calmly and your next month is free. Claim my free month No thanks, cancel my subscription' };
+  }
   if (kind === 'gym') {
     const reason = pick(GYM_REASONS);
     const goal = pick(['Cancel my Iron Gym membership today and drop the add-on', 'Cancel my gym membership immediately, add-on too', 'Cancel Iron Gym now with no add-on']);

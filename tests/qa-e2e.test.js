@@ -318,7 +318,7 @@ test('qa: recorder: labels, checkbox, typing+click, select, contenteditable, pas
   console.log('recorder:', lines);
   assert.ok(!JSON.stringify(steps).includes('hunter2'), 'password leaked into a recorded step');
   assert.deepEqual(lines.filter(l => !l.startsWith('type:Notes')), [
-    'click:Small', 'click:I agree', 'click:Newsletter', 'click:Newsletter',
+    'click:Small', 'click:I agree=tick', 'click:Newsletter=tick', 'click:Newsletter=untick',
     'type:First name=Ada', 'click:Go', 'select:Colour=Blue', 'click:Jump',
   ]);
   // the page snapshot attached to "click Go" must show the typed name

@@ -88,7 +88,28 @@ can't find it, it asks you to show it: go to the page and **select the answer te
   are suggested for removal. You review them (*Check your lesson*), and only the ticked steps are
   taught. If nothing looks unneeded, it saves straight away.
 
-### The gym: cancelling through a maze (the main demo)
+### Ada's inbox: the main demo
+
+Open <http://localhost:8787/demo/inbox/>: Ada's inbox, 100 made-up emails. Three levels of the same chore:
+
+- **Easy, unsubscribe.** Ask Mo: `Unsubscribe me from DealDash`. It opens the email, follows **Unsubscribe**, and on
+  the preferences page picks **Unsubscribe from all emails**, which also stops her order and delivery updates. Press
+  **Not what you wanted?**, then show it: open DealDash's email → **Unsubscribe** → untick **Weekly deals and offers**
+  and **Offers from our partners** → **Save preferences**. Then ask `Unsubscribe me from StyleHub`: a sender Mo has
+  never seen, done her way. The lesson is recalled because every sender's preferences page has the same address.
+- **Medium, cancel a subscription.** Open **Iron Gym: Your membership renews on 2 November** and ask `Cancel my Iron
+  Gym membership` (see the gym section below).
+- **Hard, the monthly audit.** Ask `Check my inbox for subscriptions I pay for but don't use, and cancel them`. Mo
+  sees one page at a time and keeps no notes, so it can't keep track of what it read across receipts. Show it once
+  (Calmly, then the gym; the steps are in [docs/DEMO.md](docs/DEMO.md)) and it repeats the audit next time. If Mo
+  suggests dropping steps as detours, keep them: **Back to your inbox** is needed.
+- **Phishing in the same inbox.** **PayPal: Unsubscribe from PayPal promotional emails** links to a look-alike page.
+  Mo Guard outlines and labels it; the real senders' unsubscribe links stay plain.
+
+Lessons record whether you ticked or unticked a checkbox, and Mo is told to make the same choices for a similar
+goal, so a lesson taught on one sender carries over to the next.
+
+### The gym: cancelling through a maze
 
 Open <http://localhost:8787/demo/gym/>, Iron Gym's members' page for "Ada". Ask Mo: `Cancel my Iron Gym membership`.
 

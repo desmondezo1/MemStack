@@ -2,7 +2,7 @@
 // and the background worker (voice runs while the panel is closed). Everything here uses
 // only chrome.tabs / chrome.scripting / fetch, which both places have.
 
-export const MAX_STEPS = 20;
+export const MAX_STEPS = 30;
 export const RISKY = /pay|purchase|buy now|place order|delete|remove|transfer|send|submit|confirm|reserve|book/i;
 
 // Errors from the backend, Mubit or the provider. They are not the agent's mistakes,
@@ -210,7 +210,10 @@ export async function runAgent({ goal, tabId, api, signal, isStopped = () => fal
       mo(tabId, 'acting', { targetId: next.element_id, text: describeAction(next) });
       const result = await perform(tabId, next);
       if (!result.ok) { r.failure = result.error; call('failedStep', handle); break; }
-      const entry = { action: next.action, label: next.label, role: next.role, value: next.value, submit: next.submit, element_id: next.element_id };
+      // A click on a checkbox says which way it went, as Ada's recorded steps do.
+      const box = next.action === 'click' && next.role === 'checkbox' ? page.elements.find(e => e.id === next.element_id) : null;
+      const value = box ? (box.checked ? 'untick' : 'tick') : next.value;
+      const entry = { action: next.action, label: next.label, role: next.role, value, submit: next.submit, element_id: next.element_id };
       r.history.push(entry);
       r.runSteps.push({ ...entry, handle });
       await sleep(next.action === 'wait' ? 1500 : 600);

@@ -180,3 +180,116 @@ test('gym: pause is not cancel, show me, rerun cancels your way', { timeout: liv
   assert.equal(await panel.isVisible('#not-right'), true);
   await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-gym.png') });
 });
+
+test('inbox: pause is not unsubscribe, show me once, the next sender is done her way', { timeout: live ? 300_000 : 90_000 }, async () => {
+  const site = await context.newPage();
+  await site.goto(`${base}/demo/inbox/`);
+  const tabId = await tabIdFor(`${base}/demo/inbox/`);
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${tabId}`);
+  await panel.waitForSelector('#mode.mock, #mode.live', { timeout: 10_000 });
+  const run = async goal => {
+    await panel.fill('#goal', goal);
+    await panel.click('#run');
+    await panel.waitForSelector('#verdict:not([hidden])', { timeout: live ? 120_000 : 30_000 });
+    const verdict = await panel.textContent('#verdict');
+    console.log(`inbox "${goal}":`, verdict, '|', (await panel.textContent('#timeline')).replace(/\s+/g, ' '));
+    return verdict;
+  };
+
+  // 1. The big "recommended" button only pauses the emails.
+  const first = await run('Unsubscribe me from DealDash emails');
+  if (!live) {
+    assert.equal(first, 'Failed');
+    assert.match(await site.textContent('#paused'), /paused until/);
+  }
+  if (first === 'Done ✓') await panel.click('#not-right');
+
+  // 2. Ada shows it once, from the inbox: no marketing, but keep order and delivery updates.
+  await panel.click('#show-me');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await site.click('text=48 hours only');
+  await site.click('.footer a:text-is("Unsubscribe")');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await site.uncheck('#deals');
+  await site.uncheck('#partners');
+  await site.click('#save');
+  await site.waitForSelector('#done', { state: 'visible' });
+  await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 5);
+  console.log('inbox recorded:', await panel.$$eval('#recorded li .what-text', lis => lis.map(li => li.textContent)));
+  await panel.click('#done-teaching');
+  await panel.waitForFunction(() => /Learned|Could not/.test(document.querySelector('#saved-summary').textContent), null, { timeout: live ? 120_000 : 15_000 });
+  assert.match(await panel.textContent('#saved-summary'), /Learned/);
+
+  // 3. A different sender, from the inbox: the lesson from DealDash's page is recalled on StyleHub's.
+  await site.goto(`${base}/demo/inbox/`);
+  assert.equal(await run('Unsubscribe me from StyleHub'), 'Done ✓');
+  assert.match(await panel.textContent('#timeline'), /from lesson/);
+  const result = await site.textContent('#done');
+  console.log('inbox StyleHub result:', result.replace(/\s+/g, ' '));
+  assert.match(result, /StyleHub you'll only get: order and delivery updates/);
+  await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-inbox.png') });
+});
+
+// The hard one, live only: read the receipts in the inbox, then cancel what Ada doesn't use on
+// two different sites (Iron Gym and Calmly), each with its own trap.
+test('audit: find what Ada pays for and cancel what she does not use', { skip: !live, timeout: 1_500_000 }, async () => {
+  const site = await context.newPage();
+  await site.goto(`${base}/demo/inbox/`);
+  const tabId = await tabIdFor(`${base}/demo/inbox/`);
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${tabId}`);
+  await panel.waitForSelector('#mode.live', { timeout: 10_000 });
+  await panel.fill('#goal', process.env.AUDIT_GOAL || 'Check my inbox for subscriptions I pay for but don\'t use, and cancel them');
+  await panel.click('#run');
+  await panel.waitForSelector('#verdict:not([hidden])', { timeout: 540_000 });
+  console.log('audit:', await panel.textContent('#verdict'), '|', (await panel.textContent('#timeline')).replace(/\s+/g, ' '));
+  console.log('audit ended on:', site.url(), '|', (await site.textContent('main')).replace(/\s+/g, ' ').slice(0, 300));
+  if ((await panel.textContent('#verdict')) === 'Done ✓') await panel.click('#not-right');
+
+  // The first month Ada shows it once: Calmly (0 minutes this month), then the gym (42 days away).
+  await panel.click('#show-me');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await site.click('text=Your week in calm');
+  await site.click('a.cta');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await site.click('text=Manage subscription');
+  await site.click('text=Cancel subscription');
+  await site.click('text=No thanks, cancel my subscription');
+  await site.click('#done a');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await site.click('text=Your membership renews on 2 November');
+  await site.click('a.cta');
+  await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await site.click('text=Manage plan');
+  await site.click('text=Cancel membership');
+  await site.selectOption('#reason', 'Not using it enough');
+  await site.getByLabel('Immediately, with a refund for unused days').check();
+  await site.uncheck('#addon');
+  await site.click('#continue');
+  await site.click('text=No thanks, continue cancelling');
+  await site.click('#really');
+  await site.waitForSelector('#done', { state: 'visible' });
+  await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 16);
+  console.log('audit recorded:', await panel.$$eval('#recorded li .what-text', lis => lis.map(li => li.textContent)));
+  await panel.click('#done-teaching');
+  // Mo may suggest dropping steps that look like detours. Every step here is needed, so keep them all.
+  await panel.waitForFunction(() => !document.querySelector('#teach-review').hidden || /Learned|Could not/.test(document.querySelector('#saved-summary').textContent), null, { timeout: 120_000 });
+  if (await panel.isVisible('#teach-review')) {
+    console.log('audit review suggested dropping:', await panel.$$eval('#review li.dropped', lis => lis.map(li => li.textContent)));
+    for (const box of await panel.$$('#review input:not(:checked)')) await box.check();
+    await panel.click('#save-lesson');
+  }
+  await panel.waitForFunction(() => /Learned|Could not/.test(document.querySelector('#saved-summary').textContent), null, { timeout: 400_000 });
+  console.log('audit saved:', await panel.textContent('#saved-summary'));
+
+  // Next month: the same audit, from the inbox, on its own.
+  await panel.click('#rerun');
+  await panel.waitForSelector('#verdict', { state: 'hidden' });
+  await panel.waitForSelector('#verdict:not([hidden])', { timeout: 540_000 });
+  const timeline = (await panel.textContent('#timeline')).replace(/\s+/g, ' ');
+  console.log('audit rerun:', await panel.textContent('#verdict'), '|', timeline);
+  console.log('audit rerun ended on:', site.url(), '|', (await site.textContent('main')).replace(/\s+/g, ' ').slice(0, 300));
+  assert.match(timeline, /No thanks, cancel my subscription/);
+  assert.match(await site.textContent('main'), /ends: today[\s\S]*add-on: cancelled/);
+});
