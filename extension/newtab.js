@@ -1,4 +1,4 @@
-// Show Me's New Tab page: an address ("example.com", "localhost:8787/demo", a full URL)
+// Mo's New Tab page: an address ("example.com", "localhost:8787/demo", a full URL)
 // opens; anything else is a web search with the user's default search engine.
 const ADDRESS = /^(localhost|\d{1,3}(\.\d{1,3}){3}|[^\s/]+\.[a-z]{2,})(:\d+)?(\/\S*)?$/i;
 

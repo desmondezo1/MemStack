@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Show Me</title>
+<title>Mo</title>
 <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
   <header class="top">
     <div class="brand">
       <svg class="mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9"/><circle class="eye" cx="7.2" cy="9.4" r="1.5"/><circle class="eye" cx="12.8" cy="9.4" r="1.5"/></svg>
-      <span>Show Me</span>
+      <span>Mo</span>
     </div>
     <div class="status">
       <span id="live-dot" class="live-dot" title="Flashes on every call that goes through Mubit"></span>
@@ -36,8 +36,8 @@
 
   <section id="view-agent" class="view">
     <div class="composer" id="composer">
-      <label for="goal" class="sr-only">What should Show Me do?</label>
-      <textarea id="goal" rows="3" placeholder="Tell Show Me what to do in your browser"></textarea>
+      <label for="goal" class="sr-only">What should Mo do?</label>
+      <textarea id="goal" rows="3" placeholder="Ask Mo to do something in your browser"></textarea>
       <div id="wave" class="wave" hidden aria-hidden="true"></div>
       <div class="composer-bar">
         <button id="mic" class="icon-btn mic" title="Hold to speak, let go to run (or hold ⌥Space on any page)" aria-label="Hold to speak your goal">
@@ -106,11 +106,11 @@
       in <b id="stat-lessons">0</b> <span id="stat-lessons-word">lessons</span>. Spent so far: <b id="stat-spent">$0</b>.
     </p>
 
-    <svg id="flow" class="flow" viewBox="0 0 340 120" role="img" aria-label="Every model call goes from the browser through Show Me and the Mubit gateway to Claude; taught steps also become training examples">
+    <svg id="flow" class="flow" viewBox="0 0 340 120" role="img" aria-label="Every model call goes from the browser through Mo and the Mubit gateway to Claude; taught steps also become training examples">
       <path id="flow-main" class="flow-line" d="M30 40 H310" />
       <path id="flow-train" class="flow-line train" d="M230 40 C230 80 230 92 262 96" />
       <g class="flow-node"><circle cx="30" cy="40" r="15" /><text x="30" y="72">Browser</text></g>
-      <g class="flow-node"><circle cx="120" cy="40" r="15" /><text x="120" y="72">Show Me</text></g>
+      <g class="flow-node"><circle cx="120" cy="40" r="15" /><text x="120" y="72">Mo</text></g>
       <g class="flow-node mubit"><circle cx="230" cy="40" r="18" /><text x="230" y="45" class="inner">μ</text><text x="196" y="72">Mubit</text></g>
       <g class="flow-node"><circle cx="310" cy="40" r="15" /><text x="310" y="72">Claude</text></g>
       <g class="flow-node bucket"><rect x="262" y="84" width="72" height="24" rx="6" /><text x="298" y="100" class="inner" id="flow-bucket">0 examples</text></g>

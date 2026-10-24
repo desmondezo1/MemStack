@@ -160,7 +160,7 @@ export function localVerdict(score) {
 // ---- domain age (RDAP, cached) -----------------------------------------------------
 
 // rdap.org turns away requests that don't say who they are.
-const RDAP_HEADERS = { accept: 'application/rdap+json', 'user-agent': 'ShowMe-MoGuard/0.5 (+https://github.com/faveh/MemStack)' };
+const RDAP_HEADERS = { accept: 'application/rdap+json', 'user-agent': 'Mo-Guard/0.5 (+https://github.com/faveh/MemStack)' };
 const ageCache = new Map(Object.entries(readJson('guard-ages.json', {})));
 let ageSaveTimer = null;
 

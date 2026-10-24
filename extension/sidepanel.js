@@ -1,4 +1,4 @@
-// Show Me side panel: runs the agent loop against the current tab, asks for a
+// Mo's side panel: runs the agent loop against the current tab, asks for a
 // demonstration when the run fails, and shows the Mubit ledger.
 
 import { createMubitView, esc, fmtUsd, prettyModel } from './panel-mubit.js';
@@ -206,7 +206,7 @@ async function run(goal) {
   refreshTotals();
   const { failure, infra, asked, usedLesson, outcome } = r;
   note(outcome === 'done' ? (usedLesson ? 'rerun-done' : 'done') : outcome === 'failed' || outcome === 'asked' ? 'fail' : outcome);
-  if (failure && infra) mo('idle', { text: 'Something went wrong. Check the Show Me panel.', hold: 5000 });
+  if (failure && infra) mo('idle', { text: 'Something went wrong. Check Mo\'s panel.', hold: 5000 });
   if (failure) {
     setVerdict(false, failure === 'Stopped.' ? 'Stopped' : infra ? 'Error — not the agent\'s fault, so nothing to teach' : asked ? 'Asked for help' : 'Failed');
     if (failure !== 'Stopped.' && !infra) {

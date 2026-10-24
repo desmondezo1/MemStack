@@ -1,4 +1,4 @@
-// Show Me backend. The extension talks to this server; this server talks to Mubit.
+// Mo's backend. The extension talks to this server; this server talks to Mubit.
 // Mubit's API refuses browser (CORS) calls and the key must stay off the client,
 // so every model call goes through here.
 
@@ -450,14 +450,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.met
   const server = createServer();
   server.on('error', err => {
     if (err.code !== 'EADDRINUSE') throw err;
-    console.error(`Port ${PORT} is already in use: a Show Me server is probably already running.`);
+    console.error(`Port ${PORT} is already in use: a Mo server is probably already running.`);
     console.error(`Stop it (Ctrl+C in its terminal, or: lsof -ti tcp:${PORT} | xargs kill), or start on another port: PORT=8788 npm start`);
     process.exit(1);
   });
   server.listen(PORT, () => {
     const { provider, model } = getConfig();
     const mode = provider === 'mock' ? 'MOCK model (no MUBIT_API_KEY set)' : `${provider} / ${model} via Mubit`;
-    console.log(`Show Me server on http://localhost:${PORT}  ·  ${mode}`);
+    console.log(`Mo server on http://localhost:${PORT}  ·  ${mode}`);
     console.log(`Demo site: http://localhost:${PORT}/demo/`);
   });
 }

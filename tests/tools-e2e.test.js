@@ -233,7 +233,7 @@ test('Mo lives on every page and shows the agent\'s state', { timeout: 60_000 },
   assert.equal((await moState(site)).state, 'idle');
   // Mo is invisible to the agent: not in the page snapshot, not in the page text.
   const page = await worker.evaluate(id => chrome.tabs.sendMessage(id, { type: 'showme:snapshot' }), tabId);
-  assert.ok(!page.page.elements.some(e => /Show Me|Mo menu/.test(e.label)));
+  assert.ok(!page.page.elements.some(e => /Mo: hold|Mo menu|Show Me/.test(e.label)));
   assert.ok(!/Listening|Talk \(/.test(page.page.text));
 
   const panel = await panelFor(tabId);
@@ -480,7 +480,7 @@ test('Mo never opens the panel by itself: right-click and the help bubble open i
   await site.close();
 });
 
-test('a new tab shows Show Me\'s page with Mo, and its box opens addresses', { timeout: 30_000 }, async () => {
+test('a new tab shows Mo\'s own page, and its box opens addresses', { timeout: 30_000 }, async () => {
   const page = await context.newPage();
   await page.goto('chrome://newtab/');
   await page.waitForSelector('showme-mo', { state: 'attached' });

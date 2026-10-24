@@ -1,4 +1,4 @@
-// Mo, Show Me's mascot, on every page: an animated SVG orb in a corner that shows what
+// Mo, the assistant, on every page: an animated SVG orb in a corner that shows what
 // the agent is doing, plus the voice waveform while you talk. Lives in a closed Shadow
 // DOM so the site's CSS can't touch it, and the agent's page reader can't see it.
 // The side panel drives it with 'showme:mo' and 'showme:voice' messages.
@@ -80,13 +80,13 @@
   <div class="pill" hidden><span class="rec"></span><div class="bars">${'<span></span>'.repeat(BARS)}</div><span class="words">Listening…</span></div>
   <div class="menu" hidden role="menu">
     <button data-act="teach" role="menuitem" hidden>Teach me (opens the panel)</button>
-    <button data-act="panel" role="menuitem">Open the Show Me panel</button>
+    <button data-act="panel" role="menuitem">Open Mo's panel</button>
     <button data-act="talk" role="menuitem">How to talk to me</button>
     <button data-act="hide" role="menuitem">Hide on this site</button>
     <button data-act="report" role="menuitem">Report this page as phishing</button>
     <button data-act="guard" role="menuitem">Mo Guard: on</button>
   </div>
-  <button class="mo" aria-label="Show Me: hold to talk, drag to move, right-click for the menu">
+  <button class="mo" aria-label="Mo: hold to talk, drag to move, right-click for the menu">
     <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
       <defs>
         <radialGradient id="mo-g" cx="35%" cy="30%" r="75%">
@@ -360,7 +360,7 @@
     if (act === 'talk') holdHint();
     if (act === 'panel') {
       const r = await chrome.runtime.sendMessage({ type: 'showme:open-panel' }).catch(() => null);
-      if (!r?.ok) say('Click the Show Me icon in the toolbar to open the panel.');
+      if (!r?.ok) say('Click Mo\'s icon in the toolbar to open the panel.');
     }
     if (act === 'report') chrome.runtime.sendMessage({ type: 'guard:report' }).catch(() => {});
     if (act === 'guard') {
