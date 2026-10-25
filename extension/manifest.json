@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Mo",
   "version": "0.6.0",
-  "description": "Mo, your browser assistant: does tasks when you ask, learns when you show it how, and warns you about phishing links. Every decision runs through Mubit.",
+  "description": "Mo, a work assistant you teach by showing it: do a repetitive browser task once and Mo does it for you from then on. Every decision runs through Mubit.",
   "action": {
     "default_title": "Open Mo"
   },

@@ -183,7 +183,7 @@ const generators = [
   },
 
   // Iron Gym: cancel through the maze. A plain "cancel" goal leaves the end date and the paid
-  // add-on unknown, so those calls always carry Ada's lesson; the rest spell her wishes out.
+  // add-on unknown, so those calls always carry Sarah's lesson; the rest spell her wishes out.
   function ironGym() {
     const reason = pick(GYM_REASONS);
     const taught = Math.random() < 0.6;
@@ -199,9 +199,9 @@ const generators = [
     return { goal, page: gymAfter(stage, reason), history: lesson.steps.slice(0, stage), lesson: taught ? lesson : null, alwaysLesson: taught };
   },
 
-  // Ada's inbox: unsubscribe from one sender. A plain "unsubscribe" goal can't tell pausing,
+  // Sarah's inbox: unsubscribe from one sender. A plain "unsubscribe" goal can't tell pausing,
   // unsubscribing from everything and keeping order updates apart, so those calls carry the
-  // lesson Ada taught on another sender; the rest spell her wish out.
+  // lesson Sarah taught on another sender; the rest spell her wish out.
   function inboxUnsubscribe() {
     const sender = pick(MARKETING);
     const name = firstMailFrom(sender).name;
@@ -235,7 +235,7 @@ const generators = [
   },
 
   // Sheet to form: one row of new starters into PeopleDesk, at every step. The goal lists the
-  // row's values ("Fill in: …"), and the lesson is Ada's row 1 with her notes, as Mo sends it.
+  // row's values ("Fill in: …"), and the lesson is Sarah's row 1 with her notes, as Mo sends it.
   function hrStarter() {
     const first = pick(['Ngozi', 'Ravi', 'Ella', 'Marco', 'Yusuf', 'Ines', 'Daniel', 'Zara', 'Kwame', 'Lucy']);
     const last = pick(['Okeke', 'Patel', 'Novak', 'Rossi', 'Haddad', 'Silva', 'Kim', 'Ali', 'Asante', 'Brown']);
@@ -316,7 +316,7 @@ function doneCheckSample() {
       `Emails paused until 23 November You won't hear from ${name} for 30 days. After that, all emails start again, including weekly deals and partner offers.`,
       `Preferences saved From ${name} you'll only get: partner offers, order and delivery updates.`,
     ]) };
-    return { goal, text: `${name} Sorry to see you go, Ada Pause all emails for 30 days (recommended) Choose what you get Weekly deals and offers Offers from our partners Order and delivery updates Save preferences` };
+    return { goal, text: `${name} Sorry to see you go, Sarah Pause all emails for 30 days (recommended) Choose what you get Weekly deals and offers Offers from our partners Order and delivery updates Save preferences` };
   }
   if (kind === 'calmly') {
     const goal = pick(['Cancel my Calmly subscription', 'Cancel Calmly with no free month']);

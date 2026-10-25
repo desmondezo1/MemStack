@@ -152,8 +152,8 @@ export function gym(view = 'account', state = {}) {
   const base = { url: GYM_URL, title: 'Iron Gym · Members' };
   const els = labels => [...gymNav(), ...labels.map((e, i) => ({ id: `e${i + 4}`, ...e }))];
   const btn = label => ({ role: 'button', label });
-  if (view === 'account') return { ...base, headings: ['Hi Ada 👋'],
-    text: `${GYM_TOP} Hi Ada 👋 You're on a 42-day streak. Keep it up! Iron Gym Plus £39 a month · renews 2 November + Recovery+ add-on £9 Pause my membership (recommended) Book a class Manage plan`,
+  if (view === 'account') return { ...base, headings: ['Hi Sarah 👋'],
+    text: `${GYM_TOP} Hi Sarah 👋 You're on a 42-day streak. Keep it up! Iron Gym Plus £39 a month · renews 2 November + Recovery+ add-on £9 Pause my membership (recommended) Book a class Manage plan`,
     elements: els([btn('Pause my membership (recommended)'), btn('Book a class'), btn('Manage plan')]) };
   if (view === 'paused') return { ...base, headings: ['Membership paused for 1 month'],
     text: `${GYM_TOP} Membership paused for 1 month Your membership is paused, not cancelled. You'll be charged £5 a month while it's paused, and it restarts on 2 December. Back to my account`,
@@ -173,8 +173,8 @@ export function gym(view = 'account', state = {}) {
         btn('Continue'),
       ]) };
   }
-  if (view === 'offer') return { ...base, headings: ['Wait, Ada! Don\'t lose your streak'],
-    text: `${GYM_TOP} Wait, Ada! Don't lose your streak 50% off Stay for three more months at half price. Accept offer No thanks, continue cancelling`,
+  if (view === 'offer') return { ...base, headings: ['Wait, Sarah! Don\'t lose your streak'],
+    text: `${GYM_TOP} Wait, Sarah! Don't lose your streak 50% off Stay for three more months at half price. Accept offer No thanks, continue cancelling`,
     elements: els([btn('Accept offer'), btn('No thanks, continue cancelling')]) };
   if (view === 'kept') return { ...base, headings: ['Great, you\'re staying! 🎉'],
     text: `${GYM_TOP} Great, you're staying! 🎉 Your membership continues at 50% off for 3 months. It has not been cancelled. Back to my account`,
@@ -190,7 +190,7 @@ export function gymDoneText({ reason = 'Moving away', end = 'now', addon = false
     + (addon ? 'Your Recovery+ add-on is still active, so you will keep being charged £9 a month.' : 'Recovery+ add-on: cancelled. No more charges.');
 }
 
-// Ada's way out, as she shows it once: now, no add-on, no offer.
+// Sarah's way out, as she shows it once: now, no add-on, no offer.
 export function gymLesson({ goal = 'Cancel my Iron Gym membership', reason = 'Moving away' } = {}) {
   return {
     goal,
@@ -215,12 +215,12 @@ export function gymAfter(stage, reason) {
   ][stage];
 }
 
-// Ada's inbox (Postbox), an email in it, and a sender's email preferences page.
+// Sarah's inbox (Postbox), an email in it, and a sender's email preferences page.
 import { EMAILS, SENDERS } from '../../server/demo-site/inbox/mail.js';
 export const INBOX_URL = `${DEMO_ORIGIN}/demo/inbox/`;
 export const MARKETING = Object.keys(SENDERS).filter(k => SENDERS[k].kind === 'marketing' && EMAILS.some(e => e.sender === k && e.unsubscribe));
-const INBOX_TOP = 'Demo inbox for testing Mo. Every email, brand and address here is made up. Postbox ada@example.com Inbox Starred Sent Drafts Spam';
-const inboxBase = { url: INBOX_URL, title: 'Inbox · Ada · Postbox' };
+const INBOX_TOP = 'Demo inbox for testing Mo. Every email, brand and address here is made up. Postbox sarah@example.com Inbox Starred Sent Drafts Spam';
+const inboxBase = { url: INBOX_URL, title: 'Inbox · Sarah · Postbox' };
 const rowLabel = e => `${e.name} ${e.subject} ${e.time}`;
 
 export function inboxList(query = '') {
@@ -248,8 +248,8 @@ const UNSUB_BOXES = ['Weekly deals and offers', 'Offers from our partners', 'Ord
 // ticks: [deals, partners, orders]
 export function unsubscribePage(sender, ticks = [true, true, true]) {
   const name = SENDERS[sender].name;
-  return { url: `${DEMO_ORIGIN}/demo/inbox/unsubscribe.html?s=${sender}`, title: `${name} · Email preferences`, headings: ['Sorry to see you go, Ada', 'Choose what you get'],
-    text: `Demo email preferences page for testing Mo. Nothing here is real. ${name} Sorry to see you go, Ada You're signed up as ada@example.com. Pause all emails for 30 days (recommended) Choose what you get ${UNSUB_BOXES.join(' ')} Save preferences Unsubscribe from all emails`,
+  return { url: `${DEMO_ORIGIN}/demo/inbox/unsubscribe.html?s=${sender}`, title: `${name} · Email preferences`, headings: ['Sorry to see you go, Sarah', 'Choose what you get'],
+    text: `Demo email preferences page for testing Mo. Nothing here is real. ${name} Sorry to see you go, Sarah You're signed up as sarah@example.com. Pause all emails for 30 days (recommended) Choose what you get ${UNSUB_BOXES.join(' ')} Save preferences Unsubscribe from all emails`,
     elements: [
       { id: 'e1', role: 'button', label: 'Pause all emails for 30 days (recommended)' },
       ...UNSUB_BOXES.map((label, i) => ({ id: `e${i + 2}`, role: 'checkbox', label, checked: ticks[i] })),
@@ -258,7 +258,7 @@ export function unsubscribePage(sender, ticks = [true, true, true]) {
     ] };
 }
 
-// What Ada showed once: no marketing, but keep order and delivery updates.
+// What Sarah showed once: no marketing, but keep order and delivery updates.
 export function unsubscribeLesson(sender = 'dealdash') {
   const first = EMAILS.find(e => e.sender === sender && e.unsubscribe);
   return {
@@ -275,13 +275,13 @@ export function unsubscribeLesson(sender = 'dealdash') {
 export const firstMailFrom = sender => EMAILS.find(e => e.sender === sender && e.unsubscribe);
 export const inboxRowLabel = rowLabel;
 
-// Calmly, the meditation app Ada pays for but doesn't use.
+// Calmly, the meditation app Sarah pays for but doesn't use.
 export const CALMLY_URL = `${DEMO_ORIGIN}/demo/calmly/`;
 export function calmly(view = 'account') {
   const base = { url: CALMLY_URL, title: 'Calmly · Your account' };
   const top = 'Demo app for testing Mo. Nothing here is real, and nothing is charged. calmly';
   const els = list => list.map((label, i) => ({ id: `e${i + 1}`, role: 'button', label }));
-  if (view === 'account') return { ...base, headings: ['Hi Ada 🌿'], text: `${top} Hi Ada 🌿 This month: 0 minutes of calm. Calmly Premium £6.99 a month · renews 3 November Pause my subscription (3 months free) Start a 5-minute session Manage subscription`,
+  if (view === 'account') return { ...base, headings: ['Hi Sarah 🌿'], text: `${top} Hi Sarah 🌿 This month: 0 minutes of calm. Calmly Premium £6.99 a month · renews 3 November Pause my subscription (3 months free) Start a 5-minute session Manage subscription`,
     elements: els(['Pause my subscription (3 months free)', 'Start a 5-minute session', 'Manage subscription']) };
   if (view === 'manage') return { ...base, headings: ['Your subscription'], text: `${top} Your subscription Calmly Premium · £6.99 a month Switch to yearly and save 40% Gift Calmly to a friend Cancel subscription`,
     elements: els(['Switch to yearly and save 40%', 'Gift Calmly to a friend', 'Cancel subscription']) };
@@ -315,7 +315,7 @@ export function hrForm(filled = {}, { done = false, error = '' } = {}) {
       { id: 'e7', role: 'button', label: 'Submit' }, { id: 'e8', role: 'button', label: 'Clear this list' },
     ] };
 }
-// Ada's row 1, with her two notes.
+// Sarah's row 1, with her two notes.
 export function hrLesson(row = { name: 'Kofi Mensah', email: 'kofi.mensah@acme.example', team: 'Engineering', manager: 'Priya Shah', start: '28/10/2026', laptop: 'MacBook Air' }) {
   return {
     goal: `Add a new starter (row 1 of 10). Fill in: Full name = ${row.name}; Work email = ${row.email}; Team = ${row.team}; Manager = ${row.manager}; ${HR_START} = ${row.start}; Laptop = ${row.laptop}`,

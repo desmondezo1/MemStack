@@ -52,6 +52,15 @@ function nextAction({ goal, page, history = [], demo }) {
   const els = page.elements || [];
   const act = (el, action, value = '', reason = '') => ({ action, element_id: el.id, value: String(value), reason });
 
+  // "Open the file from Sales": find the email, open its attachment, and stop on the file.
+  if (/\b(file|csv|spreadsheet|attachment)\b/i.test(goal)) {
+    if (/^[^,\n]+(,[^,\n]*){2,}/m.test(page.text || '') && !els.length) return { action: 'done', element_id: '', value: '', reason: 'The file is open' };
+    const file = els.find(e => /\.csv\b/i.test(e.label));
+    if (file) return act(file, 'click', '', 'Open the attachment');
+    const mail = els.find(e => e.role === 'link' && /new customers/i.test(e.label));
+    if (mail) return act(mail, 'click', '', 'Open the email from Sales');
+  }
+
   // Go to the site the goal names first: a full URL, or "open <site>" from a blank page.
   if (!history.some(h => h.action === 'open_url')) {
     const url = goal.match(/https?:\/\/[^\s,]+/)?.[0];
@@ -167,6 +176,10 @@ export function videoQuery(goal) {
 
 function doneCheck({ goal, page }) {
   const text = page.text || '';
+  if (/\b(file|csv|spreadsheet|attachment)\b/i.test(goal) && !fillIns(goal)) {
+    const open = /(^|\n)[^,\n]+(,[^,\n]*){2,}/.test(text);
+    return { done: open, problem: open ? 'none' : 'no_confirmation', reason: open ? 'The file is open' : 'The file is not open' };
+  }
   const row = fillIns(goal);
   if (row) {
     if (!/added ✓|saved|submitted|created/i.test(text)) return { done: false, problem: 'no_confirmation', reason: 'No confirmation on the page' };
