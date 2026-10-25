@@ -7,7 +7,7 @@ All calls go through [Mubit](https://docs.mubit.ai), which trains a small model 
 ## Run it
 
 ```sh
-cd apps/tariff-desk
+cd archive/tariff-desk
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp .env.example .env          # then put your Mubit key in .env

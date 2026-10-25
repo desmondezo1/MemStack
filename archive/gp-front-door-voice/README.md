@@ -9,7 +9,7 @@ A care navigator sees every request in an inbox and can OK it or change the rout
 ## Run it
 
 ```bash
-cd apps/gp-front-door-voice
+cd archive/gp-front-door-voice
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp .env.example .env          # then put your Mubit key in .env

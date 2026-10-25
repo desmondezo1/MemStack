@@ -116,7 +116,7 @@ def make_llm():
 
     key = os.environ.get("MUBIT_API_KEY")
     if not key:
-        raise RuntimeError("MUBIT_API_KEY is not set (add it to apps/ledger-tab/.env)")
+        raise RuntimeError("MUBIT_API_KEY is not set (add it to archive/ledger-tab/.env)")
     return OpenAI(api_key=key, base_url=MUBIT_BASE_URL)
 
 
