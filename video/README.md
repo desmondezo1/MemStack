@@ -42,4 +42,5 @@ cuts happen on Mo's blink; orange is the only colour that moves.
 when Mo lands (7.4 s); a soft pulse and arpeggio while Ada teaches; a lift with hats while Mo does the rows; a drop for
 the correction (40 s); a build as lessons flow into Mubit; a beat of silence (55.6 s); and a final Dmaj9 chord with a
 bell under "Mo. Show it once." Pads, bass, mallets and drums are synthesized and given a small reverb. `voice.js`
-mixes it well under the effects and the voice, and ducks it further whenever the narrator speaks.
+mixes it as a background bed, about 15 dB under the voice, and ducks it further whenever the narrator speaks. One fixed gain,
+measured in a first pass, brings the whole mix to -16 LUFS without lifting the quiet music back up.
