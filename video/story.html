@@ -77,6 +77,7 @@
 <div id="stage">
   <div id="life" class="layer"></div>
   <div id="worldLayer" class="layer"><div id="world" class="abs" style="width:1920px;height:1080px;transform-origin:0 0"></div></div>
+  <div id="explain" class="layer"></div>
   <div id="mubit" class="layer"></div>
   <div id="end" class="layer"></div>
   <div id="overlay" class="layer"></div>
@@ -103,6 +104,7 @@ function put(e, { x = 0, y = 0, s = 1, r = 0, o = 1, sx = 1, sy = 1 } = {}) {
 const show = (layer, on) => { layer.style.display = on ? 'block' : 'none'; };
 const CUES = [];
 const cue = (t, sound, v = 1) => CUES.push({ t: +t.toFixed(3), sound, v });
+const filmCue = (t, sound, v = 1) => CUES.push({ t: +t.toFixed(3), sound, v, film: true }); // already in film time
 const NS = 'http://www.w3.org/2000/svg';
 
 // ---- Mo (a factory: one on Sarah's screen, one on the end card) --------------------------
@@ -129,34 +131,37 @@ function makeMo(parent, size = 200) {
 }
 
 // ---- Subtitles: the narration, on screen for sound-off viewers ----------------------------
+// Times are in the film's final timeline (after the explainer scene was added at 23 s).
 const VO = [
   [0.7, 'This is Sarah.'],
-  [5.9, 'She works in customer success, at a small software company.'],
-  [10.9, 'Helping customers is why she took the job.'],
-  [17.2, 'But every Monday, Sales sends her this.'],
-  [23.4, 'Forty-seven new customers. Twelve clicks each.'],
-  [28.2, 'And every few rows, something doesn\'t quite fit.'],
-  [34.4, 'Then she tried Mo.'],
-  [42.4, 'She shows Mo one row, and leaves a note where the sheet doesn\'t say.'],
-  [51.6, 'Now it\'s a skill.'],
-  [55.4, 'Then Mo does the rest.'],
-  [58.4, '"Ent"? Enterprise.'],
-  [60.7, 'No owner? Her note.'],
-  [63.1, 'And when something\'s genuinely wrong, Mo doesn\'t guess. It asks.'],
-  [70.6, 'Forty-seven customers, before her coffee\'s gone cold.'],
-  [74.4, 'And back to the part of the job she loves.'],
-  [77.6, 'Every lesson goes through Mubit, which trains a smaller model on Sarah\'s way of working.'],
-  [83.4, 'Same task, every week: faster, and a fraction of the cost.'],
-  [90.4, 'Mo. Show it once.'],
+  [5.9, 'Her job is looking after the company\'s new customers.'],
+  [10.9, 'Helping people is the part of the job she loves.'],
+  [17.2, 'But every Monday, the sales team emails her a spreadsheet: every customer who signed up last week.'],
+  [23.4, 'Each one has to be typed into the support system by hand, so the team can help them.'],
+  [29.4, 'Forty-seven customers. Copy, paste, check, save. Over and over.'],
+  [34.2, 'And some rows are messy, so she has to stop and check.'],
+  [40.4, 'Then she tried Mo: an assistant in her browser that she can teach by showing it once.'],
+  [48.4, 'She fills in the first customer herself while Mo watches. Where the spreadsheet doesn\'t have the answer, she adds a note.'],
+  [57.6, 'Mo saves it as a skill: a task it now knows how to do.'],
+  [61.4, 'Then Mo does the other forty-six.'],
+  [64.0, '"Ent"? Mo knows that means Enterprise.'],
+  [66.7, 'No owner? It follows her note.'],
+  [69.1, 'And when an email address is broken, Mo doesn\'t guess. It asks Sarah to check.'],
+  [76.6, 'All forty-seven, done before her coffee\'s gone cold.'],
+  [80.4, 'And she\'s back to the part of the job she loves.'],
+  [83.8, 'Behind the scenes, every step Mo takes goes through Mubit.'],
+  [87.4, 'Mubit learns from Sarah\'s lessons, and trains a smaller, cheaper AI to do the same task.'],
+  [92.6, 'So her Monday task gets faster, and cheaper, every week.'],
+  [99.4, 'Mo. Show it once.'],
 ];
-const SUB_LEN = [4.6, 4.6, 5.2, 5.6, 4.6, 5.6, 4.4, 8.8, 3.2, 2.8, 2.2, 2.3, 6.6, 3.7, 3.0, 5.6, 5.2, 4.0];
 function subtitles(t) {
-  const i = VO.findIndex(([a], k) => t >= a - 0.1 && t < a + SUB_LEN[k]);
+  const i = VO.findIndex(([a], k) => t >= a - 0.1 && t < Math.min((VO[k + 1]?.[0] ?? 106) - 0.15, a + 7.5));
   const span = $('subs').firstChild;
-  if (i < 0 || t >= 88.8) { span.style.opacity = 0; return; }
+  if (i < 0 || (t >= 97.6 && t < 99.2)) { span.style.opacity = 0; return; }
   const [a] = VO[i];
+  const until = Math.min((VO[i + 1]?.[0] ?? 106) - 0.15, a + 7.5);
   if (span.textContent !== VO[i][1]) span.textContent = VO[i][1];
-  span.style.opacity = clamp(prog(t, a - 0.1, 0.25)) * (1 - prog(t, a + SUB_LEN[i] - 0.25, 0.25));
+  span.style.opacity = clamp(prog(t, a - 0.1, 0.25)) * (1 - prog(t, until - 0.25, 0.25));
 }
 
 // ==== 1. Sarah's life: kitchen → bus → a customer call (0 to 16.5 s) ========================
@@ -476,6 +481,8 @@ const WORLD = (() => {
   const screen = window.SCREEN_EL;
   world.appendChild(screen); // above the room, below Sarah
   const sarah = makeSarah(world, 'back');
+  // What's on her screen, in plain words.
+  const labS = el(world, 'tag', '📄 Spreadsheet from Sales'), labH = el(world, 'tag', '🗂 Support system');
   const day = el($('overlay'), 'daytag', 'Monday, 8:58');
   const email = el($('overlay'), 'card', '<div style="padding:18px 22px"><div style="font-size:16px;color:#646a76;font-weight:650">NEW EMAIL · SALES</div><div style="font-size:26px;font-weight:700;margin-top:4px">New customers, week 45</div><div style="font-size:20px;color:#646a76;margin-top:4px">📎 new-customers.csv · 47 rows</div></div>', 'width:470px');
   const pdf = el($('world'), 'card', '<div style="padding:16px 20px;font-size:20px"><b>Contract: Kestrel Labs</b><div style="color:#646a76;margin-top:8px">Plan: Enterprise (“Ent”)</div><div style="height:10px;background:#eee;border-radius:5px;margin-top:14px;width:80%"></div><div style="height:10px;background:#eee;border-radius:5px;margin-top:10px;width:60%"></div></div>', 'width:330px');
@@ -513,6 +520,8 @@ const WORLD = (() => {
     const lean = t > 70 ? easeInOut(prog(t, 71.2, 1.0)) : 0;
     const sOn = 1 - easeInOut(prog(t, 39.6, 1.0)) + (t > 70 ? easeInOut(prog(t, 70.6, 1.2)) : 0);
     sarah.set({ x: 520, y: 590, s: 1.2, o: clamp(sOn), type: t * 3.2, slump, handToHead: hth, leanBack: lean, nod: t > 34.4 && t < 36 ? -Math.sin(Math.PI * prog(t, 34.4, 0.8)) * 14 : 0, head: t > 34.6 && t < 39 ? 6 : 0 });
+    const lab = t >= 17.8 && t < 34.4 ? clamp(spring(prog(t, 17.8, 0.6)) * 1.5) * (1 - prog(t, 34.0, 0.3)) : 0;
+    put(labS, { x: 640, y: 168, o: lab }); put(labH, { x: 1040, y: 168, o: lab });
     const dIn = spring(prog(t, 17.0, 0.6));
     put(day, { x: 80, y: 80, o: t < 23 ? clamp(dIn * 1.5) * (1 - prog(t, 22.4, 0.4)) : t > 70 ? clamp(spring(prog(t, 72.0, 0.5)) * 1.5) * (1 - prog(t, 76.4, 0.4)) : 0 });
     day.textContent = t > 70 ? 'Monday, 9:14' : 'Monday, 8:58';
@@ -546,7 +555,8 @@ const MUBIT = (() => {
   const mubit = el(layer, 'node', '<span style="color:#fff;font-size:86px;font-weight:300;margin-top:-8px">μ</span>', 'width:180px;height:180px;background:var(--night);box-shadow:0 20px 50px rgba(0,0,0,.25)');
   const claude = el(layer, 'node', '<span style="font-size:28px;font-weight:700;color:#3d3a35">Claude</span>', 'width:150px;height:150px;background:#efe9e0;border:2px solid #ddd3c4');
   const small = el(layer, 'node', '<svg width="140" height="140" viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="#f3d6c8" stroke-width="10"/><circle data-r="ring" cx="75" cy="75" r="66" fill="none" stroke="#f05a1e" stroke-width="10" stroke-linecap="round" transform="rotate(-90 75 75)" stroke-dasharray="415" stroke-dashoffset="415"/><circle data-r="core" cx="75" cy="75" r="40" fill="#f05a1e"/></svg>', 'width:140px;height:140px');
-  const lM = el(layer, 'node-label', 'Mubit'), lC = el(layer, 'node-sub', 'does the work today'), lS = el(layer, 'node-label', 'A smaller model'), sS = el(layer, 'node-sub', 'trained on Sarah\'s lessons');
+  const lM = el(layer, 'node-label', 'Mubit'), lC = el(layer, 'node-sub', 'the AI doing the work today'), lS = el(layer, 'node-label', 'A smaller, cheaper AI'), sS = el(layer, 'node-sub', 'learning Sarah\'s way of working');
+  const sM = el(layer, 'node-sub', 'sees every step');
   const P = { card: [500, 330], mubit: [860, 330], claude: [1260, 200], small: [1260, 460] };
   const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('width', 1920); svg.setAttribute('height', 1080); svg.style.cssText = 'position:absolute;left:0;top:0'; layer.appendChild(svg);
   const mk = (a, b, dash) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', `M${a[0]} ${a[1]} C ${(a[0] + b[0]) / 2} ${a[1]}, ${(a[0] + b[0]) / 2} ${b[1]}, ${b[0]} ${b[1]}`); p.setAttribute('stroke', dash ? '#f05a1e' : '#cfcac2'); p.setAttribute('stroke-width', 3); p.setAttribute('fill', 'none'); if (dash) p.setAttribute('stroke-dasharray', '2 10'); p.setAttribute('stroke-linecap', 'round'); svg.appendChild(p); return p; };
@@ -554,9 +564,9 @@ const MUBIT = (() => {
   const dots = Array.from({ length: 30 }, () => el(layer, 'dot'));
   // The chart: cost of Sarah's Monday run, weeks 1 to 8 (estimate).
   const CX = 480, CY = 640, CW = 960, CH = 300;
-  const ct = el(layer, 'chart-title', 'Cost of Sarah\'s Monday run'), cs = el(layer, 'chart-sub', 'same 47 customers, every week');
+  const ct = el(layer, 'chart-title', 'What Sarah\'s Monday task costs to run'), cs = el(layer, 'chart-sub', 'the same 47 customers, every week');
   const est = el(layer, 'est', 'Estimate');
-  const speed = el(layer, 'tag', '⚡ each step: ~1 s → ~0.2 s');
+  const speed = el(layer, 'tag', '⚡ and faster: each step ~1 s → ~0.2 s');
   const chart = document.createElementNS(NS, 'svg'); chart.setAttribute('width', 1920); chart.setAttribute('height', 1080); chart.style.cssText = 'position:absolute;left:0;top:0'; layer.appendChild(chart);
   const base = document.createElementNS(NS, 'path'); base.setAttribute('d', `M${CX} ${CY + CH} H${CX + CW}`); base.setAttribute('stroke', '#d9d5cd'); base.setAttribute('stroke-width', 2); chart.appendChild(base);
   // Weeks 1–3 on Claude (100%), then the trained model takes over: 100 → 5% (the panel's estimate).
@@ -579,7 +589,7 @@ const MUBIT = (() => {
     put(mubit, { x: P.mubit[0] - 90, y: P.mubit[1] - 90, s: n1, o: clamp(n1 * 2) });
     put(claude, { x: P.claude[0] - 75, y: P.claude[1] - 75, s: n2, o: clamp(n2 * 2) });
     put(small, { x: P.small[0] - 70, y: P.small[1] - 70, s: n3, o: clamp(n3 * 2) });
-    put(lM, { x: P.mubit[0], y: P.mubit[1] + 102, o: clamp(n1 * 2) }); put(lC, { x: P.claude[0] + 150, y: P.claude[1] - 12, o: clamp(n2 * 2) });
+    put(lM, { x: P.mubit[0], y: P.mubit[1] + 102, o: clamp(n1 * 2) }); put(sM, { x: P.mubit[0], y: P.mubit[1] + 136, o: clamp(n1 * 2) }); put(lC, { x: P.claude[0] + 150, y: P.claude[1] - 12, o: clamp(n2 * 2) });
     put(lS, { x: P.small[0] + 190, y: P.small[1] - 26, o: clamp(n3 * 2) }); put(sS, { x: P.small[0] + 190, y: P.small[1] + 10, o: clamp(n3 * 2) });
     [e1, e2, e3].forEach((e, i) => { e.style.opacity = clamp([n1, n2, n3][i] * 2) * 0.9; });
     let arrived = 0;
@@ -630,17 +640,93 @@ const END = (() => {
   };
 })();
 
+// ==== The task, explained (23 to 29 s in the film) ==========================================
+// A plain picture of the chore: the spreadsheet from Sales on the left, the support system on
+// the right, one customer copied across by hand, then the next, forty-seven times.
+const EXPLAIN = (() => {
+  const layer = $('explain');
+  layer.style.background = 'var(--paper)';
+  const title = el(layer, '', 'Every customer, <span style="color:var(--ember)">copied by hand</span>', 'left:0;width:1920px;top:0;text-align:center;font-size:52px;font-weight:700;letter-spacing:-0.02em');
+  const sheet = el(layer, 'card sheet', '<div class="bar"><div class="logo"></div>Spreadsheet from Sales</div>', 'width:700px;height:470px');
+  sheet.querySelector('.bar').style.transform = 'none';
+  const cols = [['Company', 210], ['Contact', 170], ['Email', 230], ['Plan', 90]];
+  let cx = 0;
+  cols.forEach(([n, w]) => { const e = el(sheet, 'cell head', n, `left:${24 + cx}px;top:66px;width:${w}px`); e.style.transform = 'none'; cx += w; });
+  const rowEls = [];
+  CUSTOMERS.slice(0, 7).forEach((c, r) => {
+    let x = 0; const vals = [c.company, c.contact, c.email.replace('.example', ''), c.plan];
+    const cells = cols.map(([, w], k) => { const e = el(sheet, 'cell', vals[k], `left:${24 + x}px;top:${112 + r * 46}px;width:${w}px`); e.style.transform = 'none'; x += w; return e; });
+    rowEls.push(cells);
+  });
+  const hl = el(sheet, 'rowhl', '', 'left:20px;width:708px;height:50px'); hl.style.transform = 'none';
+  const f = makeForm(layer, 1140, 300, 620, [['Company', 'text'], ['Contact name', 'text'], ['Email', 'text'], ['Plan', 'select']], { title: 'Support system: new account', button: 'Save', gap: 70 });
+  const arrow = el(layer, '', '<svg width="200" height="60" viewBox="0 0 200 60"><path d="M6 30 H170" stroke="#f05a1e" stroke-width="6" stroke-linecap="round"/><path d="M160 12 L190 30 L160 48" fill="none" stroke="#f05a1e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  const arrowLab = el(layer, '', 'by hand', 'font-size:24px;font-weight:650;color:var(--slate);width:200px;text-align:center');
+  const chip = el(layer, 'pill', '');
+  const times = el(layer, '', '× 47', 'font-size:84px;font-weight:800;color:var(--ink);letter-spacing:-0.04em');
+  const tick = el(layer, 'stamp', '✓ Saved');
+  const cycles = [[23.9, 1.6, 0], [25.5, 1.1, 1], [26.6, 0.75, 2]];
+  cycles.forEach(([a, d]) => { for (let i = 0; i < 4; i++) filmCue(a + d * (0.35 + i * 0.1), 'key', 0.5); filmCue(a + d * 0.12, 'click', 0.7); filmCue(a + d * 0.82, 'click', 0.8); });
+  filmCue(27.5, 'pop', 0.9); filmCue(23.0, 'whoosh', 0.4); filmCue(28.7, 'whoosh', 0.4);
+  return function render(t) {
+    const on = t >= 23.0 && t < 29.0;
+    show(layer, on);
+    if (!on) return;
+    layer.style.opacity = clamp(prog(t, 23.0, 0.35)) * (1 - prog(t, 28.65, 0.35));
+    const a1 = spring(prog(t, 23.05, 0.6)), a2 = spring(prog(t, 23.2, 0.6)), tIn = spring(prog(t, 23.1, 0.6));
+    put(title, { y: 120 + (1 - tIn) * 20, o: clamp(tIn * 1.5) });
+    put(sheet, { x: 200 - (1 - a1) * 120, y: 300, o: clamp(a1 * 1.5) });
+    put(f.card, { x: 1140 + (1 - a2) * 120, y: 300, o: clamp(a2 * 1.5) });
+    put(arrow, { x: 920, y: 470, o: clamp(a2 * 1.5) }); put(arrowLab, { x: 920, y: 536, o: clamp(a2 * 1.5) });
+    const c = [...cycles].reverse().find(([a]) => t >= a);
+    if (c) {
+      const [a, d, r] = c; const p = prog(t, a, d); const cu = CUSTOMERS[r];
+      hl.style.top = `${108 + r * 46}px`; hl.style.visibility = 'visible';
+      const fly = easeInOut(prog(p, 0.1, 0.25));
+      chip.textContent = cu.company;
+      put(chip, { x: lerp(230, 1170, fly), y: lerp(300 + 112 + r * 46, 380, fly) - Math.sin(Math.PI * fly) * 60, o: clamp(p * 10) * (1 - prog(p, 0.33, 0.05)) });
+      [cu.company, cu.contact, cu.email.replace('.example', ''), planOf(cu.plan)].forEach((v, i) => setInput(f, i, typed(v, prog(p, 0.35 + i * 0.1, 0.09)), { focus: p > 0.35 + i * 0.1 && p < 0.45 + i * 0.1 }));
+      const st = spring(prog(p, 0.84, 0.15));
+      put(tick, { x: 1480, y: 316, r: -8, s: lerp(1.5, 1, st), o: clamp(st * 2) * (1 - prog(p, 0.97, 0.03)) });
+      rowEls.forEach((cells, k) => cells.forEach(e => { e.style.color = k < r || (k === r && p > 0.85) ? '#9a9ea7' : ''; }));
+    } else { hl.style.visibility = 'hidden'; put(chip, { o: 0 }); put(tick, { o: 0 }); f.inputs.forEach((_, i) => setInput(f, i, '')); }
+    const x47 = spring(prog(t, 27.5, 0.6));
+    put(times, { x: 935, y: 590, s: lerp(1.4, 1, x47), o: clamp(x47 * 2) });
+  };
+})();
+
+// The story was first timed without the explainer: the scenes still think in that "original"
+// time. The film's time maps onto it: +6 s from 23 s (the explainer), and the Mubit part
+// stretched by 3 s so its narration has room.
+const STRETCH = (92.0 - 83.6) / (83.0 - 77.6);
+function original(t) {
+  if (t < 23) return t;
+  if (t < 29) return 22.99;
+  if (t < 83.6) return t - 6;
+  if (t < 92.0) return 77.6 + (t - 83.6) / STRETCH;
+  return t - 9;
+}
+function filmTime(o) {
+  if (o < 23) return o;
+  if (o < 77.6) return o + 6;
+  if (o < 83.0) return 83.6 + (o - 77.6) * STRETCH;
+  return o + 9;
+}
+
 // ==== Frame =================================================================================
-window.DURATION = 96;
-window.CUES = CUES.sort((a, b) => a.t - b.t);
-window.KEY_TIMES = [1.6, 7.5, 13.8, 19.5, 26.0, 31.0, 36.5, 40.4, 45.2, 48.8, 51.6, 57.0, 59.0, 61.3, 64.0, 68.4, 72.8, 75.6, 80.6, 86.8, 92.0];
+window.DURATION = 105;
+// Scene cues were written in the original time; the explainer's own cues are already in film time.
+window.CUES = CUES.map(c => (c.film ? c : { ...c, t: +filmTime(c.t).toFixed(3) })).sort((a, b) => a.t - b.t);
+window.KEY_TIMES = [1.6, 7.5, 13.8, 19.5, 24.6, 26.4, 28.0, 32.0, 37.0, 42.5, 46.4, 51.2, 54.8, 57.6, 63.0, 65.0, 67.3, 70.0, 74.4, 78.8, 81.6, 86.0, 90.0, 95.8, 101.0];
 window.render = function render(t) {
+  const o = original(t);
   $('fade').style.opacity = 0;
-  LIFE(t);
-  const phase = WORLD(t);
-  if (phase) SCREEN(t, { phase });
-  MUBIT(t);
-  END(t);
+  LIFE(o);
+  const phase = WORLD(o);
+  if (phase) SCREEN(o, { phase });
+  MUBIT(o);
+  END(o);
+  EXPLAIN(t);
   subtitles(t);
 };
 window.render(0);
