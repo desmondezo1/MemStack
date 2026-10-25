@@ -6,6 +6,7 @@
 //   node render.js --stills           # a still for each scene's key moments, in out/stills/
 //   node render.js --stills 3,8.5,20  # stills at these seconds
 //   node render.js --from 13 --to 27  # render only part (out/part.mp4), for review
+//   node render.js --page story.html  # another page (default intro.html)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,7 +23,8 @@ const FPS = 30;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 page.on('pageerror', e => console.error('page error:', e.message));
-await page.goto(`file://${path.join(here, 'intro.html')}`);
+const PAGE = (() => { const i = process.argv.indexOf('--page'); return i === -1 ? 'intro.html' : process.argv[i + 1]; })();
+await page.goto(`file://${path.join(here, PAGE)}`);
 await page.evaluate(() => document.fonts.ready);
 const { duration, cues, keyTimes } = await page.evaluate(() => ({ duration: window.DURATION, cues: window.CUES, keyTimes: window.KEY_TIMES }));
 const frameAt = async t => { await page.evaluate(x => window.render(x), t); return page.screenshot({ type: 'png' }); };
@@ -41,7 +43,8 @@ if (process.argv.includes('--stills')) {
 const from = Number(arg('from', 0));
 const to = Math.min(Number(arg('to', duration)), duration);
 const partial = from > 0 || to < duration;
-const silent = path.join(out, partial ? 'part-silent.mp4' : 'video-silent.mp4');
+const STEM = PAGE === 'intro.html' ? '' : `${path.basename(PAGE, '.html')}-`; // story.html → story-silent.mp4, story-sfx.wav
+const silent = path.join(out, partial ? 'part-silent.mp4' : STEM ? `${STEM}silent.mp4` : 'video-silent.mp4');
 const enc = spawn(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
   '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', silent], { stdio: ['pipe', 'inherit', 'inherit'] });
 const frames = Math.round((to - from) * FPS);
@@ -74,6 +77,8 @@ const SOUNDS = {
   fold: (at, v = 1) => { let lp = 0; add(at, 0.22, t => { lp += (noise() - lp) * 0.3; return v * 0.35 * env(t, 0.01, 0.05) * lp; }); },
   chime: (at, v = 1) => add(at, 1.4, t => v * 0.22 * env(t, 0.004, 0.45) * (Math.sin(2 * Math.PI * 880 * t) + 0.6 * Math.sin(2 * Math.PI * 1318.5 * t) + 0.3 * Math.sin(2 * Math.PI * 1760 * t))),
   rise: (at, v = 1) => add(at, 0.9, t => v * 0.16 * Math.sin(Math.PI * t / 0.9) * (Math.sin(2 * Math.PI * (440 + 440 * t) * t) + 0.5 * Math.sin(2 * Math.PI * (660 + 660 * t) * t))),
+  sigh: (at, v = 1) => { let lp = 0; add(at, 1.1, t => { lp += (noise() - lp) * (0.05 + 0.1 * (1 - t / 1.1)); return v * 0.5 * Math.sin(Math.PI * Math.min(1, t / 0.25)) * Math.exp(-t * 2.2) * lp; }); },
+  sip: (at, v = 1) => { let lp = 0; add(at, 0.35, t => { lp += (noise() - lp) * 0.35; return v * 0.25 * Math.sin(Math.PI * t / 0.35) * lp; }); },
   alert: (at, v = 1) => add(at, 0.35, t => v * 0.22 * env(t, 0.003, 0.1) * (Math.sin(2 * Math.PI * 520 * t) + Math.sin(2 * Math.PI * 554 * t))),
 };
 for (const c of cues) if (c.t >= from && c.t < to) SOUNDS[c.sound]?.(c.t, c.v ?? 1);
@@ -84,10 +89,10 @@ wav.write('RIFF', 0); wav.writeUInt32LE(36 + mix.length * 2, 4); wav.write('WAVE
 wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(RATE, 24); wav.writeUInt32LE(RATE * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
 wav.write('data', 36); wav.writeUInt32LE(mix.length * 2, 40);
 mix.forEach((x, i) => wav.writeInt16LE(Math.max(-32767, Math.min(32767, Math.round(x * gain * 32767))), 44 + i * 2));
-const sfx = path.join(out, 'sfx.wav');
+const sfx = path.join(out, STEM && !partial ? `${STEM}sfx.wav` : 'sfx.wav');
 fs.writeFileSync(sfx, wav);
 
-const final = path.join(out, partial ? 'part.mp4' : 'mo-intro.mp4');
+const final = path.join(out, partial ? 'part.mp4' : STEM ? `${STEM}raw.mp4` : 'mo-intro.mp4');
 await new Promise((resolve, reject) => spawn(ffmpeg, ['-y', '-loglevel', 'error', '-i', silent, '-i', sfx, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', final], { stdio: 'inherit' })
   .on('close', code => (code ? reject(new Error(`ffmpeg exited ${code}`)) : resolve())));
 console.log(`${final} (${frames} frames, ${Math.round((Date.now() - started) / 1000)} s)`);
