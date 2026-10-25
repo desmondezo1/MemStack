@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Sarah: character sheet</title>
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; background: #fbfaf7; font-family: -apple-system, system-ui, sans-serif; color: #16181d; overflow: hidden; }
+  .abs { position: absolute; left: 0; top: 0; }
+  h1 { position: absolute; left: 60px; top: 30px; margin: 0; font-size: 44px; letter-spacing: -0.02em; }
+  .sub { position: absolute; left: 60px; top: 88px; font-size: 22px; color: #646a76; }
+  .lab { position: absolute; font-size: 20px; font-weight: 650; color: #646a76; text-align: center; width: 300px; }
+  .sw { position: absolute; width: 46px; height: 46px; border-radius: 12px; }
+  .swl { position: absolute; font-size: 16px; color: #646a76; }
+</style></head><body>
+<h1>Sarah</h1><div class="sub">Customer Success Associate · late twenties · warm, quick, loves the people part of the job</div>
+<script src="sarah.js"></script>
+<script>
+  const poses = [
+    ['front', { mood: 'happy' }, 'Front ¾: happy'],
+    ['front', { mood: 'talk', talk: 1, headset: 1, mug: 0 }, 'On a call'],
+    ['front', { mood: 'tired', head: -4, sip: 0, steam: 0 }, 'Tired'],
+    ['front', { mood: 'frown', head: 3 }, 'Frustrated'],
+    ['front', { mood: 'happy', sip: 1 }, 'Coffee'],
+    ['profile', { mood: 'happy' }, 'Profile: on the bus'],
+    ['back', { type: 0.25 }, 'From behind: typing'],
+    ['back', { slump: 1 }, 'Hunched'],
+    ['back', { handToHead: 1, slump: 0.6 }, 'Head in hand'],
+    ['back', { leanBack: 1 }, 'Leaning back'],
+  ];
+  poses.forEach(([view, pose, label], i) => {
+    const s = makeSarah(document.body, view);
+    const col = i % 5, row = Math.floor(i / 5);
+    const x = 40 + col * 370, y = 90 + row * 470;
+    s.set({ x, y, s: 0.72, ...pose });
+    const l = document.createElement('div'); l.className = 'lab'; l.textContent = label; l.style.left = `${x + 40}px`; l.style.top = `${y + 420}px`; document.body.appendChild(l);
+  });
+  Object.entries({ skin: 'Skin', hair: 'Hair', teal: 'Cardigan', top: 'Top', gold: 'Hoops', glasses: 'Glasses' }).forEach(([k, name], i) => {
+    const sw = document.createElement('div'); sw.className = 'sw'; sw.style.background = SARAH_COLORS[k]; sw.style.left = `${1420 + i * 76}px`; sw.style.top = '40px'; document.body.appendChild(sw);
+    const t = document.createElement('div'); t.className = 'swl'; t.textContent = name; t.style.left = `${1420 + i * 76}px`; t.style.top = '92px'; document.body.appendChild(t);
+  });
+  window.render = () => {}; window.DURATION = 0; window.CUES = []; window.KEY_TIMES = [0];
+</script></body></html>

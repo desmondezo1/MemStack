@@ -1,3 +1,29 @@
+# Mo's films
+
+- **Sarah and Mo** (96 s, `out/sarah-and-mo.mp4`): the story film. Sarah, a Customer Success Associate, her morning,
+  her Monday grind, Mo, and what changes. Built from `story.html` and `sarah.js` (the character).
+- **Introducing Mo** (60 s, `out/mo-intro.mp4`): the first, shorter product film, from `intro.html`.
+
+## Sarah and Mo
+
+```bash
+node render.js --page story.html   # frames → out/story-silent.mp4 and out/story-sfx.wav (about 8 minutes)
+node music.js --story              # the score → out/story-music.wav
+node voice.js --story              # narration + music + effects → out/sarah-and-mo.mp4
+node render.js --page sheet.html --stills 0   # Sarah's character sheet
+```
+
+| Time | Scene | Narration |
+| --- | --- | --- |
+| 0 to 17 s | Her life: kitchen at sunrise, the bus, a happy customer call | This is Sarah. She works in customer success… Helping customers is why she took the job. |
+| 17 to 34 s | Monday, 8:58, from behind at her desk: the email, then the grind (clock races, coffee empties, head in hand, a contract to check) | But every Monday, Sales sends her this. Forty-seven new customers. Twelve clicks each. |
+| 34 to 42 s | Mo pops up on her screen; the camera dives into the monitor | Then she tried Mo. |
+| 42 to 55 s | She does row 1, with notes for the renewal date and blank owners; it becomes a skill | She shows Mo one row, and leaves a note where the sheet doesn't say. |
+| 55 to 70 s | Mo does the rest: "Ent" → Enterprise, a blank owner follows her note, a bad email gets "needs a look"; 46 created, 1 to check | Then Mo does the rest… Mo doesn't guess. It asks. |
+| 70 to 77.6 s | The camera pulls back: 9:14, coffee in hand; then back on a call | Forty-seven customers, before her coffee's gone cold. |
+| 77.6 to 89 s | Mubit trains a smaller model on her lessons; the cost of her Monday run falls (estimate) | Every lesson goes through Mubit… faster, and a fraction of the cost. |
+| 89 to 96 s | Sarah and Mo: "Mo. Show it once." | Mo. Show it once. |
+
 # Introducing Mo: the 60-second film
 
 Every frame is drawn by `intro.html` and captured by `render.js`: no screen recording, no video editor.

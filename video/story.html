@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sarah and Mo</title>
+<!-- "Sarah and Mo": the 96-second story film. window.render(t) draws the frame at t seconds.
+     Sarah's life → her Monday grind → Mo → into her screen → teach once → Mo takes over
+     (with edge cases) → back out → Mubit → end. render.js captures it; voice.js adds sound. -->
+<style>
+  :root { --paper: #fbfaf7; --ink: #16181d; --slate: #646a76; --rule: #e6e4df; --ember: #f05a1e; --ember-soft: #fff0e8; --night: #0f1013; --amber: #b7791f; --teal: #2f6f73; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--paper);
+    font-family: -apple-system, "SF Pro Display", "Inter", system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .abs { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+  .layer { position: absolute; inset: 0; overflow: hidden; }
+  .card { background: #fff; border: 1px solid var(--rule); border-radius: 22px; box-shadow: 0 24px 60px rgba(22, 24, 29, .08), 0 2px 6px rgba(22, 24, 29, .04); }
+  /* subtitles and labels */
+  #subs { position: absolute; left: 0; right: 0; bottom: 54px; text-align: center; }
+  #subs span { display: inline-block; padding: 10px 22px; border-radius: 14px; background: rgba(16, 17, 20, .72); color: #fff; font-size: 34px; font-weight: 550; letter-spacing: -0.01em; }
+  .lower { position: absolute; padding: 16px 24px; border-radius: 16px; background: rgba(255, 255, 255, .94); box-shadow: 0 14px 40px rgba(0, 0, 0, .12); }
+  .lower b { display: block; font-size: 34px; letter-spacing: -0.02em; } .lower span { font-size: 22px; color: var(--slate); }
+  .lower::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 6px; border-radius: 3px; background: var(--teal); }
+  .daytag { position: absolute; padding: 10px 20px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 26px; font-weight: 650; }
+  .tagline { position: absolute; padding: 14px 24px; border-radius: 18px; background: #fff; box-shadow: 0 14px 40px rgba(0, 0, 0, .14); font-size: 30px; font-weight: 650; white-space: nowrap; }
+  .tagline em { font-style: normal; color: var(--ember); }
+  /* app UI (inside the screen) */
+  .form .brand { position: absolute; left: 30px; top: 22px; font-size: 18px; font-weight: 700; color: #0e7c66; }
+  .form .title { position: absolute; left: 30px; top: 50px; font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .form .lab { position: absolute; left: 30px; font-size: 18px; font-weight: 600; color: var(--slate); }
+  .form .inp { position: absolute; left: 30px; height: 46px; border: 1.5px solid var(--rule); border-radius: 11px; background: #fff; font-size: 21px; line-height: 46px; padding: 0 14px; box-sizing: border-box; overflow: hidden; white-space: nowrap; }
+  .form .inp.focus { border-color: var(--ember); box-shadow: 0 0 0 4px rgba(240, 90, 30, .14); }
+  .form .inp.bad { border-color: #c2410c; background: #fff7ed; }
+  .form .inp .caret { display: inline-block; width: 2px; height: 24px; background: var(--ink); vertical-align: -4px; margin-left: 1px; }
+  .form .btn { position: absolute; left: 30px; height: 50px; padding: 0 30px; border-radius: 12px; background: #0e7c66; color: #fff; font-size: 20px; font-weight: 650; line-height: 50px; }
+  .form .err { position: absolute; left: 240px; font-size: 18px; font-weight: 600; color: #c2410c; }
+  .form .sel::after { content: '▾'; position: absolute; right: 14px; color: var(--slate); font-size: 16px; }
+  .sheet .bar { position: absolute; left: 24px; top: 18px; display: flex; gap: 12px; align-items: center; font-size: 22px; font-weight: 600; }
+  .sheet .logo { width: 22px; height: 28px; border-radius: 4px; background: #188038; }
+  .sheet .rows { position: absolute; left: 24px; overflow: hidden; }
+  .sheet .cell { position: absolute; font-size: 18px; line-height: 46px; padding: 0 10px; box-sizing: border-box; white-space: nowrap; overflow: hidden; border-right: 1px solid #ecebe7; border-bottom: 1px solid #ecebe7; background: #fff; }
+  .sheet .head { background: #f4f3f0; font-weight: 650; color: #3c4048; }
+  .sheet .num { color: #9a9ea7; text-align: center; padding: 0; background: #f8f7f4; }
+  .sheet .foot { position: absolute; left: 24px; font-size: 18px; color: var(--slate); }
+  .rowhl { position: absolute; background: rgba(240, 90, 30, .1); border: 2px solid rgba(240, 90, 30, .55); border-radius: 6px; box-sizing: border-box; }
+  .pill { position: absolute; padding: 10px 18px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 21px; font-weight: 600; white-space: nowrap; box-shadow: 0 10px 26px rgba(0, 0, 0, .18); }
+  .tag { position: absolute; padding: 9px 15px; border-radius: 12px; background: var(--ember-soft); border: 1.5px solid var(--ember); color: #b13a0b; font-size: 20px; font-weight: 650; white-space: nowrap; box-shadow: 0 8px 22px rgba(240, 90, 30, .18); }
+  .tag.warn { background: #fff7ed; border-color: #c2410c; color: #9a3412; }
+  .note { position: absolute; padding: 14px 18px; border-radius: 16px; background: var(--ember-soft); border: 2px solid var(--ember); color: #8f2d06; font-size: 21px; font-weight: 600; width: 430px; box-shadow: 0 14px 34px rgba(240, 90, 30, .2); }
+  .note b { color: var(--ember); }
+  .stamp { position: absolute; padding: 10px 22px; border: 4px solid var(--ember); border-radius: 14px; color: var(--ember); font-size: 32px; font-weight: 800; background: rgba(255, 255, 255, .92); }
+  .panel { position: absolute; width: 420px; border-radius: 20px; background: #fff; border: 1px solid var(--rule); box-shadow: 0 24px 60px rgba(22, 24, 29, .14); padding: 20px 22px; box-sizing: border-box; }
+  .panel h4 { margin: 0 0 6px; font-size: 22px; } .panel p { margin: 0; font-size: 18px; color: var(--slate); }
+  .rule { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--rule); font-size: 18px; }
+  .rule b { font-weight: 650; } .rule span { color: var(--slate); text-align: right; } .rule .hl { color: var(--ember); font-weight: 650; }
+  .summary { position: absolute; padding: 16px 24px; border-radius: 16px; background: var(--ink); color: #fff; font-size: 28px; font-weight: 650; white-space: nowrap; box-shadow: 0 18px 44px rgba(0, 0, 0, .25); }
+  .summary .ok { color: #7ee2b8; } .summary .look { color: #fbbf77; } .summary .retry { margin-left: 18px; padding: 6px 14px; border-radius: 10px; background: #fff; color: var(--ink); font-size: 22px; }
+  .skill { position: absolute; width: 440px; height: 104px; border-radius: 18px; background: #fff; border: 1px solid var(--rule); box-shadow: 0 14px 34px rgba(22, 24, 29, .08); overflow: hidden; }
+  .skill::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--ember); }
+  .skill .n { position: absolute; left: 28px; top: 20px; font-size: 25px; font-weight: 700; } .skill .m { position: absolute; left: 28px; top: 60px; font-size: 18px; color: var(--slate); }
+  .counter { position: absolute; font-size: 26px; font-weight: 650; color: var(--slate); white-space: nowrap; }
+  .counter b { color: var(--ink); font-size: 34px; }
+  /* Mubit and chart */
+  .node { position: absolute; border-radius: 50%; display: grid; place-items: center; }
+  .node-label { position: absolute; font-size: 24px; font-weight: 650; white-space: nowrap; transform: translateX(-50%); }
+  .node-sub { position: absolute; font-size: 18px; color: var(--slate); white-space: nowrap; transform: translateX(-50%); }
+  .dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 12px rgba(240, 90, 30, .6); }
+  .chart-title { position: absolute; font-size: 26px; font-weight: 700; } .chart-sub { position: absolute; font-size: 18px; color: var(--slate); }
+  .est { position: absolute; padding: 4px 10px; border-radius: 8px; background: #f1efe9; color: var(--slate); font-size: 16px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+  .wordmark { position: absolute; left: 0; width: 1920px; text-align: center; font-weight: 800; letter-spacing: -0.05em; font-size: 170px; }
+  .endline { position: absolute; left: 0; width: 1920px; text-align: center; font-size: 54px; font-weight: 600; color: var(--slate); letter-spacing: -0.02em; }
+  .footer { position: absolute; left: 0; width: 1920px; text-align: center; font-size: 24px; color: var(--slate); } .footer b { color: var(--ink); }
+  .bubble { position: absolute; padding: 16px 22px; border-radius: 22px; background: #fff; box-shadow: 0 14px 40px rgba(0, 0, 0, .14); font-size: 26px; font-weight: 600; max-width: 520px; }
+  svg { overflow: visible; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="life" class="layer"></div>
+  <div id="worldLayer" class="layer"><div id="world" class="abs" style="width:1920px;height:1080px;transform-origin:0 0"></div></div>
+  <div id="mubit" class="layer"></div>
+  <div id="end" class="layer"></div>
+  <div id="overlay" class="layer"></div>
+  <div id="subs"><span></span></div>
+  <div id="fade" class="layer" style="background:#000;pointer-events:none"></div>
+</div>
+<script src="sarah.js"></script>
+<script>
+// ---- Motion helpers (one spring for everything) ---------------------------------------------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, start, dur) => clamp((t - start) / dur);
+const lerp = (a, b, x) => a + (b - a) * x;
+const easeOut = p => 1 - (1 - p) ** 3;
+const easeInOut = p => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2);
+const spring = p => (p <= 0 ? 0 : p >= 1 ? 1 : 1 - Math.exp(-6 * p) * Math.cos(8.6 * p));
+const typed = (s, p) => s.slice(0, Math.round(s.length * clamp(p)));
+const blinkAt = (t, at, dur = 0.16) => { const p = prog(t, at, dur); return p <= 0 || p >= 1 ? 0 : Math.sin(Math.PI * p); };
+const $ = id => document.getElementById(id);
+function el(parent, cls, html = '', style = '') { const e = document.createElement('div'); e.className = `abs ${cls}`; e.innerHTML = html; if (style) e.style.cssText += style; parent.appendChild(e); return e; }
+function put(e, { x = 0, y = 0, s = 1, r = 0, o = 1, sx = 1, sy = 1 } = {}) {
+  e.style.transform = `translate(${x}px, ${y}px) rotate(${r}deg) scale(${s * sx}, ${s * sy})`;
+  e.style.opacity = o; e.style.visibility = o <= 0.001 ? 'hidden' : 'visible';
+}
+const show = (layer, on) => { layer.style.display = on ? 'block' : 'none'; };
+const CUES = [];
+const cue = (t, sound, v = 1) => CUES.push({ t: +t.toFixed(3), sound, v });
+const NS = 'http://www.w3.org/2000/svg';
+
+// ---- Mo (a factory: one on Sarah's screen, one on the end card) --------------------------
+function makeMo(parent, size = 200) {
+  const w = el(parent, '', `<svg viewBox="0 0 64 64" width="200" height="200"><defs><radialGradient id="g${parent.id || Math.random().toString(36).slice(2)}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffb894"/><stop offset=".55" stop-color="#ff6a2b"/><stop offset="1" stop-color="#e0440e"/></radialGradient></defs>
+    <ellipse data-m="shadow" cx="32" cy="61" rx="15" ry="2.6" fill="rgba(0,0,0,.16)"/><circle cx="32" cy="31" r="24" fill="#ff6a2b"/><circle cx="32" cy="31" r="24" data-m="body"/>
+    <ellipse cx="23" cy="19" rx="6" ry="4" fill="#fff" opacity=".35"/>
+    <ellipse data-m="el" cx="24" cy="31" rx="4.4" ry="5.4" fill="#fff"/><ellipse data-m="er" cx="40" cy="31" rx="4.4" ry="5.4" fill="#fff"/>
+    <circle data-m="pl" cx="25" cy="32" r="2.5" fill="#1d1d1f"/><circle data-m="pr" cx="41" cy="32" r="2.5" fill="#1d1d1f"/>
+    <path data-m="mouth" d="M27 41 Q32 45 37 41" stroke="#7a2306" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>`, 'width:200px;height:200px;transform-origin:50% 92%');
+  const g = w.querySelector('radialGradient').id;
+  w.querySelector('[data-m="body"]').setAttribute('fill', `url(#${g})`);
+  const m = k => w.querySelector(`[data-m="${k}"]`);
+  return function set({ x = 0, y = 0, size: sz = size, look = [0, 0], blink = 0, squash = 0, happy = 0, o = 1, wave = 0 }) {
+    const s = sz / 200, sx = 1 + squash * 0.35, sy = 1 - squash * 0.35;
+    put(w, { x: x - 100, y: y - 100, s, sx, sy, o, r: Math.sin(wave * Math.PI * 4) * 8 * (wave > 0 && wave < 1 ? 1 : 0) });
+    const lx = clamp(look[0], -1, 1) * 2.4, ly = clamp(look[1], -1, 1) * 2.2, open = 1 - clamp(Math.max(blink, happy * 0.55));
+    [['l', 24], ['r', 40]].forEach(([k, cx]) => {
+      m(`e${k}`).setAttribute('ry', (5.4 * Math.max(0.08, open)).toFixed(2)); m(`e${k}`).setAttribute('cx', cx + lx * 0.4); m(`e${k}`).setAttribute('cy', 31 + ly * 0.3 - happy);
+      m(`p${k}`).setAttribute('cx', cx + 1 + lx); m(`p${k}`).setAttribute('cy', 32 + ly - happy); m(`p${k}`).setAttribute('r', (2.5 * Math.max(0.05, open)).toFixed(2));
+    });
+    m('mouth').setAttribute('d', `M27 41 Q32 ${45 + happy * 2} 37 41`);
+  };
+}
+
+// ---- Subtitles: the narration, on screen for sound-off viewers ----------------------------
+const VO = [
+  [0.7, 'This is Sarah.'],
+  [5.9, 'She works in customer success, at a small software company.'],
+  [10.9, 'Helping customers is why she took the job.'],
+  [17.2, 'But every Monday, Sales sends her this.'],
+  [23.4, 'Forty-seven new customers. Twelve clicks each.'],
+  [28.2, 'And every few rows, something doesn\'t quite fit.'],
+  [34.4, 'Then she tried Mo.'],
+  [42.4, 'She shows Mo one row, and leaves a note where the sheet doesn\'t say.'],
+  [51.6, 'Now it\'s a skill.'],
+  [55.4, 'Then Mo does the rest.'],
+  [58.4, '"Ent"? Enterprise.'],
+  [60.7, 'No owner? Her note.'],
+  [63.1, 'And when something\'s genuinely wrong, Mo doesn\'t guess. It asks.'],
+  [70.6, 'Forty-seven customers, before her coffee\'s gone cold.'],
+  [74.4, 'And back to the part of the job she loves.'],
+  [77.6, 'Every lesson goes through Mubit, which trains a smaller model on Sarah\'s way of working.'],
+  [83.4, 'Same task, every week: faster, and a fraction of the cost.'],
+  [90.4, 'Mo. Show it once.'],
+];
+const SUB_LEN = [4.6, 4.6, 5.2, 5.6, 4.6, 5.6, 4.4, 8.8, 3.2, 2.8, 2.2, 2.3, 6.6, 3.7, 3.0, 5.6, 5.2, 4.0];
+function subtitles(t) {
+  const i = VO.findIndex(([a], k) => t >= a - 0.1 && t < a + SUB_LEN[k]);
+  const span = $('subs').firstChild;
+  if (i < 0 || t >= 88.8) { span.style.opacity = 0; return; }
+  const [a] = VO[i];
+  if (span.textContent !== VO[i][1]) span.textContent = VO[i][1];
+  span.style.opacity = clamp(prog(t, a - 0.1, 0.25)) * (1 - prog(t, a + SUB_LEN[i] - 0.25, 0.25));
+}
+
+// ==== 1. Sarah's life: kitchen → bus → a customer call (0 to 16.5 s) ========================
+// Three panels on one strip; the camera pans along it.
+const LIFE = (() => {
+  const layer = $('life');
+  const strip = el(layer, '', '', 'width:5760px;height:1080px;transform-origin:0 0');
+  // Kitchen at sunrise
+  const k = el(strip, '', `
+    <div class="abs" style="width:1920px;height:1080px;background:linear-gradient(180deg,#ffe2c4 0%,#fff3e3 55%,#f3e2cc 100%)"></div>
+    <div class="abs" style="left:1160px;top:150px;width:520px;height:440px;border-radius:24px;background:linear-gradient(180deg,#ffb37a,#ffd9a8 60%,#fff0d6);border:18px solid #fff;box-shadow:inset 0 0 0 2px #f0d9bf"></div>
+    <div class="abs sun" style="left:1340px;top:330px;width:150px;height:150px;border-radius:50%;background:#ffef9f;box-shadow:0 0 80px #ffd166"></div>
+    <div class="abs" style="left:1178px;top:470px;width:484px;height:102px;background:linear-gradient(180deg,#e8a77a,#d78c63)"></div>
+    <div class="abs" style="left:1410px;top:150px;width:18px;height:440px;background:#fff"></div>
+    <div class="abs" style="left:0;top:760px;width:1920px;height:320px;background:#e9d3b8"></div>
+    <div class="abs" style="left:0;top:740px;width:1920px;height:30px;background:#d9bf9f"></div>
+    <div class="abs" style="left:240px;top:250px;width:300px;height:16px;border-radius:8px;background:#c79c74"></div>
+    <div class="abs" style="left:262px;top:180px;width:60px;height:70px;border-radius:10px 10px 4px 4px;background:#2f6f73"></div>
+    <div class="abs" style="left:338px;top:200px;width:46px;height:50px;border-radius:50%;background:#7fb069"></div>
+    <div class="abs" style="left:402px;top:196px;width:90px;height:54px;border-radius:8px;background:#f05a1e;opacity:.85"></div>`, 'width:1920px;height:1080px');
+  // The bus, with a city sliding past
+  const b = el(strip, '', `<div class="abs" style="width:1920px;height:1080px;background:#dfe7ee"></div><div class="abs city" style="width:5000px;height:1080px"></div>
+    <div class="abs" style="width:1920px;height:1080px;background:linear-gradient(90deg,#5d6b78 0 60px,transparent 60px 1860px,#5d6b78 1860px),linear-gradient(180deg,#5d6b78 0 90px,transparent 90px 760px,#5d6b78 760px)"></div>
+    <div class="abs" style="left:0;top:760px;width:1920px;height:320px;background:#4b5763"></div>
+    <div class="abs" style="left:600px;top:560px;width:560px;height:520px;border-radius:40px 40px 0 0;background:#2a3e6b"></div>
+    <div class="abs" style="left:880px;top:90px;width:16px;height:670px;background:#c9ced4"></div>`, 'left:1920px;width:1920px;height:1080px');
+  const city = b.querySelector('.city');
+  const blocks = [];
+  for (let i = 0; i < 40; i++) {
+    const w = 120 + ((i * 53) % 140), h = 220 + ((i * 97) % 360), x = i * 130;
+    blocks.push(`<div class="abs" style="left:${x}px;top:${760 - h}px;width:${w}px;height:${h}px;background:${['#9fb3c8', '#b8c7d6', '#8aa1b8', '#c7d2dd'][i % 4]};border-radius:6px 6px 0 0"></div>`);
+  }
+  city.innerHTML = blocks.join('');
+  // The office: a customer call
+  const o = el(strip, '', `<div class="abs" style="width:1920px;height:1080px;background:linear-gradient(180deg,#eef2f1,#e3ebe8)"></div>
+    <div class="abs" style="left:120px;top:140px;width:420px;height:300px;border-radius:18px;background:#dbe8e3"></div>
+    <div class="abs" style="left:150px;top:170px;width:360px;height:30px;border-radius:8px;background:#c8dbd4"></div>
+    <div class="abs" style="left:150px;top:220px;width:240px;height:30px;border-radius:8px;background:#c8dbd4"></div>
+    <div class="abs" style="left:0;top:780px;width:1920px;height:300px;background:#cfd9d5"></div>
+    <div class="abs" style="left:1420px;top:520px;width:120px;height:160px;border-radius:12px 12px 30px 30px;background:#7fb069"></div>
+    <div class="abs" style="left:1440px;top:660px;width:80px;height:120px;border-radius:0 0 14px 14px;background:#d97d54"></div>`, 'left:3840px;width:1920px;height:1080px');
+  const sKitchen = makeSarah(k, 'front'), sBus = makeSarah(b, 'profile'), sCall = makeSarah(o, 'front');
+  const lower = el(layer, 'lower', '<b>Sarah</b><span>Customer Success Associate</span>');
+  const bubble = el(o, 'bubble', '“Thanks Sarah, you saved our launch!” 🙌');
+  const heart = el(o, '', '<svg width="60" height="60" viewBox="0 0 24 24"><path fill="#f05a1e" d="M12 21s-7-4.4-9.5-8.6C.8 9.5 2.4 6 5.6 6c2 0 3.3 1.1 4.1 2.3h.6C11.1 7.1 12.4 6 14.4 6c3.2 0 4.8 3.5 3.1 6.4C19 16.6 12 21 12 21z"/></svg>');
+  cue(2.1, 'sip', 0.5); cue(5.1, 'whoosh', 0.5); cue(10.2, 'whoosh', 0.5); cue(12.9, 'pop', 0.7); cue(13.4, 'tick', 0.5);
+  return function render(t0) {
+    // 74.2 to 77.6 s: back on a call, the part of the job she loves (the office panel again).
+    const callback = t0 >= 74.2 && t0 < 77.6;
+    const on = t0 < 17.2 || callback;
+    show(layer, on);
+    if (!on) return;
+    const t = callback ? 11.4 + (t0 - 74.2) : t0;
+    // Camera: hold on each panel, glide to the next.
+    const pan = callback ? 2 : easeInOut(prog(t, 5.0, 0.9)) + easeInOut(prog(t, 10.1, 0.9));
+    const drift = 1.03 - 0.03 * ((t % 5.1) / 5.1);
+    strip.style.transform = `translate(${-pan * 1920}px, 0) scale(1)`;
+    strip.style.filter = callback ? 'none' : `blur(${Math.sin(Math.PI * prog(t, 5.0, 0.9)) * 3 + Math.sin(Math.PI * prog(t, 10.1, 0.9)) * 3}px)`;
+    // Kitchen: sunrise, coffee, a smile.
+    k.querySelector('.sun').style.transform = `translateY(${-prog(t, 0, 5) * 90}px)`;
+    const sip = Math.sin(Math.PI * prog(t, 2.0, 1.4));
+    sKitchen.set({ x: 560, y: 380 + (1 - drift) * 200, s: 1.35, mood: 'happy', sip, blink: blinkAt(t, 1.2) + blinkAt(t, 4.0), head: Math.sin(t * 0.8) * 1.5, steam: 1 - sip });
+    const lIn = spring(prog(t, 1.0, 0.6));
+    put(lower, { x: 120 - (1 - lIn) * 60, y: 820, o: callback ? 0 : clamp(lIn * 1.5) * (1 - prog(t, 4.5, 0.4)) });
+    // Bus: the city slides past; she smiles at her phone.
+    city.style.transform = `translateX(${-(t - 4) * 260}px)`;
+    sBus.set({ x: 640, y: 330 + Math.sin(t * 6) * 3, s: 1.45, mood: 'happy', blink: blinkAt(t, 7.4) + blinkAt(t, 9.3), phoneUp: 1 });
+    // The call: talking, then a happy customer.
+    const talk = t > 11 && t < 16.5 ? Math.abs(Math.sin(t * 9)) * (Math.sin(t * 2.3) > -0.3 ? 1 : 0.2) : 0;
+    sCall.set({ x: 640, y: 360, s: 1.35, mood: t > 13.3 ? 'happy' : 'talk', talk, headset: 1, mug: 0, blink: blinkAt(t, 12.2) + blinkAt(t, 15.2), head: Math.sin(t * 1.4) * 2 });
+    const bIn = spring(prog(t, 12.9, 0.6));
+    put(bubble, { x: 1180, y: 300 + (1 - bIn) * 30, o: clamp(bIn * 1.5), s: 0.9 + bIn * 0.1 });
+    const hIn = spring(prog(t, 13.4, 0.5));
+    put(heart, { x: 1660, y: 250 - prog(t, 13.4, 3) * 40, s: hIn, o: clamp(hIn * 2) * (1 - prog(t, 15.8, 0.5)) });
+    $('fade').style.opacity = callback ? prog(t0, 77.1, 0.5) : 1 - prog(t, 0, 0.6) + prog(t, 16.4, 0.5);
+  };
+})();
+
+// ==== The app on Sarah's screen (a 1920×1080 layer drawn inside her monitor) ================
+const CUSTOMERS = (() => {
+  const names = ['Northwind Ltd', 'Brightway', 'Kestrel Labs', 'Orbit Foods', 'Lumen Health', 'Halcyon & Co', 'Tidal Studio', 'Pinecrest', 'Quayside', 'Vantage AI', 'Copper Lane', 'Mosaic Learning'];
+  const contacts = ['Priya Nair', 'Tom Reyes', 'Ama Owusu', 'Leo Brandt', 'Mei Lin', 'Jonas Berg', 'Chidi Eze', 'Hana Sato', 'Femi Adeyemi', 'Rosa Diaz', 'Omar Haddad', 'Lucy Brown'];
+  const plans = ['Growth', 'Starter', 'Ent', 'Growth', 'Enterprise', 'Starter', 'Growth', 'Ent', 'Starter', 'Growth', 'Enterprise', 'Growth'];
+  const owners = ['Sarah K', 'Dan P', 'Sarah K', 'Dan P', '', 'Sarah K', 'Dan P', 'Sarah K', 'Sarah K', 'Dan P', 'Sarah K', 'Dan P'];
+  const starts = ['03/11/2026', '03/11/2026', '04/11/2026', '04/11/2026', '05/11/2026', '05/11/2026', '06/11/2026', '06/11/2026', '09/11/2026', '09/11/2026', '10/11/2026', '10/11/2026'];
+  return names.map((n, i) => {
+    const slug = n.toLowerCase().replace(/[^a-z]+/g, '');
+    const email = i === 6 ? 'accounts@tidalstudio' : `${contacts[i].split(' ')[0].toLowerCase()}@${slug}.example`;
+    return { company: n, contact: contacts[i], email, plan: plans[i], owner: owners[i], start: starts[i] };
+  });
+})();
+const planOf = p => (p === 'Ent' ? 'Enterprise' : p);
+const renewalOf = s => s.replace(/2026$/, '2027');
+
+function makeForm(parent, x, y, w, fields, { title = 'Add a customer account', button = 'Create account', gap = 72, top = 100 } = {}) {
+  const h = top + fields.length * gap + 70;
+  const card = el(parent, 'card form', `<div class="brand">Helpdesk</div><div class="title">${title}</div>`, `width:${w}px;height:${h}px`);
+  card.querySelectorAll('.brand,.title').forEach(e => { e.style.transform = 'none'; });
+  const inputs = fields.map(([label, kind], i) => {
+    const ly = top + i * gap;
+    const lab = el(card, 'lab', label, `top:${ly}px`); lab.style.transform = 'none';
+    const inp = el(card, `inp ${kind === 'select' ? 'sel' : ''}`, '', `top:${ly + 26}px;width:${w - 60}px`); inp.style.transform = 'none';
+    return { inp, x: x + 30, y: y + ly + 26, w: w - 60, cx: x + 30 + 110, cy: y + ly + 49 };
+  });
+  const by = top + fields.length * gap + 4;
+  const btn = el(card, 'btn', button, `top:${by}px`); btn.style.transform = 'none';
+  const err = el(card, 'err', '', `top:${by + 14}px`); err.style.transform = 'none';
+  return { card, inputs, err, btn: { el: btn, cx: x + 30 + 90, cy: y + by + 25 }, x, y, w, h };
+}
+function setInput(f, i, text, { focus = false, caret = false, bad = false } = {}) {
+  const inp = f.inputs[i].inp;
+  const html = `<span>${text}</span>${caret ? '<span class="caret"></span>' : ''}`;
+  if (inp.innerHTML !== html) inp.innerHTML = html;
+  inp.classList.toggle('focus', focus); inp.classList.toggle('bad', bad);
+}
+
+const SCREEN = (() => {
+  const scr = el($('world'), '', '', 'width:1920px;height:1080px;transform-origin:0 0;background:#f6f6f3;overflow:hidden');
+  window.SCREEN_EL = scr;
+  // The sheet: Sales' hand-off
+  const SX = 70, SY = 210, RH = 46, HEAD = 46, TOP = 62, VISIBLE = 9;
+  const cols = [['', 46], ['Company', 200], ['Contact', 170], ['Email', 300], ['Plan', 120], ['Owner', 110]];
+  const colX = cols.reduce((a, [, w], i) => (a.push(i ? a[i - 1] + cols[i - 1][1] : 0), a), []);
+  const SW = cols.reduce((a, [, w]) => a + w, 0) + 48;
+  const sheet = el(scr, 'card sheet', '<div class="bar"><div class="logo"></div>New customers, week 45</div>', `width:${SW}px;height:${TOP + HEAD + RH * VISIBLE + 60}px`);
+  sheet.querySelector('.bar').style.transform = 'none';
+  sheet.style.transform = `translate(${SX}px, ${SY}px)`;
+  cols.forEach(([name, w], c) => { const e = el(sheet, 'cell head', name, `left:${24 + colX[c]}px;top:${TOP}px;width:${w}px`); e.style.transform = 'none'; });
+  const rowsBox = el(sheet, 'rows', '', `top:${TOP + HEAD}px;width:${SW - 48}px;height:${RH * VISIBLE}px`);
+  rowsBox.style.transform = 'none';
+  const inner = el(rowsBox, '', '', 'width:100%');
+  const all = Array.from({ length: 47 }, (_, i) => CUSTOMERS[i % CUSTOMERS.length]);
+  const numEls = all.map((c, r) => {
+    const vals = [String(r + 1), c.company, c.contact, c.email, c.plan, c.owner];
+    let num;
+    vals.forEach((v, k) => { const e = el(inner, `cell ${k ? '' : 'num'}`, v, `left:${colX[k]}px;top:${r * RH}px;width:${cols[k][1]}px`); e.style.transform = 'none'; if (!k) num = e; });
+    return num;
+  });
+  const foot = el(sheet, 'foot', '47 rows', `top:${TOP + HEAD + RH * VISIBLE + 16}px`); foot.style.transform = 'none';
+  const rowhl = el(inner, 'rowhl', '', `left:-4px;width:${SW - 40}px;height:${RH + 4}px`); rowhl.style.transform = 'none';
+  // The helpdesk form
+  const FX = 1200, FY = 210;
+  const fields = [['Company', 'text'], ['Contact name', 'text'], ['Email', 'text'], ['Plan', 'select'], ['Account owner', 'text'], ['Renewal date', 'text']];
+  const f = makeForm(scr, FX, FY, 650, fields);
+  f.card.style.transform = `translate(${FX}px, ${FY}px)`;
+  const counter = el(scr, 'counter', '');
+  const stamp = el(scr, 'stamp', '✓ Created');
+  const chip = el(scr, 'pill', '');
+  const tagEnt = el(scr, 'tag', '“Ent” → Enterprise');
+  const tagOwner = el(scr, 'tag', 'Blank → Sarah K <span style="font-weight:500">(her note)</span>');
+  const tagBad = el(scr, 'tag warn', '⚠ Needs a look: email has no domain');
+  const noteR = el(scr, 'note', '');
+  const noteO = el(scr, 'note', '');
+  const panel = el(scr, 'panel', '<h4>Mo · From a sheet</h4><p>New customers, week 45 · <b style="color:var(--ink)">47 rows</b></p>');
+  const rules = el(scr, 'panel', `<h4>How each field gets filled</h4>
+    <div class="rule"><b>Company, Contact, Email</b><span>from the sheet</span></div>
+    <div class="rule"><b>Plan</b><span>from “Plan”, closest option</span></div>
+    <div class="rule"><b>Account owner</b><span>from “Owner” · <span class="hl">if blank: Sarah K</span></span></div>
+    <div class="rule"><b>Renewal date</b><span class="hl">one year after the start date</span></div>`, 'width:560px');
+  const skill = el(scr, 'skill', '<div class="n">Add a new customer</div><div class="m">from a sheet · 6 fields · 2 notes</div>');
+  const summary = el(scr, 'summary', '<span class="ok">✓ 46 created</span> &nbsp;·&nbsp; <span class="look">1 needs a look</span><span class="retry">Retry</span>');
+  const moSet = makeMo(scr, 120);
+  const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('width', 1920); svg.setAttribute('height', 1080); svg.style.cssText = 'position:absolute;left:0;top:0'; scr.appendChild(svg);
+  const cellAt = (r, c) => ({ x: SX + 24 + colX[c], y: SY + TOP + HEAD + r * RH, w: cols[c][1] });
+  const links = [[1, 0], [2, 1], [3, 2], [4, 3], [5, 4]].map(([c, fi]) => {
+    const a = cellAt(0, c), b = f.inputs[fi];
+    const x1 = a.x + Math.min(a.w - 12, 24 + String(Object.values(CUSTOMERS[0])[c - 1]).length * 9.5), y1 = a.y + RH / 2, x2 = b.x - 4, y2 = b.cy;
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', `M${x1} ${y1} C ${x1 + 240} ${y1}, ${x2 - 240} ${y2}, ${x2} ${y2}`);
+    p.setAttribute('stroke', '#f05a1e'); p.setAttribute('stroke-width', 3); p.setAttribute('fill', 'none'); p.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(p);
+    const len = p.getTotalLength(); p.style.strokeDasharray = `${len}`;
+    return { p, len };
+  });
+  const cursorEl = el(scr, '', '<svg width="34" height="44" viewBox="0 0 34 44"><path d="M2 2 L2 34 L10 26 L16 40 L22 37 L16 24 L28 24 Z" fill="#16181d" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>');
+
+  // Timings ----------------------------------------------------------------------------------
+  const GRIND = [23.0, 34.0];          // Sarah types rows by hand (seen from behind)
+  const TEACH = [42.6, 51.0];          // row 1, by hand, with notes
+  const T1 = [43.0, 44.0, 45.0, 46.0, 47.6, 49.4]; // the six fields
+  const row1 = CUSTOMERS[0];
+  const row1Vals = [row1.company, row1.contact, row1.email, planOf(row1.plan), row1.owner, renewalOf(row1.start)];
+  const ROWS = [];                     // Mo's rows: [start, duration, index]
+  { let at = 55.6; const d = [1.25, 1.2, 1.25, 1.1, 1.2, 2.8, 0.6, 0.5, 0.45, 0.4, 0.35, 0.3]; for (let i = 0; i < d.length; i++) { ROWS.push([at, d[i], i + 1]); at += d[i]; } }
+  // rows 2..13 animate (index 1..12); the counter then runs on to 47.
+  T1.forEach((ft, i) => { for (let k = 0; k < 8; k++) cue(ft + 0.06 + k * 0.05, 'key', 0.5); cue(ft + 0.4, 'tick', 0.35); });
+  cue(46.4, 'pop', 0.7); cue(48.4, 'pop', 0.7); cue(50.2, 'click'); cue(50.9, 'pop', 0.6); cue(52.2, 'fold'); cue(52.6, 'chime', 0.45);
+  ROWS.forEach(([a, d, idx]) => { cue(a + d * 0.05, 'whoosh', 0.25); cue(a + d * 0.78, CUSTOMERS[idx % 12].email.includes('.example') ? 'tick' : 'alert', CUSTOMERS[idx % 12].email.includes('.example') ? 0.7 : 0.6); });
+  cue(67.0, 'rise', 0.6); cue(68.1, 'pop', 0.7);
+  for (let k = 0; k < 40; k++) { const tt = GRIND[0] + 0.3 + k * 0.26; if (tt < 33.6) cue(tt, 'key', 0.32); }
+
+  return function render(t, { phase }) {
+    const grind = phase === 'grind', teach = phase === 'teach', takeover = phase === 'takeover', after = phase === 'after';
+    let hlRow = -1, chipO = 0, stampO = 0, scroll = 0, eTag = 0, oTag = 0, bTag = 0, badField = -1, errText = '';
+    const curRow = ROWS.find(([a, d]) => t >= a && t < a + d);
+    const doneRows = ROWS.filter(([a, d]) => t >= a + d * 0.85).length;
+    let counterText = '';
+    // Values in the form
+    if (phase === 'monday' || phase === 'mo') { f.inputs.forEach((_, i) => setInput(f, i, '')); }
+    if (grind) {
+      // Rows go in one by one, slowly, by hand.
+      const rp = (t - GRIND[0]) / 2.9; const r = Math.floor(rp) + 2; const p = rp % 1;
+      const c = CUSTOMERS[(r - 1) % 12];
+      [c.company, c.contact, c.email, c.plan === 'Ent' ? '' : c.plan, c.owner, ''].forEach((v, i) => setInput(f, i, typed(v, prog(p, i * 0.14, 0.12)), { focus: p > i * 0.14 && p < i * 0.14 + 0.13 }));
+      hlRow = r - 1;
+      const shown = Math.min(19, 2 + Math.floor((t - GRIND[0]) * 1.6));
+      counterText = `Row <b>${shown}</b> of 47`;
+    }
+    if (teach) {
+      hlRow = 0;
+      row1Vals.forEach((v, i) => { const p = prog(t, T1[i] + 0.06, Math.min(0.5, v.length * 0.05)); setInput(f, i, typed(v, p), { focus: t > T1[i] - 0.05 && t < (T1[i + 1] ?? 50.2) - 0.25, caret: p > 0 && p < 1 }); });
+      counterText = 'Row <b>1</b> of 47';
+    }
+    if (takeover && curRow) {
+      const [a, d, idx] = curRow; const p = prog(t, a, d); const c = CUSTOMERS[idx % 12];
+      hlRow = idx; scroll = Math.max(0, idx - 6);
+      const fly = easeInOut(prog(p, 0, 0.3));
+      const from = cellAt(idx - scroll, 1), to = [FX + 30, FY + 60];
+      chip.textContent = c.company;
+      put(chip, { x: lerp(from.x, to[0], fly), y: lerp(from.y, to[1], fly) - Math.sin(Math.PI * fly) * 60, o: clamp(p * 8) * (1 - prog(p, 0.28, 0.06)) }); chipO = 1;
+      const owner = c.owner || 'Sarah K';
+      const vals = [c.company, c.contact, c.email, planOf(c.plan), owner, renewalOf(c.start)];
+      const bad = !c.email.includes('.example');
+      // The bad row fills quickly, then the form refuses it and Mo stops on it.
+      const f0 = bad ? 0.14 : 0.3, fs = bad ? 0.045 : 0.06;
+      vals.forEach((v, i) => setInput(f, i, typed(v, prog(p, f0 + i * fs, 0.08)), { focus: p > f0 + i * fs && p < f0 + 0.1 + i * fs, bad: bad && i === 2 && p > 0.45 }));
+      if (bad && p > 0.45) { errText = 'Enter a valid email'; badField = 2; }
+      if (!bad) { const st = spring(prog(p, 0.76, 0.2)); put(stamp, { x: FX + 380, y: FY + 16, r: -8, s: lerp(1.6, 1, st), o: clamp(st * 2) * (1 - prog(p, 0.95, 0.05)) }); stampO = 1; }
+      if (c.plan === 'Ent' && idx < 8) eTag = clamp(spring(prog(p, 0.45, 0.2)) * 1.5);
+      if (!c.owner) oTag = clamp(spring(prog(p, 0.5, 0.2)) * 1.5);
+      counterText = `Row <b>${idx + 1}</b> of 47`;
+    }
+    if (takeover && !curRow && t >= ROWS[ROWS.length - 1][0]) {
+      // The rest run too fast to show: the counter races to 47.
+      const run = prog(t, 67.0, 1.0);
+      scroll = lerp(6, 38, easeInOut(run)); hlRow = Math.round(lerp(13, 46, easeInOut(run)));
+      counterText = `Row <b>${Math.round(lerp(14, 47, easeOut(run)))}</b> of 47`;
+      const last = CUSTOMERS[46 % 12];
+      [last.company, last.contact, last.email, planOf(last.plan), last.owner || 'Sarah K', renewalOf(last.start)].forEach((v, i) => setInput(f, i, v));
+    }
+    if (after) { scroll = 38; counterText = '<b>47</b> of 47'; }
+    f.err.textContent = errText;
+    // The sheet's ticks: done rows, and the one that needs a look.
+    numEls.forEach((n, r) => {
+      const done = (teach && r === 0 && t > 50.4) || ((takeover || after) && (r === 0 || r <= doneRows || (t > 67.0 && r < Math.round(lerp(13, 47, easeOut(prog(t, 67.0, 1.0))))) || after));
+      const badRow = CUSTOMERS[r % 12].email && !CUSTOMERS[r % 12].email.includes('.example') && r === 6;
+      const html = done ? (badRow ? '<span style="color:#c2410c;font-weight:800">!</span>' : '<span style="color:var(--ember);font-weight:800">✓</span>') : String(r + 1);
+      if (n.innerHTML !== html) n.innerHTML = html;
+    });
+    inner.style.transform = `translateY(${-scroll * RH}px)`;
+    rowhl.style.top = `${hlRow * RH - 2}px`; rowhl.style.visibility = hlRow >= 0 ? 'visible' : 'hidden';
+    if (!chipO) put(chip, { o: 0 });
+    if (!stampO) put(stamp, { o: 0 });
+    put(tagEnt, { x: FX + 650 - 280, y: f.inputs[3].y - 6, o: eTag, s: 0.9 + eTag * 0.1 });
+    put(tagOwner, { x: FX + 650 - 400, y: f.inputs[4].y - 6, o: oTag, s: 0.9 + oTag * 0.1 });
+    bTag = takeover ? clamp(spring(prog(t, 62.9, 0.4)) * 1.5) * (1 - prog(t, 64.15, 0.25)) : 0;
+    put(tagBad, { x: FX + 650 - 470, y: f.inputs[2].y - 8, o: bTag, s: 0.9 + bTag * 0.1 });
+    counter.innerHTML = counterText;
+    put(counter, { x: FX + 650 - 230, y: 150, o: counterText ? 1 : 0 });
+    // Teaching: the links, the two notes, the panel and the rules
+    links.forEach((L, i) => {
+      const p = teach || (takeover && t < 56) ? easeInOut(prog(t, T1[i] + 0.04, 0.5)) : 0;
+      L.p.style.strokeDashoffset = L.len * (1 - p);
+      L.p.style.opacity = (1 - prog(t, 50.6, 0.4));
+      L.p.style.visibility = teach ? 'visible' : 'hidden';
+    });
+    const pIn = spring(prog(t, 42.1, 0.6));
+    put(panel, { x: 1440, y: 850 + (1 - pIn) * 30, o: (teach || takeover) ? clamp(pIn * 1.5) * (1 - prog(t, 51.2, 0.3)) : 0 });
+    const nr = spring(prog(t, 46.3, 0.5)), no = spring(prog(t, 48.3, 0.5));
+    noteO.innerHTML = `<b>✎ Note:</b> ${typed('if Owner is blank, assign it to me.', prog(t, 48.4, 0.9))}`;
+    noteR.innerHTML = `<b>✎ Note:</b> ${typed('one year after the start date. It isn\'t in the sheet.', prog(t, 46.4, 1.0))}`;
+    put(noteR, { x: FX + 650 - 440, y: f.inputs[5].y + 60 + (1 - nr) * 20, o: teach ? clamp(nr * 1.5) * (1 - prog(t, 50.5, 0.4)) : 0 });
+    put(noteO, { x: FX - 330, y: f.inputs[4].y - 20 + (1 - no) * 20, o: teach ? clamp(no * 1.5) * (1 - prog(t, 50.5, 0.4)) : 0 });
+    const rIn = spring(prog(t, 50.8, 0.6));
+    put(rules, { x: 680, y: 360 + (1 - rIn) * 30, o: (teach || takeover) ? clamp(rIn * 1.5) * (1 - prog(t, 54.6, 0.4)) : 0 });
+    const kIn = spring(prog(t, 52.2, 0.7));
+    put(skill, { x: 70, y: 846, s: lerp(0.6, 1, kIn), o: (teach || takeover || after) ? clamp(kIn * 2) : 0 });
+    skill.querySelector('.m').textContent = takeover || after ? 'from a sheet · 6 fields · 2 notes · running' : 'from a sheet · 6 fields · 2 notes';
+    const sIn = spring(prog(t, 68.0, 0.6));
+    put(summary, { x: 620, y: 856 + (1 - sIn) * 30, o: (takeover || after) ? clamp(sIn * 1.5) : 0 });
+    // Mo on the screen: pops in at the corner, waves, watches the work.
+    const mIn = spring(prog(t, 34.2, 0.7));
+    const moOn = t >= 34.2 && phase !== 'monday' && phase !== 'grind';
+    const tgtX = takeover && curRow ? FX + 300 : teach ? FX + 100 : 900, tgtY = takeover ? FY + 260 : 400;
+    moSet({ x: 1060, y: 145, size: 120 * (moOn ? mIn : 0), o: moOn ? 1 : 0, wave: prog(t, 34.8, 1.2), blink: blinkAt(t, 36.4) + blinkAt(t, 39.3, 0.3) + blinkAt(t, 47) + blinkAt(t, 61), happy: Math.sin(Math.PI * prog(t, 52.2, 1.6)) * 0.9 + (after ? 0.8 : 0), look: [clamp((tgtX - 1030) / 600, -1, 1), clamp((tgtY - 145) / 500, -0.4, 1)] });
+    // Sarah's cursor while she teaches
+    const cur = teach ? (() => { const i = T1.findIndex((x, k) => t < (T1[k + 1] ?? 50.6)); const q = f.inputs[Math.max(0, i)]; return t > 49.9 ? [f.btn.cx, f.btn.cy] : [q.cx + 80, q.cy + 4]; })() : null;
+    put(cursorEl, cur ? { x: cur[0], y: cur[1] } : { o: 0 });
+  };
+})();
+
+// ==== 2. Sarah's desk, from behind (16.5 to 42 s, and 70 to 77 s) ===========================
+const WORLD = (() => {
+  const layer = $('worldLayer'), world = $('world');
+  // Room, back to front. The monitor's screen is the SCREEN layer, scaled to fit.
+  const room = el(world, '', `
+    <div class="abs wall" style="width:1920px;height:1080px;background:#efe6da"></div>
+    <div class="abs win" style="left:110px;top:120px;width:470px;height:430px;border-radius:20px;border:16px solid #fff;box-sizing:border-box;overflow:hidden"><div class="abs sky" style="width:470px;height:430px"></div>
+      <div class="abs" style="left:10px;top:240px;width:90px;height:190px;background:#a9bccb"></div><div class="abs" style="left:110px;top:190px;width:120px;height:240px;background:#97adbf"></div><div class="abs" style="left:240px;top:260px;width:90px;height:170px;background:#b4c4d1"></div><div class="abs" style="left:340px;top:210px;width:110px;height:220px;background:#a1b5c6"></div></div>
+    <div class="abs" style="left:1520px;top:150px;width:150px;height:150px;border-radius:50%;background:#fff;border:8px solid #2a2d33;box-sizing:border-box"></div>
+    <div class="abs hourHand" style="left:1591px;top:180px;width:8px;height:48px;border-radius:4px;background:#2a2d33;transform-origin:4px 45px"></div>
+    <div class="abs minHand" style="left:1592px;top:168px;width:6px;height:60px;border-radius:3px;background:#2a2d33;transform-origin:3px 57px"></div>
+    <div class="abs" style="left:1590px;top:220px;width:12px;height:12px;border-radius:50%;background:#2a2d33"></div>
+    <div class="abs" style="left:1700px;top:420px;width:150px;height:360px;border-radius:14px;background:#d9cbb8"></div>
+    <div class="abs" style="left:0;top:760px;width:1920px;height:320px;background:#c99a6b"></div>
+    <div class="abs" style="left:0;top:760px;width:1920px;height:16px;background:#b5845a"></div>
+    <div class="abs" style="left:760px;top:680px;width:400px;height:90px;border-radius:8px 8px 0 0;background:#2a2d33"></div>
+    <div class="abs" style="left:900px;top:640px;width:120px;height:60px;background:#2a2d33"></div>
+    <div class="abs" style="left:360px;top:640px;width:120px;height:130px;border-radius:0 0 20px 20px;background:#d97d54"></div>
+    <div class="abs" style="left:340px;top:520px;width:160px;height:150px;border-radius:50% 50% 40% 40%;background:#7fb069"></div>
+    <div class="abs mug" style="left:1430px;top:690px;width:70px;height:80px;border-radius:10px;background:#fff;box-shadow:inset 0 -10px 0 #eee"></div>
+    <div class="abs" style="left:1496px;top:708px;width:26px;height:40px;border:8px solid #fff;border-left:0;border-radius:0 20px 20px 0;box-sizing:border-box"></div>
+    <div class="abs bezel" style="left:556px;top:226px;width:808px;height:476px;border-radius:22px;background:#1f2228"></div>`, 'width:1920px;height:1080px');
+  const sky = room.querySelector('.sky'), hourHand = room.querySelector('.hourHand'), minHand = room.querySelector('.minHand'), mug = room.querySelector('.mug');
+  const SCR = { x: 580, y: 250, w: 760 };
+  const k = SCR.w / 1920;
+  const screen = window.SCREEN_EL;
+  world.appendChild(screen); // above the room, below Sarah
+  const sarah = makeSarah(world, 'back');
+  const day = el($('overlay'), 'daytag', 'Monday, 8:58');
+  const email = el($('overlay'), 'card', '<div style="padding:18px 22px"><div style="font-size:16px;color:#646a76;font-weight:650">NEW EMAIL · SALES</div><div style="font-size:26px;font-weight:700;margin-top:4px">New customers, week 45</div><div style="font-size:20px;color:#646a76;margin-top:4px">📎 new-customers.csv · 47 rows</div></div>', 'width:470px');
+  const pdf = el($('world'), 'card', '<div style="padding:16px 20px;font-size:20px"><b>Contract: Kestrel Labs</b><div style="color:#646a76;margin-top:8px">Plan: Enterprise (“Ent”)</div><div style="height:10px;background:#eee;border-radius:5px;margin-top:14px;width:80%"></div><div style="height:10px;background:#eee;border-radius:5px;margin-top:10px;width:60%"></div></div>', 'width:330px');
+  const tagline = el($('overlay'), 'tagline', '<em>Mo</em>, a work assistant you teach by showing it');
+  cue(17.6, 'pop', 0.5); cue(28.6, 'sigh', 0.7); cue(30.4, 'click'); cue(34.4, 'pop', 0.9); cue(39.4, 'whoosh', 0.8); cue(70.0, 'whoosh', 0.7); cue(72.6, 'sip', 0.5);
+  return function render(t) {
+    const on = t >= 16.5 && t < 74.2;
+    show(layer, on);
+    if (!on) { [day, email, tagline].forEach(e => put(e, { o: 0 })); return null; }
+    if (t < 17.6) $('fade').style.opacity = 1 - prog(t, 17.0, 0.5);
+    let phase = t < 23 ? 'monday' : t < 34 ? 'grind' : t < 42.4 ? 'mo' : t < 55.4 ? 'teach' : t < 69.8 ? 'takeover' : 'after';
+    // Camera: a slow push from behind; the dive into the screen; the pull back out.
+    const Zfull = 1920 / SCR.w;
+    const push = 1 + 0.06 * easeInOut(prog(t, 16.5, 17));
+    const dive = easeInOut(prog(t, 39.2, 2.4));
+    const back = easeInOut(prog(t, 69.9, 2.4));
+    const into = t < 70 ? dive : 1 - back;
+    const Z = lerp(push, Zfull, into);
+    // Keep the screen's centre steady while zooming: interpolate the camera's focus point.
+    const fx = lerp(960, SCR.x + SCR.w / 2, into), fy = lerp(560, SCR.y + SCR.w * 9 / 32, into);
+    world.style.transform = `translate(${960 - fx * Z}px, ${540 - fy * Z}px) scale(${Z})`;
+    world.style.filter = `blur(${Math.sin(Math.PI * dive) * (t < 42 ? 1.6 : 0) + Math.sin(Math.PI * back) * (t > 69 ? 1.6 : 0)}px)`;
+    // The screen layer lives in the world at the monitor's position.
+    screen.style.transform = `translate(${SCR.x}px, ${SCR.y}px) scale(${k})`;
+    // Time passing: the clock and the light. Grind: 9:00 → 11:40; after: 9:14.
+    const minutes = t < 23 ? 8 * 60 + 58 : t < 34 ? lerp(9 * 60, 11 * 60 + 40, easeInOut(prog(t, 23, 11))) : t < 70 ? 9 * 60 + 2 : 9 * 60 + 14;
+    hourHand.style.transform = `rotate(${(minutes / 60) * 30}deg)`;
+    minHand.style.transform = `rotate(${(minutes % 60) * 6}deg)`;
+    const noon = t < 34 ? prog(t, 23, 11) : 0;
+    sky.style.background = `linear-gradient(180deg, ${noon > 0.5 ? '#9cc8f0' : '#ffc79a'} 0%, ${noon > 0.5 ? '#d8ecfa' : '#ffe6c8'} 100%)`;
+    mug.style.boxShadow = `inset 0 ${-10 - (t > 23 && t < 34 ? 40 * prog(t, 23, 10) : 0)}px 0 #eee`;
+    // Sarah: typing; slumping as the morning drags; head in hand; sitting up for Mo; leaning back at the end.
+    const slump = t < 23 ? 0 : t < 34 ? easeInOut(prog(t, 24, 6)) * (1 - easeInOut(prog(t, 34.4, 0.8))) : 0;
+    const hth = t > 28.4 && t < 34.6 ? easeInOut(prog(t, 28.4, 0.6)) * (1 - easeInOut(prog(t, 33.0, 0.5))) : 0;
+    const lean = t > 70 ? easeInOut(prog(t, 71.2, 1.0)) : 0;
+    const sOn = 1 - easeInOut(prog(t, 39.6, 1.0)) + (t > 70 ? easeInOut(prog(t, 70.6, 1.2)) : 0);
+    sarah.set({ x: 520, y: 590, s: 1.2, o: clamp(sOn), type: t * 3.2, slump, handToHead: hth, leanBack: lean, nod: t > 34.4 && t < 36 ? -Math.sin(Math.PI * prog(t, 34.4, 0.8)) * 14 : 0, head: t > 34.6 && t < 39 ? 6 : 0 });
+    const dIn = spring(prog(t, 17.0, 0.6));
+    put(day, { x: 80, y: 80, o: t < 23 ? clamp(dIn * 1.5) * (1 - prog(t, 22.4, 0.4)) : t > 70 ? clamp(spring(prog(t, 72.0, 0.5)) * 1.5) * (1 - prog(t, 76.4, 0.4)) : 0 });
+    day.textContent = t > 70 ? 'Monday, 9:14' : 'Monday, 8:58';
+    const eIn = spring(prog(t, 17.6, 0.6));
+    put(email, { x: 1360, y: 560 + (1 - eIn) * 30, o: t < 23 ? clamp(eIn * 1.5) * (1 - prog(t, 22.6, 0.4)) : 0 });
+    const pIn = spring(prog(t, 30.4, 0.5));
+    put(pdf, { x: SCR.x + 420, y: SCR.y + 120 + (1 - pIn) * 20, o: t < 34 ? clamp(pIn * 1.5) * (1 - prog(t, 33.0, 0.4)) : 0 });
+    const tIn = spring(prog(t, 35.4, 0.6));
+    put(tagline, { x: 960 - 330, y: 860 + (1 - tIn) * 20, o: t < 39.4 ? clamp(tIn * 1.5) * (1 - prog(t, 39.1, 0.3)) : 0 });
+    return phase;
+  };
+})();
+
+// ==== 3. Back on a call; Mubit; the end (74 s on) ===========================================
+const CALLBACK = (() => {
+  // Reuse the office panel: Sarah on a call again, happy.
+  return t => {
+    if (t < 74.2 || t >= 77.6) return false;
+    $('life').style.display = 'block';
+    const strip = $('life').firstChild;
+    strip.style.transform = 'translate(-3840px, 0)'; strip.style.filter = 'none';
+    $('fade').style.opacity = 0;
+    return true;
+  };
+})();
+
+const MUBIT = (() => {
+  const layer = $('mubit');
+  layer.style.background = 'var(--paper)';
+  const skill = el(layer, 'skill', '<div class="n">Add a new customer</div><div class="m">Sarah\'s skill · runs every Monday</div>');
+  const mubit = el(layer, 'node', '<span style="color:#fff;font-size:86px;font-weight:300;margin-top:-8px">μ</span>', 'width:180px;height:180px;background:var(--night);box-shadow:0 20px 50px rgba(0,0,0,.25)');
+  const claude = el(layer, 'node', '<span style="font-size:28px;font-weight:700;color:#3d3a35">Claude</span>', 'width:150px;height:150px;background:#efe9e0;border:2px solid #ddd3c4');
+  const small = el(layer, 'node', '<svg width="140" height="140" viewBox="0 0 150 150"><circle cx="75" cy="75" r="66" fill="none" stroke="#f3d6c8" stroke-width="10"/><circle data-r="ring" cx="75" cy="75" r="66" fill="none" stroke="#f05a1e" stroke-width="10" stroke-linecap="round" transform="rotate(-90 75 75)" stroke-dasharray="415" stroke-dashoffset="415"/><circle data-r="core" cx="75" cy="75" r="40" fill="#f05a1e"/></svg>', 'width:140px;height:140px');
+  const lM = el(layer, 'node-label', 'Mubit'), lC = el(layer, 'node-sub', 'does the work today'), lS = el(layer, 'node-label', 'A smaller model'), sS = el(layer, 'node-sub', 'trained on Sarah\'s lessons');
+  const P = { card: [500, 330], mubit: [860, 330], claude: [1260, 200], small: [1260, 460] };
+  const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('width', 1920); svg.setAttribute('height', 1080); svg.style.cssText = 'position:absolute;left:0;top:0'; layer.appendChild(svg);
+  const mk = (a, b, dash) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', `M${a[0]} ${a[1]} C ${(a[0] + b[0]) / 2} ${a[1]}, ${(a[0] + b[0]) / 2} ${b[1]}, ${b[0]} ${b[1]}`); p.setAttribute('stroke', dash ? '#f05a1e' : '#cfcac2'); p.setAttribute('stroke-width', 3); p.setAttribute('fill', 'none'); if (dash) p.setAttribute('stroke-dasharray', '2 10'); p.setAttribute('stroke-linecap', 'round'); svg.appendChild(p); return p; };
+  const e1 = mk(P.card, P.mubit), e2 = mk(P.mubit, P.claude), e3 = mk(P.mubit, P.small, true);
+  const dots = Array.from({ length: 30 }, () => el(layer, 'dot'));
+  // The chart: cost of Sarah's Monday run, weeks 1 to 8 (estimate).
+  const CX = 480, CY = 640, CW = 960, CH = 300;
+  const ct = el(layer, 'chart-title', 'Cost of Sarah\'s Monday run'), cs = el(layer, 'chart-sub', 'same 47 customers, every week');
+  const est = el(layer, 'est', 'Estimate');
+  const speed = el(layer, 'tag', '⚡ each step: ~1 s → ~0.2 s');
+  const chart = document.createElementNS(NS, 'svg'); chart.setAttribute('width', 1920); chart.setAttribute('height', 1080); chart.style.cssText = 'position:absolute;left:0;top:0'; layer.appendChild(chart);
+  const base = document.createElementNS(NS, 'path'); base.setAttribute('d', `M${CX} ${CY + CH} H${CX + CW}`); base.setAttribute('stroke', '#d9d5cd'); base.setAttribute('stroke-width', 2); chart.appendChild(base);
+  // Weeks 1–3 on Claude (100%), then the trained model takes over: 100 → 5% (the panel's estimate).
+  const vals = [100, 100, 96, 60, 28, 12, 7, 5];
+  const pts = vals.map((v, i) => [CX + 40 + i * ((CW - 80) / 7), CY + CH - (v / 100) * (CH - 30)]);
+  const line = document.createElementNS(NS, 'path'); line.setAttribute('d', 'M' + pts.map(p => p.join(' ')).join(' L')); line.setAttribute('stroke', '#f05a1e'); line.setAttribute('stroke-width', 5); line.setAttribute('fill', 'none'); line.setAttribute('stroke-linecap', 'round'); line.setAttribute('stroke-linejoin', 'round'); chart.appendChild(line);
+  const len = line.getTotalLength(); line.style.strokeDasharray = `${len}`;
+  const weekLabels = pts.map((p, i) => el(layer, 'chart-sub', `Wk ${i + 1}`, `left:0;top:0`));
+  const startLab = el(layer, 'tag', '100%'), endLab = el(layer, 'tag', '≈5%');
+  const moM = makeMo(layer, 120);
+  for (let k = 0; k < 15; k++) cue(78.4 + k * 0.22 + 0.5, 'tick', 0.16);
+  cue(83.4, 'rise', 0.6); cue(86.6, 'pop', 0.7);
+  return function render(t) {
+    const on = t >= 77.6 && t < 89.2;
+    show(layer, on);
+    if (!on) return;
+    const kIn = spring(prog(t, 77.6, 0.6));
+    put(skill, { x: P.card[0] - 440, y: P.card[1] - 52, o: clamp(kIn * 1.5) });
+    const n1 = spring(prog(t, 77.9, 0.6)), n2 = spring(prog(t, 78.1, 0.6)), n3 = spring(prog(t, 78.3, 0.6));
+    put(mubit, { x: P.mubit[0] - 90, y: P.mubit[1] - 90, s: n1, o: clamp(n1 * 2) });
+    put(claude, { x: P.claude[0] - 75, y: P.claude[1] - 75, s: n2, o: clamp(n2 * 2) });
+    put(small, { x: P.small[0] - 70, y: P.small[1] - 70, s: n3, o: clamp(n3 * 2) });
+    put(lM, { x: P.mubit[0], y: P.mubit[1] + 102, o: clamp(n1 * 2) }); put(lC, { x: P.claude[0] + 150, y: P.claude[1] - 12, o: clamp(n2 * 2) });
+    put(lS, { x: P.small[0] + 190, y: P.small[1] - 26, o: clamp(n3 * 2) }); put(sS, { x: P.small[0] + 190, y: P.small[1] + 10, o: clamp(n3 * 2) });
+    [e1, e2, e3].forEach((e, i) => { e.style.opacity = clamp([n1, n2, n3][i] * 2) * 0.9; });
+    let arrived = 0;
+    dots.forEach((d, k) => {
+      const start = 78.4 + Math.floor(k / 2) * 0.22, toSmall = k % 2 === 1;
+      const p1 = prog(t, start, 0.5), p2 = prog(t, start + 0.5, toSmall ? 0.6 : 0.45);
+      if (t < start || p2 >= 1) { put(d, { o: 0 }); if (p2 >= 1 && toSmall) arrived++; return; }
+      const path = p1 < 1 ? e1 : toSmall ? e3 : e2; const pt = path.getPointAtLength(path.getTotalLength() * easeInOut(p1 < 1 ? p1 : p2));
+      put(d, { x: pt.x, y: pt.y });
+    });
+    const fill = clamp(arrived / 15) * 0.9;
+    small.querySelector('[data-r="ring"]').setAttribute('stroke-dashoffset', (415 * (1 - fill)).toFixed(1));
+    small.querySelector('[data-r="core"]').setAttribute('r', (16 + 24 * fill).toFixed(1));
+    // The chart draws in, the line falls as the trained model takes over.
+    const cIn = spring(prog(t, 83.0, 0.6));
+    put(ct, { x: CX, y: CY - 80, o: clamp(cIn * 1.5) }); put(cs, { x: CX, y: CY - 42, o: clamp(cIn * 1.5) });
+    put(est, { x: CX + CW - 120, y: CY - 74, o: clamp(cIn * 1.5) });
+    base.style.opacity = clamp(cIn * 1.5);
+    const draw = easeInOut(prog(t, 83.6, 2.6));
+    line.style.strokeDashoffset = len * (1 - draw);
+    weekLabels.forEach((w, i) => put(w, { x: pts[i][0] - 22, y: CY + CH + 12, o: clamp(cIn * 1.5) }));
+    put(startLab, { x: pts[0][0] - 30, y: pts[0][1] - 56, o: clamp(spring(prog(t, 83.6, 0.4)) * 1.5) });
+    const eIn = spring(prog(t, 86.2, 0.5));
+    put(endLab, { x: pts[7][0] - 40, y: pts[7][1] - 58, s: eIn, o: clamp(eIn * 2) });
+    put(speed, { x: CX + CW + 30, y: CY + CH - 80, s: spring(prog(t, 86.6, 0.5)), o: clamp(spring(prog(t, 86.6, 0.5)) * 2) });
+    moM({ x: P.card[0] - 220, y: P.card[1] - 150, size: 110 * spring(prog(t, 77.8, 0.6)), look: [1, 0.1], blink: blinkAt(t, 80.6) + blinkAt(t, 85.2), happy: prog(t, 86.4, 0.5) * 0.8 });
+  };
+})();
+
+const END = (() => {
+  const layer = $('end');
+  layer.style.background = 'var(--paper)';
+  const sarah = makeSarah(layer, 'front');
+  const moE = makeMo(layer, 260);
+  const word = el(layer, 'wordmark', 'Mo'), line = el(layer, 'endline', 'Show it <span style="color:var(--ember)">once.</span>'), foot = el(layer, 'footer', 'Built on <b>Claude</b>, through <b>Mubit</b>');
+  cue(89.4, 'whoosh', 0.5); cue(90.2, 'thud', 0.5); cue(90.8, 'chime', 0.8);
+  return function render(t) {
+    const on = t >= 89.2;
+    show(layer, on);
+    if (!on) return;
+    const sIn = spring(prog(t, 89.3, 0.8)), mIn = spring(prog(t, 89.6, 0.8));
+    sarah.set({ x: 360, y: 300 + (1 - sIn) * 80, s: 0.95, o: clamp(sIn * 1.5), mood: 'happy', mug: 0, blink: blinkAt(t, 92.2), head: -4 });
+    const land = prog(t, 90.2, 0.5);
+    moE({ x: 1340, y: 470 + (1 - mIn) * -120, size: 260 * mIn, o: clamp(mIn * 2), squash: t > 90.2 ? Math.exp(-5 * land) * Math.sin(10 * land) * 0.2 : 0, blink: blinkAt(t, 93.4, 0.22), happy: prog(t, 91, 0.4) * 0.6, look: [-0.7, 0.1] });
+    const w = spring(prog(t, 90.5, 0.7)), g = spring(prog(t, 90.9, 0.7)), f = spring(prog(t, 91.5, 0.7));
+    put(word, { y: 600 + (1 - w) * 40, o: clamp(w * 1.4) }); put(line, { y: 800 + (1 - g) * 30, o: clamp(g * 1.4) }); put(foot, { y: 975 + (1 - f) * 20, o: clamp(f * 1.4) });
+    $('fade').style.opacity = prog(t, 95.4, 0.6);
+  };
+})();
+
+// ==== Frame =================================================================================
+window.DURATION = 96;
+window.CUES = CUES.sort((a, b) => a.t - b.t);
+window.KEY_TIMES = [1.6, 7.5, 13.8, 19.5, 26.0, 31.0, 36.5, 40.4, 45.2, 48.8, 51.6, 57.0, 59.0, 61.3, 64.0, 68.4, 72.8, 75.6, 80.6, 86.8, 92.0];
+window.render = function render(t) {
+  $('fade').style.opacity = 0;
+  LIFE(t);
+  const phase = WORLD(t);
+  if (phase) SCREEN(t, { phase });
+  MUBIT(t);
+  END(t);
+  subtitles(t);
+};
+window.render(0);
+</script>
+</body>
+</html>

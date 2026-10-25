@@ -2,31 +2,45 @@
 // build, a warm chord when Mo lands, a pulse while Ada teaches, a lift while Mo works the rows,
 // a drop for the correction, a build into Mubit, a beat of silence, and one last chord.
 // D major, 100 BPM. Writes out/music.wav (48 kHz stereo); voice.js mixes it under the voice.
+// --story scores the Sarah film instead (out/story-music.wav): warm through her morning, gone
+// during the Monday grind, back when Mo appears, driving while Mo works, and a final chord.
 //
 //   node music.js
+//   node music.js --story
 
 import fs from 'node:fs';
 import path from 'node:path';
 
+const STORY = process.argv.includes('--story');
 const RATE = 48000;
-const LEN = 60;
+const LEN = STORY ? 96 : 60;
 const N = LEN * RATE;
 const L = new Float32Array(N), R = new Float32Array(N);
 const BEAT = 0.6, BAR = 2.4;
-const T0 = 7.42; // Mo lands: the first downbeat
+const T0 = STORY ? 0.8 : 7.42; // the first downbeat (intro: Mo lands)
+const STOP = STORY ? 89.0 : 55.55, FINAL = STORY ? 90.2 : 56.05; // a beat of silence, then the last chord
 const midi = n => 440 * 2 ** ((n - 69) / 12);
 let seed = 11;
 const noise = () => { seed = (seed * 16807) % 2147483647; return (seed / 2147483647) * 2 - 1; };
 
 // Each section's ingredients, by time.
 const between = (t, a, b) => t >= a && t < b;
-const has = {
+const has = STORY ? {
+  pad: t => between(t, T0, 22.8) || between(t, 34.4, STOP),
+  bass: t => between(t, 42.4, 69.8) || between(t, 77.6, STOP),
+  arp: t => between(t, 1.6, 16.8) || between(t, 34.6, 39.2) || between(t, 43.0, 69.8) || between(t, 79.0, STOP),
+  kick: t => between(t, 44.6, 69.8) || between(t, 81.6, STOP),
+  hat: t => between(t, 55.4, 69.6) || between(t, 84.0, STOP),
+} : {
   pad: t => between(t, T0, 55.55) || t >= 56.05,
   bass: t => between(t, T0, 40.0) || between(t, 43.6, 55.55),
   arp: t => between(t, 8.6, 40.0) || between(t, 44.0, 55.55),
   kick: t => between(t, 13.0, 40.0) || between(t, 46.0, 55.55),
   hat: t => between(t, 27.4, 39.6) || between(t, 49.6, 55.55),
 };
+// Softer stretches: [from, to, level].
+const SOFT = STORY ? [[17.0, 23.0, 0.55], [70.0, 77.6, 0.8], [34.4, 39.4, 0.85]] : [[40.0, 43.6, 0.7]];
+const softAt = t => (SOFT.find(([a, b]) => between(t, a, b)) || [0, 0, 1])[2];
 // Chords: Dmaj9, Bm9, Gmaj7(#11-ish), A6sus: one bar each, round and round.
 const CHORDS = [
   { root: 38, notes: [62, 66, 69, 73, 76] },
@@ -79,31 +93,35 @@ function bell(at, n, level) {
 
 // ---- The score -------------------------------------------------------------------------
 // Bars from Mo's landing to the stop at 55.55 s.
-for (let bar = 0; T0 + bar * BAR < 55.55; bar++) {
+for (let bar = 0; T0 + bar * BAR < STOP; bar++) {
   const at = T0 + bar * BAR;
   const c = CHORDS[bar % 4];
-  const quiet = between(at, 40.0, 43.6) ? 0.7 : 1;
-  if (has.pad(at)) pad(at, Math.min(BAR, 55.55 - at), c.notes, 0.16 * quiet);
-  if (has.bass(at)) bass(at, Math.min(BAR - 0.05, 55.55 - at), c.root + 12, 0.18);
+  // A bar that starts mid-section (Mo appearing at 34.4 s) begins where the section does.
+  const startAt = has.pad(at) ? at : (has.pad(at + BAR - 0.01) ? Math.max(at, [34.4, 22.8, T0].find(x => x > at && x < at + BAR) ?? at) : null);
+  if (startAt !== null && (has.pad(startAt) || has.pad(startAt + 0.01))) {
+    const end = Math.min(at + BAR, STOP, ...(STORY && at < 22.8 && at + BAR > 22.8 ? [22.8] : []));
+    pad(startAt, Math.max(0.3, end - startAt), c.notes, 0.16 * softAt(startAt));
+  }
+  if (has.bass(at)) bass(at, Math.min(BAR - 0.05, STOP - at), c.root + 12, 0.18);
 }
 for (let k = 0; ; k++) {
   const at = T0 + k * BEAT / 2; // eighth notes
-  if (at >= 55.55) break;
+  if (at >= STOP) break;
   const c = chordAt(at);
   const arpNotes = [...c.notes, c.notes[1] + 12, c.notes[2] + 12];
-  const lift = between(at, 27.4, 40.0) || between(at, 49.6, 55.55);
-  const build = between(at, 44.0, 49.6) ? (at - 44) / 5.6 : 1;
-  if (has.arp(at)) mallet(at, arpNotes[(k * 3) % arpNotes.length] + (lift && k % 8 === 7 ? 12 : 0), (lift ? 0.075 : 0.055) * build, k % 2 ? 0.4 : -0.4);
-  if (k % 2 === 0 && has.kick(at)) kick(at, between(at, 13.0, 27.4) ? 0.32 : 0.42);
+  const lift = STORY ? between(at, 55.4, 69.8) || between(at, 84, STOP) : between(at, 27.4, 40.0) || between(at, 49.6, 55.55);
+  const build = STORY ? (between(at, 79, 84) ? (at - 79) / 5 : 1) : between(at, 44.0, 49.6) ? (at - 44) / 5.6 : 1;
+  if (has.arp(at)) mallet(at, arpNotes[(k * 3) % arpNotes.length] + (lift && k % 8 === 7 ? 12 : 0), (lift ? 0.075 : 0.055) * build * softAt(at), k % 2 ? 0.4 : -0.4);
+  if (k % 2 === 0 && has.kick(at)) kick(at, (STORY ? between(at, 44.6, 55.4) : between(at, 13.0, 27.4)) ? 0.32 : 0.42);
   if (k % 2 === 1 && has.hat(at)) hat(at, 0.06, 0.25);
 }
 // The lift into "Ten starters", and the drop for the correction.
-swell(38.0, 2.0, 0.12);
+if (STORY) { swell(32.8, 1.6, 0.1); swell(53.8, 1.6, 0.1); } else swell(38.0, 2.0, 0.12);
 // The last chord: Dmaj9 with a bell on "Mo. Show it once."
-pad(56.05, 3.4, [50, 57, 62, 66, 69, 73, 76], 0.22);
-bass(56.05, 3.5, 38, 0.2);
-bell(56.05, 81, 0.08);
-bell(56.6, 74, 0.05);
+pad(FINAL, 3.4, [50, 57, 62, 66, 69, 73, 76], 0.22);
+bass(FINAL, 3.5, 38, 0.2);
+bell(FINAL, 81, 0.08);
+bell(FINAL + 0.55, 74, 0.05);
 
 // ---- Room: a small reverb (four combs, two all-passes), then a gentle fade at the end ----
 function reverb(x) {
@@ -122,7 +140,7 @@ const wl = reverb(L), wr = reverb(R);
 let peak = 0;
 for (let n = 0; n < N; n++) {
   const t = n / RATE;
-  const fade = t > 58.2 ? Math.max(0, (LEN - t) / 1.8) : 1;
+  const fade = t > LEN - 1.8 ? Math.max(0, (LEN - t) / 1.8) : 1;
   L[n] = (L[n] + wl[n] * 0.35) * fade; R[n] = (R[n] + wr[n] * 0.35) * fade;
   peak = Math.max(peak, Math.abs(L[n]), Math.abs(R[n]));
 }
@@ -135,6 +153,6 @@ for (let n = 0; n < N; n++) {
   wav.writeInt16LE(Math.round(Math.max(-1, Math.min(1, L[n] * gain)) * 32767), 44 + n * 4);
   wav.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[n] * gain)) * 32767), 46 + n * 4);
 }
-const file = path.join(import.meta.dirname, 'out', 'music.wav');
+const file = path.join(import.meta.dirname, 'out', STORY ? 'story-music.wav' : 'music.wav');
 fs.writeFileSync(file, wav);
 console.log(`${file} (${LEN} s, D major, 100 BPM)`);

@@ -3,6 +3,7 @@
 // voice. Needs FISH_API_KEY in the repo's .env, and a render first (out/video-silent.mp4, out/sfx.wav).
 //
 //   node voice.js          # out/mo-intro.mp4 with the voiceover
+//   node voice.js --story  # the Sarah film: out/sarah-and-mo.mp4 (render story.html and music.js --story first)
 //   node voice.js --check  # record the lines and report how each fits, without mixing
 
 import fs from 'node:fs';
@@ -20,8 +21,30 @@ fs.mkdirSync(cache, { recursive: true });
 
 const VOICE = 'c3958f083c2d407982263c77cfa831e3'; // Fish Audio "Documentary": deep, older male narrator
 const MODEL = 's2.1-pro-free';
+const STORY = process.argv.includes('--story');
+// The Sarah film: starts match the subtitles in story.html.
+const STORY_LINES = [
+  [0.7, '[warm] This is Sarah.'],
+  [5.9, '[warm] She works in customer success, at a small software company.'],
+  [10.9, '[warm, fond] Helping customers is why she took the job.'],
+  [17.2, '[wry] But every Monday, Sales sends her this.'],
+  [23.4, '[flat, a little weary] Forty-seven new customers. [break] Twelve clicks each.'],
+  [28.2, '[weary] And every few rows, something doesn\'t quite fit.'],
+  [34.4, '[brightening] Then she tried Mo.'],
+  [42.4, '[confident] She shows Mo one row, and leaves a note where the sheet doesn\'t say.'],
+  [51.6, '[pleased] Now it\'s a skill.'],
+  [55.4, '[confident] Then Mo does the rest.'],
+  [58.4, '"Ent"? [break] Enterprise.'],
+  [60.7, 'No owner? [break] Her note.'],
+  [63.1, '[measured] And when something\'s genuinely wrong, Mo doesn\'t guess. [break] It asks.'],
+  [70.6, '[warm, satisfied] Forty-seven customers, before her coffee\'s gone cold.'],
+  [74.4, '[warm] And back to the part of the job she loves.'],
+  [77.6, 'Every lesson goes through Mubit, which trains a smaller model on Sarah\'s way of working.'],
+  [83.4, '[confident] Same task, every week: faster, and a fraction of the cost.'],
+  [90.4, '[warm, confident] Mo. [break] Show it once.'],
+];
 // [start in seconds, text with Fish Audio s2 cues]. Starts match the captions in intro.html.
-const LINES = [
+const INTRO_LINES = [
   [1.0, '[warm, slightly amused] Every week. [break] The same clicks.'],
   [9.95, '[warm] Meet Mo. [break] Do it once, and Mo does the rest.'],
   [13.6, '[confident] Show it once.'],
@@ -37,6 +60,7 @@ const LINES = [
   [53.65, '[slightly playful] And it watches your back.'],
   [56.3, '[warm, confident] Mo. [break] Show it once.'],
 ];
+const LINES = STORY ? STORY_LINES : INTRO_LINES;
 
 function duration(file) {
   const info = spawnSync(ffmpeg, ['-hide_banner', '-i', file], { encoding: 'utf8' }).stderr;
@@ -79,7 +103,7 @@ for (const [at, text] of LINES) {
 }
 // Each line has to finish before the next one starts; a line that's too long is sped up a
 // little (at most 12%), and anything beyond that is reported.
-const END = 60;
+const END = STORY ? 96 : 60;
 takes.forEach((tk, i) => {
   const room = (takes[i + 1]?.at ?? END - 0.3) - tk.at - 0.2;
   tk.tempo = tk.len > room ? Math.min(1.12, tk.len / room) : 1;
@@ -92,9 +116,9 @@ if (process.argv.includes('--check')) process.exit(0);
 // sits far below everything (a background bed, about 15 dB under the voice) and dips again under it.
 // Then one fixed gain for the whole mix, measured in a first pass, brings it to -16 LUFS. (An
 // automatic leveller would lift the quiet music back up between lines.)
-const silent = path.join(out, 'video-silent.mp4');
-const sfx = path.join(out, 'sfx.wav');
-const music = path.join(out, 'music.wav'); // from music.js; mixed in when it's there
+const silent = path.join(out, STORY ? 'story-silent.mp4' : 'video-silent.mp4');
+const sfx = path.join(out, STORY ? 'story-sfx.wav' : 'sfx.wav');
+const music = path.join(out, STORY ? 'story-music.wav' : 'music.wav'); // from music.js; mixed in when it's there
 if (!fs.existsSync(silent) || !fs.existsSync(sfx)) throw new Error('Run node render.js first.');
 const withMusic = fs.existsSync(music);
 const MUSIC_DB = -28;
@@ -110,13 +134,13 @@ const filter = [
   ...(withMusic ? [`[1:a]volume=${MUSIC_DB}dB[mus]`, '[mus][vo3]sidechaincompress=threshold=0.01:ratio=10:attack=50:release=800[mduck]'] : []),
   `[duck]${withMusic ? '[mduck]' : ''}[vo2]amix=inputs=${withMusic ? 3 : 2}:normalize=0[mix]`,
 ].join(';');
-const raw = path.join(out, 'mix-raw.wav');
+const raw = path.join(out, STORY ? 'story-mix-raw.wav' : 'mix-raw.wav');
 let r = spawnSync(ffmpeg, ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filter, '-map', '[mix]', '-t', String(END), '-ar', '48000', raw], { stdio: 'inherit' });
 if (r.status) process.exit(r.status);
 const measured = spawnSync(ffmpeg, ['-hide_banner', '-nostats', '-i', raw, '-af', 'ebur128', '-f', 'null', '-'], { encoding: 'utf8' }).stderr;
 const loud = Number([...measured.matchAll(/I:\s+(-?[\d.]+) LUFS/g)].pop()?.[1] ?? -16);
 const gain = (-16 - loud).toFixed(2);
-const final = path.join(out, 'mo-intro.mp4');
+const final = path.join(out, STORY ? 'sarah-and-mo.mp4' : 'mo-intro.mp4');
 r = spawnSync(ffmpeg, ['-y', '-loglevel', 'error', '-i', silent, '-i', raw, '-filter_complex', `[1:a]volume=${gain}dB,alimiter=limit=0.6:attack=1:release=60:level=false[a]`,
   '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-t', String(END), final], { stdio: 'inherit' });
 if (r.status) process.exit(r.status);
