@@ -7,7 +7,7 @@ the same Mubit task, and every accept or fix is logged, so a small model can lea
 ## Run it
 
 ```sh
-cd apps/ledger-tab
+cd archive/ledger-tab
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp .env.example .env            # then put your Mubit key in .env

@@ -1,4 +1,4 @@
-"""Ledger Tab web app: run with `uvicorn app:app --port 8102` from apps/ledger-tab."""
+"""Ledger Tab web app: run with `uvicorn app:app --port 8102` from archive/ledger-tab."""
 
 import threading
 import time
