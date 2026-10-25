@@ -88,6 +88,31 @@ can't find it, it asks you to show it: go to the page and **select the answer te
   are suggested for removal. You review them (*Check your lesson*), and only the ticked steps are
   taught. If nothing looks unneeded, it saves straight away.
 
+### Sarah's demo: from the email to the support system (the main demo)
+
+The story (see the README): Sarah, a customer success associate, gets a CSV of new customers from Sales every Monday
+and has to type each one into the support system by hand. Here's that whole task with Mo.
+
+1. Open <http://localhost:8787/demo/inbox/> (Sarah's inbox) and <http://localhost:8787/demo/helpdesk/> (the support
+   system's **Add a customer account** form). In Helpdesk, press **Clear this list** first.
+2. In the inbox tab ask Mo: `Check my email and open the new customers file from Sales`. Mo opens **Grace Okoro
+   (Sales): New customers, week 45** and clicks the attachment `new-customers-week-45.csv`, which opens as a page.
+   Live with Claude this took 3 steps (about 6 s of model time) and the check passed.
+3. In Mo's panel press **+ From a sheet**, name it `Add a customer account`, pick the CSV's tab, press **Read**:
+   "12 rows · columns: Company, Contact, Email, Plan, Owner, Start date".
+4. Switch to the Helpdesk tab, press **Start: I'll do row 1**, and fill in: Northwind Ltd · Priya Nair ·
+   priya@northwind.example · Growth · Sarah K · 03/11/2026 · renewal 03/11/2027. Press **Create account**.
+5. In the panel, press ✎ on *Renewal date*: `One year after the start date. It isn't in the CSV.` and on *Account
+   owner*: `If Owner is blank, use Sarah K`. Press **Done**.
+6. Check the rules (every field from its column, the renewal from your note), then press **Run 11 rows**.
+7. Expect: 10 created, 1 needs a look. "Ent", "ENT" become Enterprise; "growth", "Gro" become Growth; "Orbit Foods,
+   Inc." keeps its comma; "  Jonas Berg " is trimmed; blank owners become Sarah K; each renewal is one year after
+   that row's start date (worked out by Claude from the note); **Tidal Studio**'s email `accounts@tidalstudio` is
+   refused by the form, so Mo stops and asks instead of guessing.
+
+The CSV is `server/demo-site/files/new-customers-week-45.csv`. CSVs are served as text, so they open in the browser
+like a page, and Mo reads them from the tab.
+
 ### Skills, notes and sheet to form
 
 Everything you teach Mo becomes a **skill** under **My skills** in the panel, with a **Run** button. A correction adds a
@@ -115,7 +140,7 @@ training examples.
 
 Mo can't write back to the sheet (that needs the Google Sheets API); it remembers which rows it finished instead.
 
-### Ada's inbox: the main demo
+### Ada's inbox: unsubscribe, cancel, audit
 
 Open <http://localhost:8787/demo/inbox/>: Ada's inbox, 100 made-up emails. Three levels of the same chore:
 

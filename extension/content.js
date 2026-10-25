@@ -460,6 +460,8 @@
       }
       throw new Error('Could not read this Google Sheet. Check you can open it, or paste it as CSV.');
     }
+    // A CSV opened in a tab (served as text): the page is the file.
+    if (/^text\/(plain|csv)/.test(document.contentType) && document.body?.innerText.includes(',')) return { source: 'csv', csv: document.body.innerText };
     const tables = [...document.querySelectorAll('table')].filter(isVisible);
     const best = tables.sort((a, b) => b.rows.length - a.rows.length)[0];
     if (!best || best.rows.length < 2) throw new Error('No table on this page. Open your sheet, or paste it as CSV.');

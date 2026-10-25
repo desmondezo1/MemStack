@@ -391,7 +391,11 @@ async function finishTeaching() {
   $('saved-summary').textContent = 'Checking your lesson for detours…';
   $('rerun').disabled = true;
   const lite = st => ({ action: st.action, label: st.label, role: st.role, value: st.value, submit: st.submit, led_to: st.led_to, note: st.note, page: { url: st.page?.url } });
-  const review = await api('/api/refine-lesson', { method: 'POST', body: { goal: state.lastGoal, steps: steps.map(lite) } }).catch(() => null);
+  // The detour check is a nice-to-have: if it doesn't answer within 8 s, save the lesson as it is.
+  const review = await Promise.race([
+    api('/api/refine-lesson', { method: 'POST', body: { goal: state.lastGoal, steps: steps.map(lite) } }).catch(() => null),
+    sleep(8000).then(() => null),
+  ]);
   state.saving = false;
   if (review && review.keep.some(k => !k)) return showReview(steps, review);
   await saveLesson(steps);
@@ -594,7 +598,7 @@ async function openSheet(saved = null) {
   $('sheet-next').hidden = true;
   $('sheet-info').textContent = saved ? 'Read this week\'s rows, then check the fields and run.' : '';
   const tabs = (await chrome.tabs.query({ currentWindow: true })).filter(t => isWebPage(t.url));
-  const likely = tabs.find(t => /docs\.google\.com\/spreadsheets|\/sheet\b|sheet/i.test(`${t.url} ${t.title}`)) || tabs.find(t => t.active);
+  const likely = tabs.find(t => /docs\.google\.com\/spreadsheets|\.csv\b|\/sheet\b|sheet/i.test(`${t.url} ${t.title}`)) || tabs.find(t => t.active);
   $('sheet-tab').innerHTML = tabs.map(t => `<option value="${t.id}"${t === likely ? ' selected' : ''}>${esc((t.title || t.url).slice(0, 60))}</option>`).join('');
   $('sheet').scrollIntoView({ block: 'nearest' });
 }

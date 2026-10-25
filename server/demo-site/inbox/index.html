@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inbox · Ada · Postbox</title>
+<title>Inbox · Sarah · Postbox</title>
 <style>
   :root { --ink: #1c1d21; --muted: #6e717a; --line: #e5e6ea; --bg: #f6f7f9; --accent: #2457d6; --unread: #101114; }
   * { box-sizing: border-box; }
@@ -28,6 +28,8 @@
   article { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 22px 26px; max-width: 760px; }
   article h1 { font-size: 21px; margin: 6px 0 4px; } .from { color: var(--muted); margin-bottom: 18px; }
   .cta { display: inline-block; margin: 10px 0 20px; padding: 10px 18px; border-radius: 10px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+  .attach { display: inline-flex; gap: 8px; align-items: center; margin: 6px 0 18px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: #f7f8fa; color: var(--ink); text-decoration: none; font-weight: 600; }
+  .attach:hover { border-color: var(--accent); }
   .footer { border-top: 1px solid var(--line); padding-top: 12px; font-size: 12px; color: var(--muted); }
   .footer a { color: var(--muted); }
   .link { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0; }
@@ -40,7 +42,7 @@
 <header>
   <b>Postbox</b>
   <form id="search"><input id="q" type="search" placeholder="Search mail" aria-label="Search mail"><button type="submit">Search</button></form>
-  <span>ada@example.com</span>
+  <span>sarah@example.com</span>
 </header>
 <div class="layout">
   <nav><p class="on">Inbox</p><p>Starred</p><p>Sent</p><p>Drafts</p><p>Spam</p></nav>
@@ -86,6 +88,7 @@
       <div class="from">${esc(e.name)} &lt;${esc(e.from)}&gt; · ${esc(e.time)}</div>
       ${e.body.map(p => `<p>${esc(p)}</p>`).join('')}
       ${e.cta ? `<a class="cta" href="${esc(href)}">${esc(e.cta)}</a>` : ''}
+      ${e.attachment ? `<a class="attach" href="${esc(e.attachment.href)}">📎 ${esc(e.attachment.name)}</a>` : ''}
       ${e.unsubscribe ? `<div class="footer">You're getting this email because you signed up at ${esc(e.from.split('@')[1])}. <a href="${e.unsubscribe}">Unsubscribe</a> · <a href="${e.unsubscribe}">Email preferences</a></div>`
         : e.phishing ? `<div class="footer">To stop these emails, <a href="${esc(href)}">unsubscribe here</a>.</div>` : ''}`;
     $('back').addEventListener('click', () => { location.hash = ''; });

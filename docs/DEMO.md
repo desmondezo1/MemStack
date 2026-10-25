@@ -1,4 +1,33 @@
-# Mo: the 3-minute demo
+# Mo: demo guide
+
+**The story: Sarah, a customer success associate.** Every Monday, Sales emails her a CSV of last week's new customers,
+and she has to type each one into the support system by hand: about 47 customers, 12 clicks each, plus small
+judgement calls (abbreviations, blank owners, a renewal date that isn't in the sheet, the odd broken email). Mo
+learns the task from one row and does the rest. The README explains it in full.
+
+- **The film:** [`video/out/sarah-and-mo.mp4`](../video/out/sarah-and-mo.mp4) (105 s, narrated). Storyboard in
+  [video/README.md](../video/README.md).
+- **The live screen recording:** follow "Sarah's demo" in [TESTING.md](../TESTING.md):
+  1. *"Check my email and open the new customers file from Sales"*
+  2. **+ From a sheet**, then **Read** (12 rows)
+  3. Fill in row 1 on Helpdesk, adding two notes (renewal date, blank owner)
+  4. **Run 11 rows**: 10 created, 1 needs a look
+  5. The Mubit tab, or Mubit's console filtered by the `demo-…` session
+
+**What to say, in plain words:**
+1. **Her job:** "Sarah looks after new customers."
+2. **The task:** "Every Monday, Sales sends her a spreadsheet of new customers, and every one has to be typed into the
+   support system by hand."
+3. **Teaching:** "She shows Mo the first one, adds a note where the spreadsheet doesn't have the answer, and Mo does
+   the rest."
+4. **The messy rows:** "When a row is messy, Mo follows her notes; when something is genuinely wrong, it asks."
+5. **Mubit:** "Every step goes through Mubit, which trains a smaller, cheaper AI on her task, so the same Monday job
+   gets faster and cheaper every week."
+
+---
+
+## Older material: Ada's subscriptions (other skills)
+
 
 **One person, her recurring work: Ada, office manager.** Every week the same chores come round. Mo is a work
 assistant she teaches by showing it: she does a task once, adds a note where the page doesn't say enough, and the

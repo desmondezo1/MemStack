@@ -126,15 +126,15 @@ test('Mo Guard can be switched off from storage (Mo\'s menu) and the Mubit tab s
   await panel.close(); await page.close();
 });
 
-test('Ada\'s inbox: the fake PayPal "unsubscribe" email is flagged, real senders are not', { timeout: 60_000 }, async () => {
+test('Sarah\'s inbox: the fake PayPal "unsubscribe" email is flagged, real senders are not', { timeout: 60_000 }, async () => {
   const page = await context.newPage();
-  await page.goto(`${base}/demo/inbox/#/m/4`);
+  await page.goto(`${base}/demo/inbox/#/m/5`);
   await page.waitForFunction(() => +(document.querySelector('showme-guard')?.dataset.flags || 0) >= 1, null, { timeout: 15_000 });
   const outlines = await page.$$eval('#mail-view a', as => as.map(a => [a.textContent.trim(), a.style.outlineStyle]));
   console.log('inbox outlines:', outlines);
   assert.equal(outlines.find(([t]) => t === 'Unsubscribe and confirm account')[1], 'dashed');
   // A real sender's unsubscribe link (same site) stays plain.
-  await page.goto(`${base}/demo/inbox/#/m/1`);
+  await page.goto(`${base}/demo/inbox/#/m/2`);
   await page.waitForTimeout(1500);
   assert.equal(await page.$eval('.footer a', a => a.style.outlineStyle), '');
   await page.close();

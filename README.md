@@ -1,69 +1,128 @@
 # Mo
 
-**Mo is a work assistant you teach by showing it. Do a task once, and Mo learns it as a skill it can do for you again
-and again.**
+**Mo is a work assistant that lives in your web browser. You teach it a task by doing the task once while it
+watches. From then on, Mo can do that task for you, again and again, and it gets better every time you correct it.**
 
-Mo lives in your browser as a small orange character in the corner of every page, and works in the web apps you're
-already signed in to: no API, no integration, no IT project. Show it a task once, add a note where it needs to know
-something the page doesn't say, and the task becomes one of **your skills**. Ask for it by name (hold <kbd>⌥</kbd>
-<kbd>Space</kbd> and say it, or press **Run**), hand it a sheet of rows, and it does the rest. When it gets something
-wrong, press **Not what you wanted?** and show it again: the skill gets better. While it works, it keeps an eye on the
-links around you and warns you before a phishing link can trick you.
+This README tells one story from start to finish: **Sarah**, a customer success associate, and a task she has to do
+by hand every single week. Everything in this repository (the product, the demo pages, the tests and the films) is
+built around her story. Nothing below assumes you already know her job or the tools she uses.
 
-Every decision Mo makes runs on Claude through [Mubit](https://docs.mubit.ai), which records it and trains a small
-model of its own for each kind of decision. Mo gets cheaper and faster the more it's used, and every correction you
-make teaches it.
-
-> Mo started life as **Show Me**, a browser agent you teach by hand. On 24 Oct 2026 we renamed it Mo: it had grown
-> into an assistant that helps and keeps you safe, so we named it after the character at its centre. Some internal
+> Mo started life as **Show Me**, a browser agent you teach by hand. On 24 Oct 2026 we renamed it Mo. Some internal
 > names (`showme:` messages, `SHOWME_*` settings) keep the old name.
 
-## One user, her recurring work: Ada, office manager
+## Who Sarah is
 
-Ada runs the office for a small company. Every week the same chores come round: add the new starters to the HR
-system, clear marketing out of the shared inbox, cancel software the team stopped using. She teaches Mo each one once.
+Sarah works at a small software company. Her job title is **Customer Success Associate**.
 
-| Ada's skill | She shows it once | Then Mo |
-| --- | --- | --- |
-| **Add a new starter** (from a sheet) | Does row 1 of the "New starters" sheet on the HR form, with a note on the start date: *"a random weekday in the next two weeks, not in the sheet"* and one on the team: *"if Dept is blank, use Operations"* | Works out where every field comes from, shows her, and adds the other 9 starters: "Eng" becomes Engineering, a blank Dept follows her note, each start date is a fresh weekday |
-| **Unsubscribe from marketing** | Unticks the marketing, keeps order updates | Does it her way on senders it has never seen |
-| **Cancel a subscription** | Ends it today and drops the paid add-on | Gets past the "pause" trap and the retention offer, her way |
-| **The monthly software audit** | Cancels the apps nobody uses, on two sites | Repeats the audit next month |
+**What "customer success" means:** when a business buys a software product, someone at the software company makes
+sure that customer gets set up, knows who to talk to, and actually gets value from what they bought. That's
+customer success. Sarah answers new customers' questions, helps them get started, and makes sure nobody falls
+through the cracks. The part of the job she loves is talking to people and solving their problems.
 
-### The subscriptions skills in detail
+## The task she repeats every week
 
-Her inbox fills up with marketing every week, and the company pays for things it stopped using months ago. Every one
-of these sites is built to keep her: a big "Pause (recommended)" button that doesn't stop anything, the real way
-out hidden under "Manage", boxes already ticked, a "50% off" offer, an "Are you sure? 😢". Mo does the chore for
-her, and learns *her* way of doing it from one demonstration.
+Every **Monday morning**, the company's **sales team** sends Sarah an email. Attached is a **spreadsheet**: a CSV file
+(a simple table file that Excel or Google Sheets can open). Each row is one customer who signed up the week before.
+The columns are:
 
-| Level | Ada says | Where Mo goes wrong (it can't know) | She shows it once, and then |
-| --- | --- | --- | --- |
-| **Easy: unsubscribe** | *"Unsubscribe me from DealDash"* | Unsubscribes from everything, including her order and delivery updates | Next sender, StyleHub: Mo unticks only the marketing and keeps her order updates |
-| **Medium: cancel a subscription** | *"Cancel my Iron Gym membership"* (from the renewal email) | Finds the hidden exit, but ends it in November and leaves a £9 add-on charging her | Next run: ends today, add-on cancelled, offer declined |
-| **Hard: the monthly audit** | *"Check my inbox for subscriptions I pay for but don't use, and cancel them"* | Reads receipts one at a time and can't keep track of what she uses | She shows her audit once (Calmly, then the gym), and next month Mo repeats it |
+| Company | Contact | Email | Plan | Owner | Start date |
+| --- | --- | --- | --- | --- | --- |
+| Northwind Ltd | Priya Nair | priya@northwind.example | Growth | Sarah K | 03/11/2026 |
+| Kestrel Labs | Ama Owusu | ama@kestrellabs.example | Ent | Sarah K | 04/11/2026 |
+| Lumen Health | Mei Lin | mei@lumenhealth.example | Enterprise | *(blank)* | 05/11/2026 |
+| … 40 to 50 rows a week | | | | | |
 
-Each correction is saved as a lesson and sent to Mubit as training examples, so the adapter Mubit trains for Mo
-learns Ada's way too. The same Mo checks the links in her inbox: a fake "unsubscribe" email that leads to a PayPal
-look-alike gets flagged before she clicks it.
+Before the support team can help any of these customers, each one has to exist in the company's **support system**
+(also called a helpdesk: the tool support staff use to see customers and answer their tickets). There is no import
+button that Sarah can use, so she types each customer in **by hand**, through a form called **"Add a customer
+account"**. For every single row she:
 
-Try it: <http://localhost:8787/demo/inbox/>, Ada's inbox with 100 made-up emails (nothing is real or charged).
+1. Copies the company name from the spreadsheet, switches tabs, and pastes it into the form.
+2. Does the same for the contact name and the email address.
+3. Picks the plan from a dropdown (Starter, Growth or Enterprise).
+4. Types the account owner: the colleague responsible for that customer.
+5. Types the start date, then **works out the renewal date** (one year after the start date), which is not in the
+   spreadsheet at all.
+6. Presses **Create account**, checks it saved, and goes back to the spreadsheet for the next row.
 
-## What else you can use it for
+That is about **12 clicks and two tab switches per customer**, and around **47 customers a week**: most of a Monday
+morning, every Monday. It's not hard, but it's slow, easy to get wrong when you're tired, and it keeps her away from
+the customers she's supposed to be helping.
 
-| You want to… | What Mo does |
+**And the spreadsheet is messy, because people type it.** Some rows need a human decision:
+
+- **Abbreviations:** the plan says "Ent", "ENT" or "Gro" instead of "Enterprise" or "Growth".
+- **Missing values:** the Owner cell is blank, and Sarah's rule is that blank means "assign it to me".
+- **Values that aren't there at all:** the renewal date has to be calculated from the start date.
+- **Mistakes:** an email like `accounts@tidalstudio` has no domain, so the form refuses it. Sarah has to stop and
+  check with Sales rather than guess.
+
+This is exactly the kind of work Mo is for: the same form, the same steps, dozens of times a week, with a few small
+judgement calls that only Sarah knows how to make.
+
+## What changes with Mo
+
+1. **Mo opens the file for her.** Sarah holds <kbd>⌥</kbd> <kbd>Space</kbd> and says *"Check my email and open the new
+   customers file from Sales."* Mo opens her inbox, finds Grace's email, and opens the CSV attachment. (Live with
+   Claude, that takes about three steps.)
+2. **She shows Mo the first customer, once.** In Mo's panel she presses **+ From a sheet**, picks the tab with the
+   CSV, and Mo reads every row. Then she fills in the first customer on the support system herself while Mo
+   watches and records each step.
+3. **She adds notes where the spreadsheet doesn't say.** Next to any recorded step she can press ✎ and type a note,
+   like *"Renewal date: one year after the start date. It isn't in the CSV."* or *"If Owner is blank, assign it to
+   me."* Mo keeps the notes with the lesson.
+4. **Mo works out the pattern and shows it to her.** From that one row, Mo works out where every field comes from:
+   the company comes from the "Company" column, the plan from the "Plan" column (matched to the closest option in
+   the dropdown), the renewal date from her note. She can change any of these before anything runs.
+5. **Mo does the other 46.** It goes row by row, filling in the form and pressing Create account, and checks each
+   result. "Ent" becomes Enterprise, a blank owner follows her note, and each renewal date is worked out from that
+   row's start date.
+6. **When something is genuinely wrong, Mo doesn't guess.** The row with the broken email is marked **"needs a look"**
+   and skipped, with the form's own error message, so Sarah can fix it with Sales. Every other row is done.
+7. **It's now one of her skills.** "Add a customer account" appears under **My skills** in Mo's panel. Next Monday she
+   presses **Run**, picks the new CSV, and Mo does the whole job. If Mo ever gets something wrong, she presses
+   **Not what you wanted?** and shows it once more; the skill learns from the correction.
+
+What took most of a Monday morning now takes a few minutes of her checking, and she's back to talking to customers.
+
+## Why it gets cheaper and faster over time: Mubit
+
+Every decision Mo makes (which field to fill, what to type, whether the page shows the job is done) is made by
+**Claude**, a large AI model from Anthropic. Every one of those calls goes through **[Mubit](https://docs.mubit.ai)**.
+
+Mubit does two things with them:
+
+1. **It records each call as a training example.** Because Sarah's task repeats with exactly the same shape every
+   week (same form, same columns, same kinds of decisions), Mubit collects many near-identical examples quickly.
+   The steps Sarah teaches, and every correction she makes, are sent to Mubit as examples too.
+2. **It trains a smaller, cheaper AI model for that kind of decision** (Mubit calls it an *adapter*), and tests it
+   against Claude's answers. Once a version passes, that small model can do the same job as Claude for a fraction
+   of the cost and with much lower delay.
+
+That's why the repetition matters: **the more often Sarah's task runs, the more Mubit learns, and the cheaper and
+faster the same Monday task becomes.** Mo's panel shows every call going through Mubit, the training examples
+collected, and what each decision costs on Claude compared with a trained adapter (an estimate until real adapter
+numbers are entered from Mubit's console).
+
+To be clear about where things stand today: Mo runs every step on Claude through Mubit, and Mubit trains the
+adapters on that traffic. Mubit doesn't yet let an app call a trained adapter directly, so adapters are tested in
+Mubit's **Try models** page rather than inside Mo.
+
+## Other things Sarah's Mo does
+
+The same assistant helps with her other repetitive browser chores, each taught once (all on demo pages in this repo):
+
+| Task | What Mo does |
 | --- | --- |
-| **Get something done in the browser** | "Play a Burna Boy video", "book a table for two at eight", "find running shoes sorted by price". Mo opens the site, searches, clicks and types, then checks the page to confirm it really worked. |
-| **Teach it your way of doing a task** | When Mo gets stuck it says *"Can you show me how?"*. You do the task once and Mo records each step. Next time it follows your lesson, and each step goes to Mubit as a training example. Afterwards Mo even shows the step where it went wrong. |
-| **Get an answer without hunting for it** | "When was Burna Boy born?", "What's the weather in London tomorrow?". Mo finds the right page and highlights the answer on it. |
-| **Stay safe from phishing** | Mo checks the links on every page. A fake PayPal link in a chat gets a **⛔ Fake PayPal?** label, and opening a phishing page shows a full-screen warning with **Take me to the real PayPal**. Your "it's fine" / "it's phishing" answers teach it. |
-| **Do it hands-free** | Hold <kbd>⌥</kbd> <kbd>Space</kbd> (or hold Mo), talk, and let go. Mo listens, shows a live waveform, and gets on with it. Esc cancels. |
-| **See what it learned and what it saves** | The side panel shows every Mubit call live, the lessons you've taught, the failures that became fixes, and what each decision costs on Claude versus a trained adapter. |
+| **Clear marketing from the shared inbox** | Unsubscribes from a sender her way (stop the marketing, keep order and delivery updates), then does the same for senders it has never seen. |
+| **Cancel a subscription the team stopped using** | Gets past the "Pause (recommended)" trap and the "50% off" offer, and cancels the way she showed it. |
+| **The monthly software audit** | Repeats the audit she taught it, across two different websites. |
+| **Stay safe from phishing** | Checks the links on every page. A fake "unsubscribe" email that leads to a PayPal look-alike gets a warning label before she clicks it. |
+| **Hands-free** | Hold <kbd>⌥</kbd> <kbd>Space</kbd>, say the task, and let go. Esc cancels. |
 
-**Who it's for:**
-- People who repeat the same web chores, like bookings, forms and searches.
-- Anyone who wants a second pair of eyes on suspicious links, including in chats and emails.
-- Teams who want a browser assistant that gets cheaper and better from their own corrections rather than paying top-model prices for every click.
+**Who Mo is for:** anyone whose job includes the same browser task over and over (copying records from one system into
+another, filling in the same forms, processing the same kind of request), especially people like Sarah, whose real
+work is with people and whose weekly admin keeps getting in the way.
 
 ## Quick start
 
@@ -74,16 +133,25 @@ npm start                 # backend on http://localhost:8787
 ```
 
 1. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension/` folder.
-2. Try the demos:
+2. Try Sarah's demo (the main one):
+   - Open <http://localhost:8787/demo/inbox/> (her inbox) and <http://localhost:8787/demo/helpdesk/> (the support
+     system's "Add a customer account" form).
+   - In the inbox tab, ask Mo: *"Check my email and open the new customers file from Sales."* Mo opens the email from
+     Grace and the CSV attachment (`/demo/files/new-customers-week-45.csv`, 12 customers, messy on purpose).
+   - In Mo's panel press **+ From a sheet**, name it *Add a customer account*, pick the CSV's tab and press **Read**.
+   - Switch to the Helpdesk tab, press **Start: I'll do row 1**, and fill in Northwind Ltd (renewal 03/11/2027).
+     Press ✎ on *Renewal date*: "One year after the start date. It isn't in the CSV." and on *Account owner*: "If Owner
+     is blank, use Sarah K". Press **Done**, check the rules, and press **Run 11 rows**.
+   - Other demos:
    - **New starters (sheet to form):** open <http://localhost:8787/demo/sheet/> and <http://localhost:8787/demo/hr/>, then in Mo's panel press **+ From a sheet**, read the sheet, and do row 1 on the form.
-   - **Ada's inbox:** <http://localhost:8787/demo/inbox/>. "Unsubscribe me from DealDash", then "Cancel my Iron Gym membership", then the monthly audit.
+   - **Sarah's inbox (other skills):** <http://localhost:8787/demo/inbox/>. "Unsubscribe me from DealDash", then "Cancel my Iron Gym membership", then the monthly audit.
    - **The gym:** <http://localhost:8787/demo/gym/>. "Cancel my Iron Gym membership" on its own.
    - **The restaurant:** <http://localhost:8787/demo/>. Ask Mo to "book a table for two at eight", and teach it when it gets stuck.
    - **The video site:** <http://localhost:8787/demo/tube/>. "Play a Wizkid video".
    - **The phishing chat:** <http://localhost:8787/demo/guard/>. Watch Mo flag the fake links.
 3. Click Mo's icon in the toolbar to open its panel, or just hold <kbd>⌥</kbd> <kbd>Space</kbd> on any page.
 
-The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). The 3-minute demo script is in [docs/DEMO.md](docs/DEMO.md). The original plan is in [docs/IDEA.md](docs/IDEA.md).
+The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). The demo script is in [docs/DEMO.md](docs/DEMO.md). The films about Sarah are in [video/](video/README.md) (`video/out/sarah-and-mo.mp4`). The original plan is in [docs/IDEA.md](docs/IDEA.md).
 
 ## How it works
 
@@ -128,7 +196,7 @@ The full walkthrough, settings and live checks are in [TESTING.md](TESTING.md). 
 | `server/memory.js`, `server/refine.js` | Skills and their lessons (with your notes), recalled into later runs; detours removed from demonstrations before they train anything. |
 | `server/ledger.js` | Local log of every call: counts, speed, cost. |
 | `server/verifier.js` | A second, independent check from Banyan Sapling on "did it work?" and before risky clicks. On whenever a Mubit key is set; `SAPLING=off` turns it off; always off in practice mode. |
-| `server/demo-site/` | The New starters sheet and PeopleDesk (an HR form), Ada's inbox (100 made-up emails and an email preferences page), Calmly and Iron Gym (subscriptions to cancel), Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
+| `server/demo-site/` | Sarah's Helpdesk form and the CSV from Sales (`files/`), the New starters sheet and PeopleDesk (an HR form), Sarah's inbox (100 made-up emails and an email preferences page), Calmly and Iron Gym (subscriptions to cancel), Trattoria Nove (restaurant), Tubely (offline video site) and the phishing demo chat. |
 | `scripts/seed-traffic.js`, `scripts/seed-guard.js` | Send practice calls through Mubit so each task has enough examples to train; `seed-guard` also scores Claude on known phishing and real links. |
 | `exam/` | Does the adapter learn? Mubit-routed vs provider-only on Mind2Web and the demo sites. |
 

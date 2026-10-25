@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add a customer account · Helpdesk</title>
+<style>
+  :root { --ink: #1c2230; --muted: #687087; --line: #e1e5ee; --bg: #f4f7f6; --brand: #0e7c66; --ok: #1d7a46; --bad: #c2410c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--bg); }
+  .demo { padding: 6px 16px; text-align: center; font-size: 12px; background: #fff7d6; color: #6b5310; }
+  header { display: flex; align-items: center; gap: 18px; padding: 12px 24px; background: #fff; border-bottom: 1px solid var(--line); }
+  header b { color: var(--brand); font-size: 17px; } header nav span { color: var(--muted); margin-right: 14px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 540px) minmax(0, 1fr); gap: 22px; max-width: 1180px; margin: 22px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 15px; margin: 0 0 10px; } .muted { color: var(--muted); }
+  label { display: block; font-weight: 600; margin: 12px 0 5px; }
+  input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; background: #fff; }
+  .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .error { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 6px; font-weight: 600; }
+  button { margin-top: 14px; padding: 11px 20px; border: 0; border-radius: 10px; background: var(--brand); color: #fff; font: 600 15px system-ui; cursor: pointer; }
+  .ok { color: var(--ok); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; } td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  .link { background: none; color: var(--muted); padding: 0; margin: 8px 0 0; font: 12px system-ui; text-decoration: underline; }
+  [hidden] { display: none !important; }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="demo">Demo support system for testing Mo. Nothing here is real.</div>
+<header><b>Helpdesk</b><nav><span>Tickets</span><span>Customers</span><span>Reports</span></nav></header>
+<div class="layout">
+  <section class="card" id="form-card">
+    <h1>Add a customer account</h1>
+    <p class="muted">So the support team can see the customer and help them.</p>
+    <form id="form" novalidate>
+      <label for="company">Company</label><input id="company" autocomplete="off">
+      <label for="contact">Contact name</label><input id="contact" autocomplete="off">
+      <label for="email">Email</label><input id="email" autocomplete="off">
+      <label for="plan">Plan</label>
+      <select id="plan"><option value="">Choose a plan…</option><option>Starter</option><option>Growth</option><option>Enterprise</option></select>
+      <label for="owner">Account owner</label><input id="owner" autocomplete="off">
+      <div class="row">
+        <div><label for="start">Start date <span class="hint">DD/MM/YYYY</span></label><input id="start" placeholder="DD/MM/YYYY" autocomplete="off"></div>
+        <div><label for="renewal">Renewal date <span class="hint">DD/MM/YYYY</span></label><input id="renewal" placeholder="DD/MM/YYYY" autocomplete="off"></div>
+      </div>
+      <p class="error" id="error" role="alert"></p>
+      <button type="submit">Create account</button>
+    </form>
+  </section>
+  <section class="card" id="done" hidden>
+    <h1 class="ok" id="done-title"></h1>
+    <p id="done-text"></p>
+    <button type="button" id="another">Add another account</button>
+  </section>
+  <section class="card">
+    <h2>Accounts added (<span id="count">0</span>)</h2>
+    <table><thead><tr><th>Company</th><th>Plan</th><th>Owner</th><th>Renewal</th></tr></thead><tbody id="added"></tbody></table>
+    <button type="button" class="link" id="clear">Clear this list</button>
+  </section>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const KEY = 'helpdesk-accounts';
+  const list = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function render() {
+    const all = list();
+    $('count').textContent = all.length;
+    $('added').innerHTML = all.map(a => `<tr><td>${esc(a.company)}</td><td>${esc(a.plan)}</td><td>${esc(a.owner)}</td><td>${esc(a.renewal)}</td></tr>`).join('');
+  }
+  function parseDate(s) {
+    const m = String(s).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return null;
+    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return d.getDate() === Number(m[1]) ? d : null;
+  }
+  $('form').addEventListener('submit', e => {
+    e.preventDefault();
+    const a = { company: $('company').value.trim(), contact: $('contact').value.trim(), email: $('email').value.trim(), plan: $('plan').value, owner: $('owner').value.trim(), start: $('start').value.trim(), renewal: $('renewal').value.trim() };
+    const start = parseDate(a.start), renewal = parseDate(a.renewal);
+    const error = !a.company ? 'Enter the company.'
+      : !a.contact ? 'Enter the contact name.'
+      : !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a.email) ? 'Enter a valid email.'
+      : !a.plan ? 'Choose a plan.'
+      : !a.owner ? 'Enter the account owner.'
+      : !start ? 'Enter the start date as DD/MM/YYYY.'
+      : !renewal ? 'Enter the renewal date as DD/MM/YYYY.'
+      : renewal <= start ? 'The renewal date must be after the start date.' : '';
+    $('error').textContent = error;
+    if (error) return;
+    localStorage.setItem(KEY, JSON.stringify([...list(), a]));
+    $('form-card').hidden = true;
+    $('done').hidden = false;
+    $('done-title').textContent = `${a.company} account created ✓`;
+    $('done-text').textContent = `Contact ${a.contact} (${a.email}) on ${a.plan}, owned by ${a.owner}. Starts ${a.start}, renews ${a.renewal}.`;
+    render();
+  });
+  $('another').addEventListener('click', () => location.reload());
+  $('clear').addEventListener('click', () => { localStorage.removeItem(KEY); render(); });
+  render();
+</script>
+</body>
+</html>

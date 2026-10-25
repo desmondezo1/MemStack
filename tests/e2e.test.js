@@ -137,7 +137,7 @@ test('gym: pause is not cancel, show me, rerun cancels your way', { timeout: liv
     assert.equal(firstVerdict, 'Failed');
     assert.match(await site.textContent('#paused'), /paused/);
   }
-  // A real model may find the way out by itself, but it can't know Ada wants it to end today
+  // A real model may find the way out by itself, but it can't know Sarah wants it to end today
   // without the paid add-on. Then she corrects a run that looked fine.
   if (firstVerdict === 'Done ✓') {
     console.log('gym first result:', (await site.textContent('#summary')).replace(/\s+/g, ' '));
@@ -145,7 +145,7 @@ test('gym: pause is not cancel, show me, rerun cancels your way', { timeout: liv
     assert.match(await panel.textContent('#teach-title'), /Not what you wanted/);
   }
 
-  // 2. Show it the real way out, the way Ada wants it: now, and without the paid add-on.
+  // 2. Show it the real way out, the way Sarah wants it: now, and without the paid add-on.
   await panel.click('#show-me');
   await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
   await site.click('text=Manage plan');
@@ -206,7 +206,7 @@ test('inbox: pause is not unsubscribe, show me once, the next sender is done her
   }
   if (first === 'Done ✓') await panel.click('#not-right');
 
-  // 2. Ada shows it once, from the inbox: no marketing, but keep order and delivery updates.
+  // 2. Sarah shows it once, from the inbox: no marketing, but keep order and delivery updates.
   await panel.click('#show-me');
   await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
   await site.click('text=48 hours only');
@@ -232,9 +232,9 @@ test('inbox: pause is not unsubscribe, show me once, the next sender is done her
   await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-inbox.png') });
 });
 
-// The hard one, live only: read the receipts in the inbox, then cancel what Ada doesn't use on
+// The hard one, live only: read the receipts in the inbox, then cancel what Sarah doesn't use on
 // two different sites (Iron Gym and Calmly), each with its own trap.
-test('audit: find what Ada pays for and cancel what she does not use', { skip: !live, timeout: 1_500_000 }, async () => {
+test('audit: find what Sarah pays for and cancel what she does not use', { skip: !live, timeout: 1_500_000 }, async () => {
   const site = await context.newPage();
   await site.goto(`${base}/demo/inbox/`);
   const tabId = await tabIdFor(`${base}/demo/inbox/`);
@@ -248,7 +248,7 @@ test('audit: find what Ada pays for and cancel what she does not use', { skip: !
   console.log('audit ended on:', site.url(), '|', (await site.textContent('main')).replace(/\s+/g, ' ').slice(0, 300));
   if ((await panel.textContent('#verdict')) === 'Done ✓') await panel.click('#not-right');
 
-  // The first month Ada shows it once: Calmly (0 minutes this month), then the gym (42 days away).
+  // The first month Sarah shows it once: Calmly (0 minutes this month), then the gym (42 days away).
   await panel.click('#show-me');
   await site.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
   await site.click('text=Your week in calm');
@@ -331,7 +331,7 @@ test('teaching keeps recording when a link opens a new tab, until you press Done
 });
 
 // Sheet to form: read the sheet, do row 1 on the form with two notes, check the rules, and
-// Mo adds the other nine starters. A blank Dept follows Ada's note; "Eng" becomes Engineering.
+// Mo adds the other nine starters. A blank Dept follows Sarah's note; "Eng" becomes Engineering.
 test('sheet to form: do row 1, Mo does the other rows', { timeout: live ? 1_200_000 : 240_000 }, async () => {
   await fetch(`${base}/api/demonstrations`, { method: 'DELETE' });
   const sheet = await context.newPage();
@@ -405,8 +405,92 @@ test('sheet to form: do row 1, Mo does the other rows', { timeout: live ? 1_200_
     const day = new Date(yy, mm - 1, dd);
     assert.ok(![0, 6].includes(day.getDay()) && day - new Date() <= 15 * 86400000, `${s.name} starts on a weekday in the next 2 weeks (${s.start})`);
   }
-  // It's now one of Ada's skills.
+  // It's now one of Sarah's skills.
   await panel.waitForFunction(() => /Add a new starter/.test(document.querySelector('#skill-list').textContent));
   assert.match(await panel.textContent('#skill-list'), /from a sheet \(6 fields\)/);
   await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-sheet.png'), fullPage: true });
+});
+
+// The screen-recording demo: "check my email and open the file from Sales", then read that
+// CSV, fill in the first customer on Helpdesk with two notes, and Mo adds the rest. The CSV
+// is messy on purpose: "Ent", "ENT", "growth", "Gro", a comma in a name, extra spaces, blank
+// owners and one broken email (that row is flagged, not guessed).
+test('email → CSV → Helpdesk: open the attachment, teach one row, Mo does the rest', { timeout: live ? 1_500_000 : 240_000 }, async () => {
+  await fetch(`${base}/api/demonstrations`, { method: 'DELETE' });
+  const mail = await context.newPage();
+  await mail.goto(`${base}/demo/inbox/`);
+  const mailTab = await tabIdFor(`${base}/demo/inbox/`);
+  const desk = await context.newPage();
+  await desk.goto(`${base}/demo/helpdesk/`);
+  await desk.evaluate(() => localStorage.removeItem('helpdesk-accounts'));
+  await desk.reload();
+  const deskTab = await tabIdFor(`${base}/demo/helpdesk/`);
+  // 1. Mo finds the email and opens the CSV.
+  const p1 = await context.newPage();
+  await p1.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${mailTab}`);
+  await p1.waitForSelector('#mode.mock, #mode.live', { timeout: 10_000 });
+  await p1.fill('#goal', 'Check my email and open the new customers file from Sales');
+  const t0 = Date.now();
+  await p1.click('#run');
+  await p1.waitForSelector('#verdict:not([hidden])', { timeout: live ? 120_000 : 30_000 });
+  console.log(`csv: "${await p1.textContent('#verdict')}" in ${((Date.now() - t0) / 1000).toFixed(1)} s |`, (await p1.textContent('#timeline')).replace(/\s+/g, ' '));
+  assert.match(mail.url(), /new-customers-week-45\.csv$/);
+  // 2. Read the CSV, teach row 1 on Helpdesk (the side panel follows the active tab; here a panel per tab).
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extId}/sidepanel.html?tabId=${deskTab}`);
+  await panel.waitForSelector('#mode.mock, #mode.live', { timeout: 10_000 });
+  await worker.evaluate(() => chrome.storage.local.remove('sheetDone:Add a customer account'));
+  await panel.click('#from-sheet');
+  await panel.fill('#sheet-skill', 'Add a customer account');
+  await panel.selectOption('#sheet-tab', String(mailTab));
+  await panel.click('#sheet-read');
+  await panel.waitForFunction(() => /12 rows/.test(document.querySelector('#sheet-info').textContent));
+  assert.match(await panel.textContent('#sheet-info'), /Company, Contact, Email, Plan, Owner, Start date/);
+  await panel.click('#sheet-teach');
+  await desk.waitForSelector('#showme-recording-badge', { timeout: 10_000 });
+  await desk.fill('#company', 'Northwind Ltd');
+  await desk.fill('#contact', 'Priya Nair');
+  await desk.fill('#email', 'priya@northwind.example');
+  await desk.selectOption('#plan', 'Growth');
+  await desk.fill('#owner', 'Sarah K');
+  await desk.fill('#start', '03/11/2026');
+  await desk.fill('#renewal', '03/11/2027');
+  await desk.click('button[type=submit]');
+  await desk.waitForSelector('#done', { state: 'visible' });
+  await panel.waitForFunction(() => document.querySelectorAll('#recorded li').length >= 8);
+  const addNote = async (text, note) => {
+    await panel.locator('#recorded li', { hasText: text }).locator('.note-btn').click();
+    await panel.keyboard.type(note);
+    await panel.keyboard.press('Enter');
+  };
+  await addNote('Renewal date', 'One year after the start date. It isn\'t in the CSV.');
+  await addNote('Account owner', 'If Owner is blank, use Sarah K');
+  await panel.click('#done-teaching');
+  await panel.waitForFunction(() => !document.querySelector('#teach-review').hidden || !document.querySelector('#sheet-review').hidden || /Could not|Learned/.test(document.querySelector('#saved-summary').textContent), null, { timeout: 120_000 });
+  console.log('csv after Done:', await panel.textContent('#saved-summary'), '| recorded:', await panel.$$eval('#recorded li .what-text', l => l.map(x => x.textContent)));
+  if (await panel.isVisible('#teach-review')) {
+    for (const box of await panel.$$('#review input:not(:checked)')) await box.check();
+    await panel.click('#save-lesson');
+  }
+  await panel.waitForSelector('#sheet-review:not([hidden])', { timeout: 300_000 });
+  const rules = await panel.$$eval('#sheet-rules li', lis => lis.map(li => `${li.querySelector('.field').textContent}: ${li.querySelector('select').selectedOptions[0].textContent}`));
+  console.log('csv rules:', rules);
+  assert.match(await panel.textContent('#sheet-rows'), /11 of 12 rows to do/);
+  // 3. Mo adds the other eleven.
+  await panel.click('#sheet-run');
+  await panel.waitForFunction(() => /^Done:|^Stopped/.test(document.querySelector('#batch-title').textContent), null, { timeout: live ? 1_300_000 : 200_000 });
+  console.log('csv batch:', await panel.textContent('#batch-title'), '|', (await panel.textContent('#batch-rows')).replace(/\s+/g, ' '));
+  const added = await desk.evaluate(() => JSON.parse(localStorage.getItem('helpdesk-accounts') || '[]'));
+  console.log('csv added:', added.map(a => `${a.company}/${a.plan}/${a.owner}/${a.start}→${a.renewal}`));
+  assert.equal(added.length, 11, 'every row but the broken email');
+  assert.ok(!added.some(a => a.company === 'Tidal Studio'));
+  assert.equal(added.find(a => a.company === 'Kestrel Labs').plan, 'Enterprise');
+  assert.equal(added.find(a => a.company === 'Pinecrest').plan, 'Enterprise');
+  assert.equal(added.find(a => a.company === 'Mosaic Learning').plan, 'Growth');
+  assert.equal(added.find(a => a.company === 'Orbit Foods, Inc.').plan, 'Growth');
+  assert.equal(added.find(a => a.company === 'Lumen Health').owner, 'Sarah K');
+  assert.equal(added.find(a => a.company === 'Halcyon & Co').contact, 'Jonas Berg');
+  if (live) assert.equal(added.find(a => a.company === 'Copper Lane').renewal, '10/11/2027');
+  assert.match(await panel.textContent('#batch-title'), /1 need/);
+  await panel.screenshot({ path: path.join(root, 'test-results', 'sidepanel-csv.png'), fullPage: true });
 });

@@ -441,7 +441,8 @@ async function readBody(req) {
   return body;
 }
 
-const STATIC_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
+// .csv as plain text, so a CSV attachment opens as a page in the browser instead of downloading.
+const STATIC_TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.csv': 'text/plain; charset=utf-8' };
 
 function serveStatic(res, urlPath) {
   const rel = urlPath.replace(/^\/demo\/?/, '') || 'index.html';
