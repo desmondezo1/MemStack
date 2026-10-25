@@ -25,23 +25,25 @@ const STORY = process.argv.includes('--story');
 // The Sarah film: starts match the subtitles in story.html.
 const STORY_LINES = [
   [0.7, '[warm] This is Sarah.'],
-  [5.9, '[warm] She works in customer success, at a small software company.'],
-  [10.9, '[warm, fond] Helping customers is why she took the job.'],
-  [17.2, '[wry] But every Monday, Sales sends her this.'],
-  [23.4, '[flat, a little weary] Forty-seven new customers. [break] Twelve clicks each.'],
-  [28.2, '[weary] And every few rows, something doesn\'t quite fit.'],
-  [34.4, '[brightening] Then she tried Mo.'],
-  [42.4, '[confident] She shows Mo one row, and leaves a note where the sheet doesn\'t say.'],
-  [51.6, '[pleased] Now it\'s a skill.'],
-  [55.4, '[confident] Then Mo does the rest.'],
-  [58.4, '"Ent"? [break] Enterprise.'],
-  [60.7, 'No owner? [break] Her note.'],
-  [63.1, '[measured] And when something\'s genuinely wrong, Mo doesn\'t guess. [break] It asks.'],
-  [70.6, '[warm, satisfied] Forty-seven customers, before her coffee\'s gone cold.'],
-  [74.4, '[warm] And back to the part of the job she loves.'],
-  [77.6, 'Every lesson goes through Mubit, which trains a smaller model on Sarah\'s way of working.'],
-  [83.4, '[confident] Same task, every week: faster, and a fraction of the cost.'],
-  [90.4, '[warm, confident] Mo. [break] Show it once.'],
+  [5.9, '[warm] Her job is looking after the company\'s new customers.'],
+  [10.9, '[warm, fond] Helping people is the part of the job she loves.'],
+  [17.2, 'But every Monday, the sales team emails her a spreadsheet: [break] every customer who signed up last week.'],
+  [23.4, 'Each one has to be typed into the support system by hand, so the team can help them.'],
+  [29.4, '[a little weary] Forty-seven customers. [break] Copy, paste, check, save. [break] Over and over.'],
+  [34.2, '[weary] And some rows are messy, so she has to stop and check.'],
+  [40.4, '[brightening] Then she tried Mo: an assistant in her browser that she can teach by showing it once.'],
+  [48.4, '[confident] She fills in the first customer herself while Mo watches. Where the spreadsheet doesn\'t have the answer, she adds a note.'],
+  [57.6, '[pleased] Mo saves it as a skill: a task it now knows how to do.'],
+  [61.4, '[confident] Then Mo does the other forty-six.'],
+  [64.0, '"Ent"? Mo knows that means Enterprise.'],
+  [66.7, 'No owner? It follows her note.'],
+  [69.1, '[measured] And when an email address is broken, Mo doesn\'t guess. [break] It asks Sarah to check.'],
+  [76.6, '[warm, satisfied] All forty-seven, done before her coffee\'s gone cold.'],
+  [80.4, '[warm] And she\'s back to the part of the job she loves.'],
+  [83.8, 'Behind the scenes, every step Mo takes goes through Mubit.'],
+  [87.4, 'Mubit learns from Sarah\'s lessons, and trains a smaller, cheaper AI to do the same task.'],
+  [92.6, '[confident] So her Monday task gets faster, and cheaper, every week.'],
+  [99.4, '[warm, confident] Mo. [break] Show it once.'],
 ];
 // [start in seconds, text with Fish Audio s2 cues]. Starts match the captions in intro.html.
 const INTRO_LINES = [
@@ -103,7 +105,7 @@ for (const [at, text] of LINES) {
 }
 // Each line has to finish before the next one starts; a line that's too long is sped up a
 // little (at most 12%), and anything beyond that is reported.
-const END = STORY ? 96 : 60;
+const END = STORY ? 105 : 60;
 takes.forEach((tk, i) => {
   const room = (takes[i + 1]?.at ?? END - 0.3) - tk.at - 0.2;
   tk.tempo = tk.len > room ? Math.min(1.12, tk.len / room) : 1;

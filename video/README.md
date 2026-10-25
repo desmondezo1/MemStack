@@ -1,6 +1,6 @@
 # Mo's films
 
-- **Sarah and Mo** (96 s, `out/sarah-and-mo.mp4`): the story film. Sarah, a Customer Success Associate, her morning,
+- **Sarah and Mo** (105 s, `out/sarah-and-mo.mp4`): the story film. Sarah, a Customer Success Associate, her morning,
   her Monday grind, Mo, and what changes. Built from `story.html` and `sarah.js` (the character).
 - **Introducing Mo** (60 s, `out/mo-intro.mp4`): the first, shorter product film, from `intro.html`.
 
@@ -13,16 +13,20 @@ node voice.js --story              # narration + music + effects → out/sarah-a
 node render.js --page sheet.html --stills 0   # Sarah's character sheet
 ```
 
+Narration is plain English, written so anyone can follow it without knowing what customer success is.
+
 | Time | Scene | Narration |
 | --- | --- | --- |
-| 0 to 17 s | Her life: kitchen at sunrise, the bus, a happy customer call | This is Sarah. She works in customer success… Helping customers is why she took the job. |
-| 17 to 34 s | Monday, 8:58, from behind at her desk: the email, then the grind (clock races, coffee empties, head in hand, a contract to check) | But every Monday, Sales sends her this. Forty-seven new customers. Twelve clicks each. |
-| 34 to 42 s | Mo pops up on her screen; the camera dives into the monitor | Then she tried Mo. |
-| 42 to 55 s | She does row 1, with notes for the renewal date and blank owners; it becomes a skill | She shows Mo one row, and leaves a note where the sheet doesn't say. |
-| 55 to 70 s | Mo does the rest: "Ent" → Enterprise, a blank owner follows her note, a bad email gets "needs a look"; 46 created, 1 to check | Then Mo does the rest… Mo doesn't guess. It asks. |
-| 70 to 77.6 s | The camera pulls back: 9:14, coffee in hand; then back on a call | Forty-seven customers, before her coffee's gone cold. |
-| 77.6 to 89 s | Mubit trains a smaller model on her lessons; the cost of her Monday run falls (estimate) | Every lesson goes through Mubit… faster, and a fraction of the cost. |
-| 89 to 96 s | Sarah and Mo: "Mo. Show it once." | Mo. Show it once. |
+| 0 to 17 s | Her life: kitchen at sunrise, the bus, a happy customer call | This is Sarah. Her job is looking after the company's new customers. Helping people is the part of the job she loves. |
+| 17 to 23 s | Monday, 8:58, from behind at her desk; her screen labelled "Spreadsheet from Sales" and "Support system" | But every Monday, the sales team emails her a spreadsheet: every customer who signed up last week. |
+| 23 to 29 s | **The task, explained:** one customer copied from the spreadsheet into the support system by hand, then the next, × 47 | Each one has to be typed into the support system by hand, so the team can help them. |
+| 29 to 40 s | The grind: the clock races, coffee empties, head in hand, a messy row to check | Forty-seven customers. Copy, paste, check, save. Over and over. And some rows are messy… |
+| 40 to 48 s | Mo pops up on her screen; the camera dives into the monitor | Then she tried Mo: an assistant in her browser that she can teach by showing it once. |
+| 48 to 61 s | She fills in the first customer, with notes for the renewal date and blank owners; it becomes a skill | She fills in the first customer herself while Mo watches… Mo saves it as a skill. |
+| 61 to 76 s | Mo does the other 46: "Ent" → Enterprise, a blank owner follows her note, a broken email is flagged | "Ent"? Mo knows that means Enterprise. No owner? It follows her note. And when an email address is broken, Mo doesn't guess. It asks Sarah to check. |
+| 76 to 83.6 s | The camera pulls back: 9:14, coffee in hand; then back on a call | All forty-seven, done before her coffee's gone cold. And she's back to the part of the job she loves. |
+| 83.6 to 98 s | Mubit sees every step and trains a smaller, cheaper AI; the cost of her Monday task falls (estimate) | Behind the scenes, every step Mo takes goes through Mubit… So her Monday task gets faster, and cheaper, every week. |
+| 98 to 105 s | Sarah and Mo: "Mo. Show it once." | Mo. Show it once. |
 
 # Introducing Mo: the 60-second film
 
